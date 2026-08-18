@@ -1,0 +1,444 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── CSS Variables ───────────────────────────────────────────── */
+:root {
+  --orange:   #ff6a00;
+  --orange2:  #ff9a3d;
+  --purple:   #7a2cff;
+  --purple2:  #b568ff;
+  --bg:       #09070d;
+  --panel:    #110d19;
+  --panel2:   #171121;
+  --line:     #292039;
+  --text:     #f7f3ff;
+  --muted:    #9188a2;
+  --green:    #42e6a4;
+  --danger:   #ff4e6a;
+
+  /* novas */
+  --glow-purple: rgba(122, 44, 255, 0.35);
+  --glow-orange: rgba(255, 106, 0, 0.35);
+  --glow-green:  rgba(66, 230, 164, 0.35);
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 60% -10%, #28124c 0, transparent 38%), #09070d;
+    color: #f7f3ff;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    overflow: hidden;
+  }
+
+  /* scrollbar refinada */
+  ::-webkit-scrollbar        { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  {
+    background: linear-gradient(180deg, #3d2a52, #2a1a3f);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #7a2cff, #4a1e8a); }
+
+  /* seleção de texto */
+  ::selection { background: rgba(122, 44, 255, 0.35); color: #fff; }
+}
+
+@layer components {
+
+  /* ── Input base ──────────────────────────────────────────── */
+  .nexus-input {
+    @apply w-full rounded-[13px] border border-[#332640] bg-[#0b0810]
+           text-white px-3.5 py-3.5 text-sm placeholder:text-[#776c83]
+           outline-none transition-all duration-200;
+  }
+  .nexus-input:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 4px rgba(122, 44, 255, 0.13), 0 0 20px rgba(122, 44, 255, 0.08);
+  }
+
+  /* ── Botão primário ───────────────────────────────────────── */
+  .btn-primary {
+    @apply w-full border-0 rounded-[13px] py-3.5 text-white font-black
+           cursor-pointer transition-all duration-200;
+    background: linear-gradient(110deg, var(--orange), #ff4458 48%, var(--purple));
+    background-size: 200% 100%;
+    box-shadow: 0 10px 30px rgba(122, 44, 255, 0.2);
+    animation: gradientShift 4s ease infinite;
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(122, 44, 255, 0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
+  }
+  .btn-primary:disabled { opacity: 0.65; cursor: wait; transform: none; animation: none; }
+
+  /* ── Botão secundário ────────────────────────────────────── */
+  .btn-secondary {
+    @apply w-full rounded-[13px] py-3.5 text-[#d9cfdf] font-bold
+           cursor-pointer transition-all duration-200;
+    border: 1px solid #38294a;
+    background: #171020;
+  }
+  .btn-secondary:hover {
+    border-color: var(--purple);
+    color: #fff;
+    background: #1d1430;
+    box-shadow: 0 0 0 3px rgba(122, 44, 255, 0.1);
+  }
+
+  /* ── Botão ghost ─────────────────────────────────────────── */
+  .btn-ghost {
+    @apply px-3 py-2 rounded-[10px] text-[#9188a2] text-sm
+           transition-all duration-150;
+  }
+  .btn-ghost:hover { background: #1d1529; color: #fff; }
+
+  /* ── Status dot (base) ───────────────────────────────────── */
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full border-2 border-[#09070d];
+  }
+
+  /* ── Status ONLINE com anel pulsante ─────────────────────── */
+  .status-online {
+    position: relative;
+  }
+  .status-online::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid #3ba55d;
+    opacity: 0;
+    animation: statusRing 2.5s ease-out infinite;
+  }
+
+  /* ── Message hover ───────────────────────────────────────── */
+  .message-row:hover .message-actions { @apply opacity-100; }
+  .message-actions { @apply opacity-0 transition-opacity duration-100; }
+
+  /* ── Message aparecer ────────────────────────────────────── */
+  .msg-appear {
+    animation: fadeInUp 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* ── Canal item ativo: barra lateral glowing ─────────────── */
+  .channel-active-bar {
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    border-radius: 0 4px 4px 0;
+    background: linear-gradient(180deg, var(--orange), var(--purple));
+    box-shadow: 0 0 10px var(--purple), 0 0 20px rgba(122,44,255,0.3);
+    animation: barGlow 2s ease-in-out infinite;
+  }
+
+  /* ── Orb (server rail) ───────────────────────────────────── */
+  .orb {
+    @apply relative flex items-center justify-center w-[46px] h-[46px]
+           rounded-[16px] border border-[#312640] bg-[#171121]
+           text-[#cfc6dd] font-bold cursor-pointer text-sm
+           transition-all duration-200;
+  }
+  .orb:hover, .orb.active {
+    border-radius: 13px;
+    color: #fff;
+    border-color: #8b48ff;
+    background: linear-gradient(145deg, #26143c, #1b1028);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(122,44,255,0.25), 0 0 0 1px rgba(139,72,255,0.3);
+  }
+  .orb.active::before {
+    content: '';
+    position: absolute;
+    left: -18px; top: 50%; transform: translateY(-50%);
+    width: 4px; height: 26px;
+    border-radius: 0 5px 5px 0;
+    background: linear-gradient(180deg, var(--orange), var(--purple));
+    box-shadow: 2px 0 12px var(--orange);
+  }
+
+  /* ── Skeleton loader ─────────────────────────────────────── */
+  .skeleton {
+    background: linear-gradient(90deg, #1a1228 25%, #231a35 50%, #1a1228 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  /* ── Glassmorphism panel ─────────────────────────────────── */
+  .glass-panel {
+    background: rgba(17, 13, 25, 0.85);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* ── Typing indicator ────────────────────────────────────── */
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #9188a2;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ── Gradient border animado ─────────────────────────────── */
+  .gradient-border {
+    position: relative;
+    border-radius: 18px;
+    isolation: isolate;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 19px;
+    background: conic-gradient(from var(--border-angle, 0deg), #ff6a00, #7a2cff, #ff6a00);
+    animation: rotateBorder 4s linear infinite;
+    z-index: -1;
+    opacity: 0.6;
+  }
+
+  /* ── Glow badge (voz ativa) ──────────────────────────────── */
+  .voice-active-glow {
+    box-shadow:
+      0 0 0 2px rgba(66,230,164,0.3),
+      0 0 16px rgba(66,230,164,0.2),
+      inset 0 1px 0 rgba(66,230,164,0.1);
+    animation: greenPulse 2s ease-in-out infinite;
+  }
+
+  /* ── Noise overlay (textura sutil nos painéis) ───────────── */
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* spin — loading */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* voiceWave — sidebar bars */
+@keyframes voiceWave {
+  0%, 100% { height: 4px;  }
+  25%       { height: 20px; }
+  50%       { height: 10px; }
+  75%       { height: 24px; }
+}
+
+/* voiceBar — cards da call */
+@keyframes voiceBar {
+  0%, 100% { height: 4px;  opacity: 0.7; }
+  30%       { height: 16px; opacity: 1;   }
+  60%       { height: 8px;  opacity: 0.9; }
+  80%       { height: 20px; opacity: 1;   }
+}
+
+/* orbitSpin — login */
+@keyframes orbitSpin {
+  to { transform: translate(-50%,-50%) rotate(360deg); }
+}
+
+/* pulseDot — login online count */
+@keyframes pulseDot {
+  0%  { box-shadow: 0 0 0 0 rgba(71,229,164,0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(71,229,164,0); }
+  100%{ box-shadow: 0 0 0 0   rgba(71,229,164,0); }
+}
+
+/* fadeInUp — mensagens novas */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* shimmer — skeleton loader */
+@keyframes shimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
+
+/* gradientShift — botão primário */
+@keyframes gradientShift {
+  0%   { background-position: 0% center; }
+  50%  { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+/* statusRing — anel online pulsante */
+@keyframes statusRing {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  80%  { transform: scale(2.2); opacity: 0;   }
+  100% { transform: scale(2.2); opacity: 0;   }
+}
+
+/* barGlow — barra ativa canal */
+@keyframes barGlow {
+  0%, 100% { box-shadow: 0 0 8px #7a2cff, 0 0 18px rgba(122,44,255,0.2); }
+  50%       { box-shadow: 0 0 14px #ff6a00, 0 0 28px rgba(255,106,0,0.3); }
+}
+
+/* float — elementos decorativos */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* floatSlow */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-6px) rotate(2deg); }
+  66%       { transform: translateY(-12px) rotate(-1deg); }
+}
+
+/* rotateBorder — gradient border animado */
+@keyframes rotateBorder {
+  to { --border-angle: 360deg; }
+}
+
+/* greenPulse — voz ativa */
+@keyframes greenPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(66,230,164,0.3), 0 0 16px rgba(66,230,164,0.15); }
+  50%       { box-shadow: 0 0 0 3px rgba(66,230,164,0.5), 0 0 24px rgba(66,230,164,0.3); }
+}
+
+/* typingBounce — indicador de digitação */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-6px); }
+}
+
+/* speakingRing — anel de fala na call */
+@keyframes speakingRing {
+  0%   { box-shadow: 0 0 0 0  rgba(255,106,0,0.7); }
+  60%  { box-shadow: 0 0 0 10px rgba(255,106,0,0); }
+  100% { box-shadow: 0 0 0 0  rgba(255,106,0,0); }
+}
+
+/* slideInRight — painel direito */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* slideInUp — barra de chamada ativa */
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* scaleIn — modais e tooltips */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── LiveKit overrides ───────────────────────────────────────── */
+.lk-room-container { background: transparent !important; }
+
+/* ── Grid background (login) ─────────────────────────────────── */
+.login-grid::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(#ffffff08 1px, transparent 1px),
+    linear-gradient(90deg, #ffffff08 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, #000 10%, transparent 85%);
+  animation: gridDrift 40s linear infinite;
+}
+
+@keyframes gridDrift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 42px 42px, 42px 42px; }
+}
+
+/* ── Tooltip animado ─────────────────────────────────────────── */
+.nexus-tooltip {
+  animation: scaleIn 0.12s cubic-bezier(0.22,1,0.36,1) both;
+  transform-origin: left center;
+}
+
+/* ── Separador de data na conversa ───────────────────────────── */
+.date-sep-line {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, #2a1e3c 30%, #2a1e3c 70%, transparent);
+}
+
+/* ── Input de mensagem: glow no focus ────────────────────────── */
+.msg-input-wrap:focus-within {
+  border-color: #4a2e6e !important;
+  box-shadow: 0 0 0 3px rgba(122,44,255,0.12), 0 4px 20px rgba(0,0,0,0.3) !important;
+}
+
+/* ── Botão enviar ativo ───────────────────────────────────────── */
+.send-btn-active {
+  animation: sendGlow 2s ease-in-out infinite;
+}
+@keyframes sendGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122,44,255,0.4); }
+  50%       { box-shadow: 0 0 14px 4px rgba(122,44,255,0.2); }
+}
+
+/* ── Card de participante falando ────────────────────────────── */
+.speaking-card {
+  animation: speakingPulse 1.5s ease-in-out infinite;
+}
+@keyframes speakingPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255,106,0,0.5), 0 0 24px rgba(255,106,0,0.1); }
+  50%       { box-shadow: 0 0 0 4px rgba(255,106,0,0.8), 0 0 40px rgba(255,106,0,0.2); }
+}
+
+/* ── Welcome banner: borda animada ───────────────────────────── */
+.welcome-banner {
+  position: relative;
+  overflow: hidden;
+}
+.welcome-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(255,106,0,0.06) 0%,
+    rgba(122,44,255,0.08) 50%,
+    rgba(255,106,0,0.04) 100%
+  );
+  animation: bannerShimmer 6s ease-in-out infinite;
+}
+@keyframes bannerShimmer {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Voice room bg: partículas ───────────────────────────────── */
+.voice-bg-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: floatSlow var(--dur, 8s) ease-in-out var(--delay, 0s) infinite;
+}

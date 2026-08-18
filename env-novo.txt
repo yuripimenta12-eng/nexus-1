@@ -1,0 +1,59 @@
+# =============================================================
+# NEXUS — Variáveis de ambiente
+# =============================================================
+
+# ── App ──────────────────────────────────────────────────────
+NODE_ENV=development
+APP_NAME=Nexus
+APP_URL=http://localhost:3000
+API_URL=http://localhost:4000
+
+# ── Banco de dados (Neon PostgreSQL) ─────────────────────────
+DATABASE_URL="postgresql://neondb_owner:npg_EQpXG7mdCLU8@ep-floral-river-axq5kqgr-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+
+# ── Redis (Upstash) ──────────────────────────────────────────
+REDIS_URL="rediss://default:gQAAAAAAAmCUAAIgcDI2Mjk2Y2U0MmI1YTM0ZWQxOWNkOTNjNDU4Yjk2YmM3NQ@unique-shark-155796.upstash.io:6379"
+
+# ── JWT ──────────────────────────────────────────────────────
+JWT_ACCESS_SECRET=de4521cee98c0707127aa44fb6d6a54c57a9da26c4aeefbec3b3c90441dac04f
+JWT_REFRESH_SECRET=e5f77f3e36cd5d459769cc6b027f57b0c677afcd5ff4841b50c18472030355a9
+JWT_ACCESS_EXPIRES=15m
+JWT_REFRESH_EXPIRES=30d
+
+# ── LiveKit (SFU) ────────────────────────────────────────────
+LIVEKIT_URL=ws://localhost:7880
+LIVEKIT_API_KEY=devkey
+LIVEKIT_API_SECRET=devsecret_muito_longa_minimo_32_chars
+
+# ── coturn (TURN/STUN) ───────────────────────────────────────
+TURN_URL=turn:localhost:3478
+TURN_USERNAME=nexus
+TURN_CREDENTIAL=nexus_turn_secret
+
+# ── Storage S3 (desabilitado em dev sem MinIO) ───────────────
+S3_ENDPOINT=http://localhost:9000
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
+S3_BUCKET=nexus-uploads
+S3_REGION=us-east-1
+S3_PUBLIC_URL=http://localhost:9000/nexus-uploads
+
+# ── Upload ───────────────────────────────────────────────────
+MAX_FILE_SIZE_MB=50
+ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/gif,image/webp
+ALLOWED_FILE_TYPES=application/pdf,text/plain,application/zip
+
+# ── Rate limiting ────────────────────────────────────────────
+RATE_LIMIT_TTL=60
+RATE_LIMIT_MAX=100
+
+# ── Admin ────────────────────────────────────────────────────
+ADMIN_EMAIL=admin@nexus.local
+ADMIN_PASSWORD=Admin@123456
+
+# ── SMTP (recuperação de senha) ──────────────────────────────
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM="Nexus <noreply@nexus.local>"

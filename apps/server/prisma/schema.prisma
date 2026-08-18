@@ -1,0 +1,427 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USUÁRIOS E AUTENTICAÇÃO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  isVerified   Boolean  @default(false)
+  isSuspended  Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile         Profile?
+  sessions        Session[]
+  memberships     ServerMember[]
+  messages        Message[]
+  reactions       Reaction[]
+  sentInvites     Invite[]       @relation("InviteCreator")
+  blockedBy       Block[]        @relation("BlockedUser")
+  blocking        Block[]        @relation("BlockingUser")
+  reportsCreated  Report[]       @relation("Reporter")
+  reportsReceived Report[]       @relation("ReportedUser")
+  auditLogs       AuditLog[]     @relation("AuditActor")
+  callParticipants CallParticipant[]
+  passwordResets  PasswordReset[]
+  attachments     Attachment[]
+  directMessagesSent    DirectMessage[] @relation("DMSender")
+  directMessagesReceived DirectMessage[] @relation("DMReceiver")
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Profile {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  displayName String
+  avatarUrl   String?
+  bio         String?     @db.VarChar(300)
+  status      UserStatus  @default(ONLINE)
+  customStatus String?    @db.VarChar(128)
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+enum UserStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("password_resets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SERVIDORES E CANAIS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Server {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.VarChar(500)
+  iconUrl     String?
+  bannerUrl   String?
+  isPublic    Boolean  @default(false)
+  maxMembers  Int      @default(100)
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members    ServerMember[]
+  channels   Channel[]
+  voiceRooms VoiceRoom[]
+  invites    Invite[]
+  reports    Report[]       @relation("ServerReports")
+  auditLogs  AuditLog[]
+
+  @@index([ownerId])
+  @@map("servers")
+}
+
+model ServerMember {
+  id       String     @id @default(cuid())
+  serverId String
+  userId   String
+  role     MemberRole @default(MEMBER)
+  nickname String?    @db.VarChar(64)
+  joinedAt DateTime   @default(now())
+  mutedBy  Boolean    @default(false)  // silenciado por admin (global na sala)
+  banned   Boolean    @default(false)
+  bannedAt DateTime?
+  bannedReason String?
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@index([serverId])
+  @@index([userId])
+  @@map("server_members")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+model Channel {
+  id          String      @id @default(cuid())
+  serverId    String
+  name        String      @db.VarChar(64)
+  description String?     @db.VarChar(256)
+  type        ChannelType @default(TEXT)
+  position    Int         @default(0)
+  isPrivate   Boolean     @default(false)
+  slowModeSeconds Int     @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  server   Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([serverId])
+  @@map("channels")
+}
+
+enum ChannelType {
+  TEXT
+  ANNOUNCEMENT
+}
+
+model VoiceRoom {
+  id           String   @id @default(cuid())
+  serverId     String
+  name         String   @db.VarChar(64)
+  position     Int      @default(0)
+  maxUsers     Int      @default(25)
+  bitrate      Int      @default(64000)    // bps
+  livekitRoom  String   @unique            // nome da room no LiveKit
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  server       Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  callSessions CallSession[]
+
+  @@index([serverId])
+  @@map("voice_rooms")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENSAGENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Message {
+  id        String      @id @default(cuid())
+  channelId String
+  authorId  String
+  content   String      @db.VarChar(4000)
+  replyToId String?
+  edited    Boolean     @default(false)
+  editedAt  DateTime?
+  deleted   Boolean     @default(false)
+  deletedAt DateTime?
+  createdAt DateTime    @default(now())
+
+  channel     Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReplies")
+  reactions   Reaction[]
+  attachments Attachment[]
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@map("messages")
+}
+
+model DirectMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String   @db.VarChar(4000)
+  read       Boolean  @default(false)
+  readAt     DateTime?
+  edited     Boolean  @default(false)
+  editedAt   DateTime?
+  deleted    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("DMSender",   fields: [senderId],   references: [id], onDelete: Cascade)
+  receiver User @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  attachments DirectMessageAttachment[]
+
+  @@index([senderId, receiverId, createdAt(sort: Desc)])
+  @@map("direct_messages")
+}
+
+model DirectMessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  url       String
+  fileName  String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  message DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("direct_message_attachments")
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String   @db.VarChar(16)
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  messageId String
+  uploaderId String
+  url       String
+  fileName  String
+  fileSize  Int      // bytes
+  mimeType  String
+  width     Int?     // para imagens
+  height    Int?
+  createdAt DateTime @default(now())
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderId], references: [id])
+
+  @@index([messageId])
+  @@map("attachments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONVITES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Invite {
+  id          String    @id @default(cuid())
+  serverId    String
+  creatorId   String
+  code        String    @unique
+  maxUses     Int?      // null = ilimitado
+  uses        Int       @default(0)
+  expiresAt   DateTime?
+  guestAccess Boolean   @default(false)  // permite entrar sem conta
+  createdAt   DateTime  @default(now())
+
+  server  Server @relation(fields: [serverId],  references: [id], onDelete: Cascade)
+  creator User   @relation("InviteCreator", fields: [creatorId], references: [id])
+
+  @@index([code])
+  @@index([serverId])
+  @@map("invites")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAMADAS DE VOZ/VÍDEO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CallSession {
+  id          String    @id @default(cuid())
+  voiceRoomId String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  voiceRoom    VoiceRoom        @relation(fields: [voiceRoomId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+
+  @@index([voiceRoomId])
+  @@map("call_sessions")
+}
+
+model CallParticipant {
+  id              String    @id @default(cuid())
+  callSessionId   String
+  userId          String
+  livekitIdentity String    // identidade no LiveKit
+  joinedAt        DateTime  @default(now())
+  leftAt          DateTime?
+  micEnabled      Boolean   @default(true)
+  camEnabled      Boolean   @default(false)
+  screenSharing   Boolean   @default(false)
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([callSessionId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODERAÇÃO E SEGURANÇA
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Block {
+  id          String   @id @default(cuid())
+  blockerId   String
+  blockedId   String
+  createdAt   DateTime @default(now())
+
+  blocker User @relation("BlockingUser", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedUser",  fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String
+  targetUserId   String?
+  targetMessageId String?
+  targetServerId String?
+  reason         ReportReason
+  description    String?      @db.VarChar(1000)
+  status         ReportStatus @default(PENDING)
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolution     String?      @db.VarChar(500)
+  createdAt      DateTime     @default(now())
+
+  reporter   User    @relation("Reporter",     fields: [reporterId],   references: [id])
+  targetUser User?   @relation("ReportedUser", fields: [targetUserId], references: [id])
+  targetServer Server? @relation("ServerReports", fields: [targetServerId], references: [id])
+
+  @@index([status])
+  @@index([reporterId])
+  @@map("reports")
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  EXPLICIT_CONTENT
+  VIOLENCE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDITORIA
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  serverId   String?
+  actorId    String
+  action     String   // ex: "MEMBER_KICK", "CHANNEL_CREATE", "MESSAGE_DELETE"
+  targetType String?  // "USER" | "CHANNEL" | "MESSAGE" | ...
+  targetId   String?
+  meta       Json?    // dados extras (reason, before/after state)
+  createdAt  DateTime @default(now())
+
+  server Server?    @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  actor  User       @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([serverId, createdAt(sort: Desc)])
+  @@index([actorId])
+  @@map("audit_logs")
+}
