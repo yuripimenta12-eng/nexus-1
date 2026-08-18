@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  * { @apply border-border; }
+
+  body {
+    @apply bg-background text-white;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted; }
+}
+
+@layer components {
+  /* ── Input base ──────────────────────────────────────────── */
+  .nexus-input {
+    @apply w-full px-3 py-2 rounded-md bg-surface border border-border
+           text-sm text-white placeholder:text-muted
+           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+           transition-colors duration-150;
+  }
+
+  /* ── Botão primário ──────────────────────────────────────── */
+  .btn-primary {
+    @apply px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white font-medium
+           text-sm transition-all duration-150 active:scale-95 disabled:opacity-50
+           disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-2 rounded-md text-muted hover:bg-surface-raised hover:text-white
+           text-sm transition-all duration-150;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 rounded-md bg-destructive hover:bg-red-600 text-white font-medium
+           text-sm transition-all duration-150 active:scale-95;
+  }
+
+  /* ── Sidebar item ────────────────────────────────────────── */
+  .sidebar-item {
+    @apply flex items-center gap-2 px-2 py-1.5 rounded-md text-muted hover:text-white
+           hover:bg-surface-raised text-sm cursor-pointer transition-all duration-100
+           select-none;
+  }
+
+  .sidebar-item.active {
+    @apply bg-surface-overlay text-white;
+  }
+
+  /* ── Status dot ──────────────────────────────────────────── */
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full border-2 border-background-secondary;
+  }
+
+  /* ── Speaking ring ───────────────────────────────────────── */
+  .speaking-ring {
+    @apply ring-2 ring-accent animate-speaking;
+  }
+
+  /* ── Message hover ───────────────────────────────────────── */
+  .message-row:hover .message-actions {
+    @apply opacity-100;
+  }
+
+  .message-actions {
+    @apply opacity-0 transition-opacity duration-100;
+  }
+}
+
+/* ── LiveKit overrides ───────────────────────────────────────── */
+.lk-room-container {
+  background: transparent !important;
+}
