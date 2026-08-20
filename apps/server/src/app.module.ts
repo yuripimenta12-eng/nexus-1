@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
 import { PresenceModule } from './presence/presence.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { DmsModule } from './dms/dms.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { GatewayModule } from './gateway/gateway.module';
     UploadModule,
     PresenceModule,
     GatewayModule,
+    DmsModule,
   ],
 })
 export class AppModule {}

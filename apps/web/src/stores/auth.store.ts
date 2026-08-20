@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
-import { connectSocket, disconnectSocket } from '@/lib/socket';
+import { useSocketStore } from '@/stores/socket.store';
 
 export interface User {
   id: string;
@@ -50,7 +50,8 @@ export const useAuthStore = create<AuthState>()(
           const { data } = await api.post('/auth/login', { email, password });
           localStorage.setItem('nexus_access_token', data.accessToken);
           set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
-          connectSocket(data.accessToken);
+          // Use socket store so DM handlers are registered immediately
+          useSocketStore.getState().init(data.accessToken);
         } finally {
           set({ isLoading: false });
         }
@@ -62,7 +63,8 @@ export const useAuthStore = create<AuthState>()(
           const { data } = await api.post('/auth/register', formData);
           localStorage.setItem('nexus_access_token', data.accessToken);
           set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
-          connectSocket(data.accessToken);
+          // Use socket store so DM handlers are registered immediately
+          useSocketStore.getState().init(data.accessToken);
         } finally {
           set({ isLoading: false });
         }
@@ -73,7 +75,7 @@ export const useAuthStore = create<AuthState>()(
           await api.post('/auth/logout');
         } finally {
           localStorage.removeItem('nexus_access_token');
-          disconnectSocket();
+          useSocketStore.getState().disconnect();
           set({ user: null, accessToken: null, isAuthenticated: false });
         }
       },

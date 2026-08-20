@@ -1,251 +1,368 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
+import { InviteModal } from '@/components/modals/invite-modal';
+import { ServerContextMenu } from '@/components/menus/server-context-menu';
+import { CreateServerModal } from '@/components/modals/create-server-modal';
 
-interface Server {
-  id: string;
-  name: string;
-  iconUrl: string | null;
+interface Server { id: string; name: string; iconUrl: string | null; }
+
+/* ── Pill indicator (left side of active server) ─── */
+function ActivePill({ visible }: { visible: boolean }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.span
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: 1, opacity: 1 }}
+          exit={{ scaleY: 0, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 3,
+            height: 28,
+            borderRadius: '0 3px 3px 0',
+            background: 'linear-gradient(180deg,#ff6a00,#7c5af0)',
+            boxShadow: '0 0 8px rgba(124,90,240,0.6)',
+          }}
+        />
+      )}
+    </AnimatePresence>
+  );
 }
 
-export function ServersSidebar() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-  const [servers, setServers] = useState<Server[]>([]);
-  const params = useParams();
-  const activeServerId = params?.serverId as string;
-
-  useEffect(() => {
-    api.get('/users/@me/servers').then(({ data }) => {
-      setServers(data.map((m: any) => m.server));
-    });
-  }, []);
+/* ── Server orb ─────────────────────────────────── */
+function ServerOrb({
+  server, active, onClick,
+}: { server: Server; active: boolean; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const show = hovered || active;
 
   return (
     <div
-      style={{
-        width: 82,
-        minHeight: '100vh',
-        background: '#0c0911',
-        borderRight: '1px solid #1e1828',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: 14,
-        paddingBottom: 14,
-        gap: 10,
-        flexShrink: 0,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-      }}
+      style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* Logo oficial Nexus Link */}
-      <button
-        onClick={() => router.push('/app/me')}
-        title="Nexus Link - Início"
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 16,
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          flexShrink: 0,
-          transition: 'transform 0.2s',
-          padding: 0,
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+      <ActivePill visible={active} />
+
+      {/* Tooltip */}
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -6 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: 'absolute',
+              left: 72,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: '#0d0a16',
+              border: '1px solid #2a1f40',
+              borderRadius: 8,
+              padding: '5px 10px',
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#ede8f8',
+              whiteSpace: 'nowrap',
+              zIndex: 100,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              pointerEvents: 'none',
+            }}
+          >
+            {server.name}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        onClick={onClick}
+        animate={{
+          borderRadius: active ? '14px' : '22px',
+          scale: active ? 1.05 : 1,
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px) scale(1.06)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = ''; }}
+        whileHover={{ borderRadius: '14px', scale: 1.05 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 22 }}
+        style={{
+          width: 44,
+          height: 44,
+          marginLeft: 18,
+          overflow: 'hidden',
+          cursor: 'pointer',
+          border: 'none',
+          flexShrink: 0,
+          position: 'relative',
+          background: server.iconUrl
+            ? 'transparent'
+            : active
+              ? 'linear-gradient(135deg,#7c5af0,#b142f5)'
+              : '#1a1629',
+          boxShadow: active
+            ? '0 0 0 2px #7c5af0, 0 0 16px rgba(124,90,240,0.4)'
+            : show
+              ? '0 0 0 2px rgba(124,90,240,0.4)'
+              : '0 2px 8px rgba(0,0,0,0.4)',
+          transition: 'box-shadow 0.2s',
+        }}
+        title={server.name}
       >
-        <img
-          src="/nexus-logo.png"
-          alt="Nexus Link"
-          style={{
-            width: 52,
-            height: 52,
-            objectFit: 'cover',
-            objectPosition: '50% 18%',
-          }}
-        />
-      </button>
-
-      {/* Divisor */}
-      <div style={{ width: 36, height: 1, background: 'linear-gradient(90deg, transparent, #3a2650, transparent)', flexShrink: 0 }} />
-
-      {/* Servidores */}
-      {servers.map((server) => (
-        <OrbButton
-          key={server.id}
-          label={server.name}
-          isActive={activeServerId === server.id}
-          onClick={() => router.push(`/app/servers/${server.id}`)}
-        >
-          {server.iconUrl ? (
-            <Image
-              src={server.iconUrl}
-              alt={server.name}
-              width={43}
-              height={43}
-              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-            />
-          ) : (
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{getInitials(server.name)}</span>
-          )}
-        </OrbButton>
-      ))}
-
-      {/* Criar servidor */}
-      <OrbButton
-        label="Criar servidor"
-        isActive={false}
-        onClick={() => {}}
-        variant="add"
-      >
-        <Plus style={{ width: 18, height: 18 }} />
-      </OrbButton>
-
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Avatar do usuário */}
-      {user && (
-        <button
-          onClick={() => router.push('/app/me/settings')}
-          title={user.profile?.displayName || user.username}
-          style={{
-            width: 43,
-            height: 43,
-            borderRadius: 14,
-            border: '1px solid #2e2040',
-            background: 'linear-gradient(145deg,#26143c,#1b1028)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#cfc6dd',
-            transition: 'all 0.2s',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => {
-            const b = e.currentTarget as HTMLButtonElement;
-            b.style.borderColor = '#7a2cff';
-            b.style.color = '#fff';
-            b.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={e => {
-            const b = e.currentTarget as HTMLButtonElement;
-            b.style.borderColor = '#2e2040';
-            b.style.color = '#cfc6dd';
-            b.style.transform = '';
-          }}
-        >
-          {getInitials(user.profile?.displayName || user.username || '?')}
-        </button>
-      )}
+        {server.iconUrl ? (
+          <img
+            src={server.iconUrl}
+            alt={server.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <span style={{ color: '#fff', fontWeight: 900, fontSize: 14, letterSpacing: -0.5 }}>
+            {getInitials(server.name)}
+          </span>
+        )}
+      </motion.button>
     </div>
   );
 }
 
-function OrbButton({
-  children, label, isActive, onClick, variant = 'server',
+/* ── Icon-only button (DM, Add server) ─────────── */
+function IconOrb({
+  icon, onClick, active, tooltip, gradient,
 }: {
-  children: React.ReactNode;
-  label: string;
-  isActive: boolean;
+  icon: React.ReactNode;
   onClick: () => void;
-  variant?: 'server' | 'add';
+  active?: boolean;
+  tooltip: string;
+  gradient?: boolean;
 }) {
-  const isAdd = variant === 'add';
   const [hovered, setHovered] = useState(false);
 
   return (
-    <div style={{ position: 'relative', flexShrink: 0 }}>
-      {/* Indicador ativo */}
-      {isActive && (
-        <span style={{
-          position: 'absolute',
-          left: -20,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 4,
-          height: 26,
-          borderRadius: '0 5px 5px 0',
-          background: '#ff6a00',
-        }} />
-      )}
+    <div
+      style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <ActivePill visible={!!active} />
 
-      <button
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -6 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: 'absolute',
+              left: 72,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: '#0d0a16',
+              border: '1px solid #2a1f40',
+              borderRadius: 8,
+              padding: '5px 10px',
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#ede8f8',
+              whiteSpace: 'nowrap',
+              zIndex: 100,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              pointerEvents: 'none',
+            }}
+          >
+            {tooltip}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
         onClick={onClick}
-        title={label}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        animate={{ borderRadius: active ? '14px' : '22px' }}
+        whileHover={{ borderRadius: '14px', scale: 1.05 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 22 }}
         style={{
-          position: 'relative',
-          width: 43,
-          height: 43,
-          borderRadius: hovered || isActive ? 13 : 14,
-          border: `1px solid ${isActive || hovered ? (isAdd ? '#42e6a4' : '#8b48ff') : isAdd ? '#2e3d1f' : '#2e2040'}`,
-          background: isActive || hovered
-            ? isAdd ? '#1a2e12' : 'linear-gradient(145deg,#26143c,#1b1028)'
-            : isAdd ? '#141f0e' : '#17112a',
+          width: 44,
+          height: 44,
+          marginLeft: 18,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden',
           cursor: 'pointer',
-          color: isActive || hovered ? '#fff' : isAdd ? '#42e6a4' : '#9a90a8',
-          fontSize: 13,
-          fontWeight: 700,
-          transition: 'all 0.2s',
-          transform: hovered ? 'translateY(-2px)' : '',
+          border: 'none',
+          flexShrink: 0,
+          background: gradient
+            ? 'linear-gradient(135deg,#ff6a00,#7c5af0)'
+            : active
+              ? 'linear-gradient(135deg,#7c5af0,#b142f5)'
+              : '#1a1629',
+          color: gradient || active ? '#fff' : '#7c5af0',
+          boxShadow: active
+            ? '0 0 0 2px #7c5af0, 0 0 16px rgba(124,90,240,0.4)'
+            : hovered
+              ? '0 0 0 2px rgba(124,90,240,0.4)'
+              : '0 2px 8px rgba(0,0,0,0.4)',
+          transition: 'box-shadow 0.2s, color 0.2s, background 0.2s',
         }}
       >
-        {children}
-      </button>
+        {icon}
+      </motion.button>
+    </div>
+  );
+}
 
-      {/* Tooltip animado */}
-      {hovered && (
-        <div className="nexus-tooltip" style={{
-          position: 'absolute',
-          left: '100%',
-          marginLeft: 14,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 50,
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-        }}>
-          {/* Seta */}
-          <div style={{
-            position: 'absolute', left: -5, top: '50%', transform: 'translateY(-50%)',
-            width: 0, height: 0,
-            borderTop: '5px solid transparent',
-            borderBottom: '5px solid transparent',
-            borderRight: '5px solid #332441',
-          }} />
-          <div style={{
-            background: 'linear-gradient(135deg,#231a30,#1c1428)',
-            border: '1px solid #332441',
-            borderRadius: 9,
-            padding: '7px 13px',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
-          }}>
-            <p style={{ color: '#f0eaf7', fontSize: 13, fontWeight: 600, margin: 0 }}>{label}</p>
+export function ServersSidebar() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const activeServerId = params?.serverId as string | undefined;
+  const [servers, setServers] = useState<Server[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; server: Server } | null>(null);
+  const [inviteServer, setInviteServer] = useState<Server | null>(null);
+  const [showCreateServer, setShowCreateServer] = useState(false);
+
+  useEffect(() => {
+    api.get('/users/@me/servers').then(({ data }) => {
+      const items: any[] = Array.isArray(data) ? data : data.servers ?? [];
+      // API returns ServerMember[] — each item has a nested `server` object
+      setServers(items.map(item => item.server ?? item));
+    });
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent, server: Server) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, server });
+  };
+
+  return (
+    <div
+      style={{
+        width: 72,
+        minWidth: 72,
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: 12,
+        paddingBottom: 12,
+        gap: 0,
+        background: '#09070d',
+        borderRight: '1px solid #160f24',
+        overflowY: 'auto',
+        overflowX: 'visible',
+        scrollbarWidth: 'none',
+        flexShrink: 0,
+        zIndex: 10,
+      }}
+    >
+      {/* Logo / DM button */}
+      <IconOrb
+        tooltip="Mensagens Diretas"
+        active={!activeServerId}
+        onClick={() => router.push('/app/me')}
+        icon={
+          <img
+            src="/nexus-logo.png"
+            alt="Nexus"
+            style={{ width: 26, height: 26, objectFit: 'cover', objectPosition: '50% 18%', borderRadius: 6 }}
+          />
+        }
+      />
+
+      {/* Divider */}
+      <div
+        style={{
+          width: 32,
+          height: 1,
+          margin: '10px 0',
+          borderRadius: 1,
+          background: 'linear-gradient(90deg,transparent,#2a1f40,transparent)',
+        }}
+      />
+
+      {/* Server list */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          width: '100%',
+          alignItems: 'center',
+          overflowX: 'visible',
+        }}
+      >
+        {servers.map(server => (
+          <div key={server.id} onContextMenu={e => handleContextMenu(e, server)}>
+            <ServerOrb
+              server={server}
+              active={activeServerId === server.id}
+              onClick={() => router.push(`/app/servers/${server.id}`)}
+            />
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+
+      {/* Add server */}
+      <div style={{ marginTop: 6 }}>
+        <IconOrb
+          tooltip="Criar Servidor"
+          gradient
+          onClick={() => setShowCreateServer(true)}
+          icon={<Plus style={{ width: 18, height: 18 }} />}
+        />
+      </div>
+
+      {/* Context menu */}
+      <AnimatePresence>
+        {contextMenu && (
+          <ServerContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            server={contextMenu.server}
+            isAdmin={user?.isAdmin}
+            onClose={() => setContextMenu(null)}
+            onInvite={() => setInviteServer(contextMenu.server)}
+            onSettings={() => router.push(`/app/servers/${contextMenu.server.id}/settings`)}
+            onLeave={async () => {
+              await api.delete(`/servers/${contextMenu.server.id}/leave`).catch(() => {});
+              setServers(prev => prev.filter(s => s.id !== contextMenu.server.id));
+              router.push('/app/me');
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Invite modal */}
+      <AnimatePresence>
+        {inviteServer && (
+          <InviteModal
+            serverId={inviteServer.id}
+            serverName={inviteServer.name}
+            onClose={() => setInviteServer(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Create Server modal */}
+      <AnimatePresence>
+        {showCreateServer && (
+          <CreateServerModal
+            onClose={() => setShowCreateServer(false)}
+            onCreated={(newServer) => {
+              setServers(prev => [...prev, newServer]);
+              setShowCreateServer(false);
+              router.push(`/app/servers/${newServer.id}`);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -20,9 +20,24 @@ async function bootstrap() {
   }));
   app.use(cookieParser());
 
-  // CORS — permite o frontend conectar
+  // CORS — permite o frontend conectar (produção + dev)
+  const allowedOrigins = [
+    appUrl,
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: [appUrl, 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile, Postman, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.some(o => origin.startsWith(o))) {
+        return callback(null, true);
+      }
+      // Allow any vercel.app subdomain
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      callback(new Error('CORS not allowed: ' + origin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -31,15 +46,20 @@ async function bootstrap() {
   // Prefix global da API
   app.setGlobalPrefix('api');
 
+  // Health check (Railway usa para verificar se o serviço está no ar)
+  app.getHttpAdapter().get('/api/health', (_req: any, res: any) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Validação automática de DTOs
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,       // remove campos não declarados no DTO
+    whitelist: true,
     forbidNonWhitelisted: true,
-    transform: true,       // converte tipos automaticamente
+    transform: true,
     transformOptions: { enableImplicitConversion: true },
   }));
 
-  // Swagger (documentação — desabilitar em produção se quiser)
+  // Swagger (documentação)
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Nexus API')
     .setDescription('API da plataforma de comunicação Nexus')
@@ -50,9 +70,9 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = configService.get<number>('PORT', 4000);
-  await app.listen(port);
-  console.log(`🚀 Nexus Server rodando em http://localhost:${port}/api`);
-  console.log(`📚 Docs: http://localhost:${port}/api/docs`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Nexus Server rodando em http://0.0.0.0:${port}/api`);
+  console.log(`📚 Docs: http://0.0.0.0:${port}/api/docs`);
 }
 
 bootstrap();

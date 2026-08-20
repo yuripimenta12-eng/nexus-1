@@ -1,621 +1,588 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  Mic, MicOff, Video, VideoOff, Monitor, PhoneOff,
-  Plus, MoreHorizontal, UserPlus, ChevronLeft, Shield,
-  MessageSquare, Users,
+  Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
+  PhoneOff, Volume2, VolumeX, Users, MessageSquare, Loader2,
 } from 'lucide-react';
-import {
-  LiveKitRoom,
-  useLocalParticipant,
-  useParticipants,
-  useTracks,
-  VideoTrack,
-} from '@livekit/components-react';
 import { Track } from 'livekit-client';
+import { useVoiceStore, VoiceParticipant } from '@/stores/voice.store';
+import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
 
-/* ── Cores e helpers ───────────────────────────────────── */
-const AVATAR_COLORS = [
-  'linear-gradient(135deg,#ff6a00,#7a2cff)',
-  'linear-gradient(135deg,#0070f3,#00d4aa)',
-  'linear-gradient(135deg,#7928ca,#ff0080)',
-  'linear-gradient(135deg,#f5a623,#f53a3a)',
-  'linear-gradient(135deg,#00b4d8,#7b2ff7)',
-];
-function avatarGrad(identity: string) {
-  const idx = Math.abs(identity.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[idx];
-}
+/* ── Video tile: attaches the real camera track ───────────── */
+function VideoTile({ vp, isLocal }: { vp: VoiceParticipant; isLocal: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-function initials(name: string) {
-  return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function formatTime(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-}
-
-/* ── Página principal ──────────────────────────────────── */
-export default function VoiceRoomPage() {
-  const params = useParams();
-  const router = useRouter();
-  const serverId = params?.serverId as string;
-  const roomId   = params?.roomId   as string;
-
-  const [livekitToken, setLivekitToken] = useState<string | null>(null);
-  const [livekitUrl,   setLivekitUrl]   = useState<string | null>(null);
-  const [roomName,     setRoomName]     = useState('Sala de Voz');
-  const [serverName,   setServerName]   = useState('');
-  const [hasError,     setHasError]     = useState(false);
-
-  const joinRoom = useCallback(async () => {
-    setHasError(false);
-    setLivekitToken(null);
-    setLivekitUrl(null);
-    try {
-      const { data } = await api.post(`/voice/rooms/${roomId}/join`);
-      setLivekitToken(data.token);
-      setLivekitUrl(data.livekitUrl);
-      setRoomName(data.voiceRoom?.name || 'Sala de Voz');
-
-      // Tenta pegar nome do servidor
-      if (serverId) {
-        api.get(`/servers/${serverId}`).then(r => setServerName(r.data?.name || ''));
-      }
-    } catch {
-      setHasError(true);
-    }
-  }, [roomId, serverId]);
-
-  useEffect(() => { if (roomId) joinRoom(); }, [roomId]);
-
-  async function handleLeave() {
-    await api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
-    router.push(`/app/servers/${serverId}`);
-  }
-
-  if (hasError) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0812' }}>
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ color: '#9a90a8', fontSize: 14, marginBottom: 16 }}>Não foi possível conectar à sala.</p>
-        <button onClick={joinRoom} style={{ padding: '8px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(110deg,#ff6a00,#7a2cff)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-          Tentar novamente
-        </button>
-      </div>
-    </div>
-  );
-
-  if (!livekitToken || !livekitUrl) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0812', position: 'relative', overflow: 'hidden' }}>
-      {/* partículas de fundo no loading */}
-      {[
-        { w:120, h:120, l:'15%', t:'20%', bg:'rgba(122,44,255,0.06)', dur:'9s', delay:'0s' },
-        { w:80,  h:80,  l:'70%', t:'60%', bg:'rgba(255,106,0,0.05)',  dur:'7s', delay:'2s' },
-        { w:60,  h:60,  l:'40%', t:'80%', bg:'rgba(122,44,255,0.04)', dur:'11s',delay:'1s' },
-      ].map((p,i) => (
-        <div key={i} className="voice-bg-particle" style={{
-          width: p.w, height: p.h, left: p.l, top: p.t,
-          background: `radial-gradient(circle, ${p.bg}, transparent 70%)`,
-          ['--dur' as any]: p.dur, ['--delay' as any]: p.delay,
-        }} />
-      ))}
-      <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-        {/* Spinner com glow */}
-        <div style={{ position: 'relative', width: 56, height: 56, margin: '0 auto 16px' }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            border: '3px solid rgba(122,44,255,0.15)',
-            borderTopColor: '#7a2cff',
-            animation: 'spin 0.9s linear infinite',
-            boxShadow: '0 0 20px rgba(122,44,255,0.3)',
-          }} />
-          <div style={{
-            position: 'absolute', inset: 6,
-            borderRadius: '50%',
-            border: '2px solid rgba(255,106,0,0.2)',
-            borderBottomColor: '#ff6a00',
-            animation: 'spin 1.4s linear infinite reverse',
-          }} />
-        </div>
-        <p style={{ color: '#b568ff', fontSize: 14, fontWeight: 600 }}>Conectando à sala...</p>
-        <p style={{ color: '#4a3e5a', fontSize: 12, marginTop: 4 }}>Estabelecendo conexão segura</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <LiveKitRoom
-      serverUrl={livekitUrl}
-      token={livekitToken}
-      connect={true}
-      audio={true}
-      video={false}
-      style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0a0812', overflow: 'hidden' }}
-      onDisconnected={handleLeave}
-    >
-      <VoiceRoomInner
-        roomName={roomName}
-        serverName={serverName}
-        serverId={serverId}
-        roomId={roomId}
-        onLeave={handleLeave}
-      />
-    </LiveKitRoom>
-  );
-}
-
-/* ── Interior da sala ──────────────────────────────────── */
-function VoiceRoomInner({ roomName, serverName, serverId, roomId, onLeave }: {
-  roomName: string; serverName: string; serverId: string; roomId: string; onLeave: () => void;
-}) {
-  const { localParticipant } = useLocalParticipant();
-  const participants = useParticipants();
-  const [rightTab, setRightTab] = useState<'pessoas' | 'chat'>('pessoas');
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(Date.now());
-
+  // Attach/detach video track
   useEffect(() => {
-    startRef.current = Date.now();
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, []);
+    const el = videoRef.current;
+    if (!el) return;
+    const pub = Array.from(vp.participant.trackPublications.values()).find(
+      p => p.source === Track.Source.Camera && p.track && !p.isMuted,
+    );
+    if (!pub?.track) return;
+    pub.track.attach(el);
+    return () => { pub.track?.detach(el); };
+  });
 
-  const micEnabled    = localParticipant?.isMicrophoneEnabled ?? false;
-  const cameraEnabled = localParticipant?.isCameraEnabled ?? false;
-  const screenSharing = localParticipant?.isScreenShareEnabled ?? false;
+  // Attach/detach audio track (remote only)
+  useEffect(() => {
+    if (isLocal) return;
+    const el = audioRef.current;
+    if (!el) return;
+    const pub = Array.from(vp.participant.trackPublications.values()).find(
+      p => p.source === Track.Source.Microphone && p.track,
+    );
+    if (!pub?.track) return;
+    pub.track.attach(el);
+    return () => { pub.track?.detach(el); };
+  });
 
-  // Tracks de screen share de TODOS os participantes
-  const screenShareTracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
-  const hasScreenShare = screenShareTracks.length > 0;
-  const activeScreenShare = screenShareTracks[0]; // o primeiro ativo
-
-  const toggleMic    = async () => localParticipant?.setMicrophoneEnabled(!micEnabled);
-  const toggleCamera = async () => localParticipant?.setCameraEnabled(!cameraEnabled);
-  const toggleScreen = async () => {
-    try {
-      await localParticipant?.setScreenShareEnabled(!screenSharing);
-    } catch (e) {
-      // Usuário cancelou o picker de tela — ignora
-    }
-  };
-
-  // Grid: 1, 2 ou 4 colunas (só usado sem screen share)
-  const cols = participants.length <= 1 ? 1 : participants.length <= 4 ? 2 : 3;
-
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
-      {/* ── Partículas de fundo ── */}
-      {[
-        { w:200, h:200, l:'-5%',  t:'-5%',  bg:'rgba(122,44,255,0.05)',  dur:'12s', delay:'0s' },
-        { w:150, h:150, l:'80%',  t:'10%',  bg:'rgba(255,106,0,0.04)',   dur:'9s',  delay:'3s' },
-        { w:100, h:100, l:'50%',  t:'70%',  bg:'rgba(122,44,255,0.04)',  dur:'15s', delay:'1s' },
-        { w:80,  h:80,  l:'20%',  t:'60%',  bg:'rgba(66,230,164,0.03)',  dur:'10s', delay:'5s' },
-      ].map((p,i) => (
-        <div key={i} className="voice-bg-particle" style={{
-          width: p.w, height: p.h, left: p.l, top: p.t,
-          background: `radial-gradient(circle, ${p.bg}, transparent 70%)`,
-          ['--dur' as any]: p.dur, ['--delay' as any]: p.delay,
-        }} />
-      ))}
-
-      {/* ── Top bar ─────────────────────────────── */}
-      <div style={{
-        height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 20px', borderBottom: '1px solid #1c1628',
-        background: 'rgba(13,10,22,0.95)',
-        backdropFilter: 'blur(20px)',
-        flexShrink: 0, position: 'relative', zIndex: 2,
-      }}>
-        {/* Esquerda: voltar + nome */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => { onLeave(); }}
-            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#1a1228', color: '#9a90a8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ChevronLeft style={{ width: 16, height: 16 }} />
-          </button>
-          <div>
-            <p style={{ color: '#f0eaf7', fontWeight: 700, fontSize: 15, margin: 0 }}>{roomName}</p>
-            <p style={{ color: '#6b6278', fontSize: 12, margin: 0 }}>{serverName} · {participants.length} participante{participants.length !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-
-        {/* Direita: conexão + timer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="voice-active-glow" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(66,230,164,0.08)', border: '1px solid rgba(66,230,164,0.2)', borderRadius: 20, padding: '4px 12px' }}>
-            <Shield style={{ width: 12, height: 12, color: '#42e6a4' }} />
-            <span style={{ color: '#42e6a4', fontSize: 12, fontWeight: 600 }}>Conexão protegida</span>
-          </div>
-          <span style={{ color: '#9a90a8', fontSize: 14, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-            {formatTime(elapsed)}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Conteúdo: grid + painel direito ─────── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* ── Área principal ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-
-          {hasScreenShare && activeScreenShare ? (
-            /* ── MODO SCREEN SHARE: tela grande + thumbnails em baixo ── */
-            <>
-              {/* Tela compartilhada */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, position: 'relative', background: '#07050f' }}>
-                {/* Badge de quem está compartilhando */}
-                <div style={{
-                  position: 'absolute', top: 16, left: 16, zIndex: 10,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'rgba(13,10,22,0.85)', backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(122,44,255,0.4)',
-                  borderRadius: 20, padding: '5px 14px',
-                }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7a2cff', animation: 'pulseDot 1.8s infinite' }} />
-                  <span style={{ color: '#b568ff', fontSize: 12, fontWeight: 700 }}>
-                    {activeScreenShare.participant.identity === (localParticipant as any)?.identity
-                      ? 'Você está compartilhando'
-                      : `${activeScreenShare.participant.name || activeScreenShare.participant.identity} está compartilhando`}
-                  </span>
-                </div>
-
-                {/* Vídeo da tela */}
-                <div style={{
-                  width: '100%', height: '100%', maxHeight: 'calc(100% - 8px)',
-                  borderRadius: 16, overflow: 'hidden',
-                  border: '1px solid rgba(122,44,255,0.25)',
-                  boxShadow: '0 0 40px rgba(122,44,255,0.15)',
-                  background: '#0a0812',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <VideoTrack
-                    trackRef={activeScreenShare}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                </div>
-              </div>
-
-              {/* Thumbnails dos participantes */}
-              <div style={{
-                height: 110, flexShrink: 0, display: 'flex', alignItems: 'center',
-                gap: 8, padding: '8px 12px',
-                borderTop: '1px solid #1c1628', background: 'rgba(13,10,22,0.9)',
-                overflowX: 'auto',
-              }}>
-                {participants.map((p, i) => (
-                  <ParticipantThumb key={p.identity} participant={p} />
-                ))}
-              </div>
-            </>
-          ) : (
-            /* ── MODO NORMAL: grid de participantes ── */
-            <div style={{ flex: 1, padding: 16, overflow: 'auto', display: 'flex', alignItems: participants.length <= 2 ? 'center' : 'flex-start', justifyContent: 'center' }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                gap: 12,
-                width: '100%',
-                maxWidth: participants.length <= 1 ? 480 : '100%',
-              }}>
-                {participants.map((p, i) => (
-                  <ParticipantCard key={p.identity} participant={p} colorIdx={i} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Painel direito */}
-        <div style={{ width: 280, borderLeft: '1px solid #1c1628', background: '#0d0a16', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #1c1628', padding: '0 16px', gap: 4 }}>
-            {(['pessoas', 'chat'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setRightTab(tab)}
-                style={{
-                  padding: '14px 12px', background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: rightTab === tab ? '#f0eaf7' : '#6b6278', fontSize: 14, fontWeight: 600,
-                  borderBottom: rightTab === tab ? '2px solid #ff6a00' : '2px solid transparent',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {tab === 'pessoas' ? `Pessoas • ${participants.length}` : 'Chat'}
-              </button>
-            ))}
-          </div>
-
-          {rightTab === 'pessoas' && (
-            <div style={{ flex: 1, overflow: 'auto', padding: '12px 12px' }}>
-              <p style={{ color: '#6b6278', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', margin: '0 0 8px 4px' }}>NA CHAMADA AGORA</p>
-
-              {participants.map((p, i) => {
-                const isLocal = p.identity === (localParticipant as any)?.identity;
-                const role = isLocal ? 'Organizador' : p.isMicrophoneEnabled ? 'Conectado' : 'Microfone desligado';
-                return (
-                  <div key={p.identity} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 8px', borderRadius: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 11, background: avatarGrad(p.identity), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                      {initials(p.name || p.identity)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ color: '#f0eaf7', fontSize: 13, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name || p.identity}
-                      </p>
-                      <p style={{ color: p.isMicrophoneEnabled ? '#42e6a4' : '#6b6278', fontSize: 11, margin: 0 }}>{role}</p>
-                    </div>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3ba55d', flexShrink: 0 }} />
-                  </div>
-                );
-              })}
-
-              {/* Convidar */}
-              <button style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                marginTop: 12, padding: '10px 12px', borderRadius: 10,
-                border: '1px dashed #2e2040', background: 'transparent', color: '#9a90a8',
-                cursor: 'pointer', fontSize: 13, fontWeight: 500,
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#7a2cff'; (e.currentTarget as HTMLButtonElement).style.color = '#b568ff'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2e2040'; (e.currentTarget as HTMLButtonElement).style.color = '#9a90a8'; }}
-              >
-                <UserPlus style={{ width: 14, height: 14 }} />
-                + Convidar amigos
-              </button>
-            </div>
-          )}
-
-          {rightTab === 'chat' && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-              <div style={{ textAlign: 'center' }}>
-                <MessageSquare style={{ width: 32, height: 32, color: '#2e2040', margin: '0 auto 12px' }} />
-                <p style={{ color: '#6b6278', fontSize: 13 }}>Chat da chamada em breve</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Controles ───────────────────────────── */}
-      <div style={{
-        height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        borderTop: '1px solid #1c1628', background: '#0d0a16', flexShrink: 0, padding: '0 24px',
-      }}>
-        {/* Mic */}
-        <CtrlBtn active={micEnabled} onClick={toggleMic} danger={!micEnabled} title={micEnabled ? 'Silenciar' : 'Ativar mic'}>
-          {micEnabled ? <Mic style={{ width: 18, height: 18 }} /> : <MicOff style={{ width: 18, height: 18 }} />}
-        </CtrlBtn>
-
-        {/* Câmera */}
-        <CtrlBtn active={cameraEnabled} onClick={toggleCamera} danger={!cameraEnabled} title={cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}>
-          {cameraEnabled ? <Video style={{ width: 18, height: 18 }} /> : <VideoOff style={{ width: 18, height: 18 }} />}
-        </CtrlBtn>
-
-        {/* Compartilhar tela — com texto */}
-        <button
-          onClick={toggleScreen}
-          style={{
-            height: 44, padding: '0 18px', borderRadius: 12,
-            border: `1px solid ${screenSharing ? '#7a2cff' : '#2e2040'}`,
-            background: screenSharing
-              ? 'linear-gradient(135deg,rgba(122,44,255,0.25),rgba(122,44,255,0.1))'
-              : '#17101f',
-            color: screenSharing ? '#b568ff' : '#9a90a8',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s',
-            boxShadow: screenSharing ? '0 0 16px rgba(122,44,255,0.2)' : 'none',
-          }}
-          onMouseEnter={e => {
-            const b = e.currentTarget as HTMLButtonElement;
-            b.style.borderColor = '#7a2cff'; b.style.color = '#b568ff';
-            if (!screenSharing) b.style.background = '#1e1438';
-          }}
-          onMouseLeave={e => {
-            const b = e.currentTarget as HTMLButtonElement;
-            b.style.borderColor = screenSharing ? '#7a2cff' : '#2e2040';
-            b.style.color = screenSharing ? '#b568ff' : '#9a90a8';
-            if (!screenSharing) b.style.background = '#17101f';
-          }}
-        >
-          <Monitor style={{ width: 16, height: 16 }} />
-          {screenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
-          {screenSharing && (
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#b568ff', animation: 'pulseDot 1.5s infinite', marginLeft: 2 }} />
-          )}
-        </button>
-
-        {/* + */}
-        <CtrlBtn active={false} onClick={() => {}} title="Mais opções">
-          <Plus style={{ width: 18, height: 18 }} />
-        </CtrlBtn>
-
-        {/* ... */}
-        <CtrlBtn active={false} onClick={() => {}} title="Opções">
-          <MoreHorizontal style={{ width: 18, height: 18 }} />
-        </CtrlBtn>
-
-        {/* Encerrar */}
-        <button
-          onClick={onLeave}
-          style={{
-            width: 44, height: 44, borderRadius: '50%', border: 'none',
-            background: '#ff4e6a', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', transition: 'all 0.15s', marginLeft: 8,
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e0334d'; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.08)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ff4e6a'; (e.currentTarget as HTMLButtonElement).style.transform = ''; }}
-        >
-          <PhoneOff style={{ width: 18, height: 18 }} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ── Card de participante ───────────────────────────────── */
-function ParticipantCard({ participant, colorIdx }: { participant: any; colorIdx: number }) {
-  const speaking = participant.isSpeaking;
-  const hasMic   = participant.isMicrophoneEnabled;
+  const name = vp.displayName || vp.identity;
+  const initials = name.slice(0, 2).toUpperCase();
 
   return (
-    <div
-      className={speaking ? 'speaking-card' : ''}
+    <motion.div
+      animate={{
+        boxShadow: vp.isSpeaking
+          ? '0 0 0 2px #7c5af0, 0 0 24px rgba(124,90,240,0.35)'
+          : '0 0 0 1px #2c1e40',
+      }}
+      transition={{ duration: 0.2 }}
       style={{
-        borderRadius: 18,
-        background: speaking
-          ? 'radial-gradient(ellipse at 50% 80%, rgba(255,106,0,0.18) 0%, #110d1a 70%)'
-          : 'radial-gradient(ellipse at 50% 80%, rgba(122,44,255,0.08) 0%, #0e0b18 70%)',
-        border: `2px solid ${speaking ? '#ff6a00cc' : '#231a33'}`,
-        padding: 20,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 200,
-        position: 'relative',
-        transition: 'border-color 0.3s, background 0.3s',
-        animation: 'fadeInUp 0.25s cubic-bezier(0.22,1,0.36,1) both',
+        position: 'relative', borderRadius: 16, overflow: 'hidden',
+        background: 'radial-gradient(circle at 50% 38%,#1a1030 0,#0d0a16 100%)',
+        minHeight: 180, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
       }}
     >
-      {/* Badge FALANDO AGORA */}
-      {speaking && (
+      {/* Video element (hidden when cam off) */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted={isLocal}
+        playsInline
+        style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%',
+          objectFit: 'cover',
+          display: vp.camEnabled ? 'block' : 'none',
+        }}
+      />
+
+      {/* Audio element (remote only) */}
+      {!isLocal && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
+
+      {/* Avatar fallback (when cam off) */}
+      {!vp.camEnabled && (
         <div style={{
-          position: 'absolute', top: 12, right: 12,
-          background: 'rgba(255,106,0,0.2)', border: '1px solid rgba(255,106,0,0.4)',
-          borderRadius: 20, padding: '3px 10px',
-          color: '#ff9a3d', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+          width: 72, height: 72, borderRadius: 24, flexShrink: 0,
+          background: 'linear-gradient(135deg,#7c5af0,#b142f5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 900, fontSize: 24, color: '#fff',
+          boxShadow: vp.isSpeaking ? '0 0 24px rgba(124,90,240,0.6)' : 'none',
         }}>
-          FALANDO AGORA
+          {initials}
         </div>
       )}
 
-      {/* Avatar */}
-      <div style={{
-        width: 80, height: 80, borderRadius: 22,
-        background: avatarGrad(participant.identity),
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 28, fontWeight: 800, color: '#fff',
-        boxShadow: speaking ? '0 0 20px rgba(255,106,0,0.35)' : '0 4px 16px rgba(0,0,0,0.4)',
-        transition: 'box-shadow 0.25s',
-        marginBottom: 14,
-      }}>
-        {initials(participant.name || participant.identity)}
-      </div>
-
-      {/* Ondas de voz */}
-      {speaking && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 14, height: 24 }}>
-          {[
-            { d: '0s',    minH: 4,  maxH: 20 },
-            { d: '0.1s',  minH: 6,  maxH: 24 },
-            { d: '0.22s', minH: 3,  maxH: 18 },
-            { d: '0.05s', minH: 8,  maxH: 22 },
-            { d: '0.17s', minH: 4,  maxH: 20 },
-            { d: '0.28s', minH: 5,  maxH: 16 },
-            { d: '0.12s', minH: 6,  maxH: 22 },
-          ].map((b, i) => (
+      {/* Speaking waves */}
+      {vp.isSpeaking && (
+        <div style={{ position: 'absolute', bottom: 44, display: 'flex', gap: 3, alignItems: 'flex-end' }}>
+          {[0, 0.1, 0.2, 0.1, 0].map((delay, i) => (
             <div key={i} style={{
-              width: 3, borderRadius: 3,
-              background: `linear-gradient(180deg, #ff9a3d, #ff6a00)`,
-              animation: `voiceBar 0.6s cubic-bezier(0.4,0,0.6,1) ${b.d} infinite`,
-              boxShadow: '0 0 6px rgba(255,106,0,0.5)',
+              width: 3, background: '#7c5af0', borderRadius: 3,
+              animation: `voiceBar 0.6s ease-in-out ${delay}s infinite`,
             }} />
           ))}
         </div>
       )}
 
-      {/* Nome e mic (fundo do card) */}
-      <div style={{ position: 'absolute', bottom: 12, left: 14, right: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3ba55d', display: 'inline-block' }} />
-          <span style={{ color: '#e0d8f0', fontSize: 13, fontWeight: 600 }}>{participant.name || participant.identity}</span>
-        </div>
-        <div style={{
-          width: 26, height: 26, borderRadius: 8,
-          background: hasMic ? 'rgba(66,230,164,0.15)' : 'rgba(255,78,106,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {hasMic
-            ? <Mic style={{ width: 13, height: 13, color: '#42e6a4' }} />
-            : <MicOff style={{ width: 13, height: 13, color: '#ff4e6a' }} />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Thumbnail de participante (modo screen share) ───────── */
-function ParticipantThumb({ participant }: { participant: any }) {
-  const speaking = participant.isSpeaking;
-  const hasMic   = participant.isMicrophoneEnabled;
-  return (
-    <div style={{
-      width: 84, height: 84, borderRadius: 14, flexShrink: 0,
-      background: speaking
-        ? 'radial-gradient(ellipse at 50% 100%, rgba(255,106,0,0.25), #110d1a)'
-        : 'radial-gradient(ellipse at 50% 100%, rgba(122,44,255,0.12), #0e0b18)',
-      border: `2px solid ${speaking ? '#ff6a00cc' : '#231a33'}`,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      position: 'relative', gap: 4,
-      transition: 'border-color 0.25s',
-      boxShadow: speaking ? '0 0 12px rgba(255,106,0,0.25)' : 'none',
-    }}>
+      {/* Nameplate */}
       <div style={{
-        width: 36, height: 36, borderRadius: 10,
-        background: avatarGrad(participant.identity),
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 13, fontWeight: 700, color: '#fff',
+        position: 'absolute', left: 10, bottom: 10,
+        display: 'flex', alignItems: 'center', gap: 6,
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+        borderRadius: 8, padding: '5px 9px', fontSize: 12, fontWeight: 700,
       }}>
-        {initials(participant.name || participant.identity)}
+        <span style={{ color: vp.micEnabled ? '#43e3a3' : '#ff4d6d', fontSize: 10 }}>
+          {vp.micEnabled ? '●' : '⊘'}
+        </span>
+        {name}{isLocal ? ' (você)' : ''}
       </div>
-      <span style={{ color: '#c0b8d0', fontSize: 10, fontWeight: 600, maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
-        {participant.name || participant.identity}
-      </span>
-      {/* Ícone mic */}
-      <div style={{ position: 'absolute', bottom: 4, right: 4 }}>
-        {hasMic
-          ? <Mic style={{ width: 10, height: 10, color: '#42e6a4' }} />
-          : <MicOff style={{ width: 10, height: 10, color: '#ff4e6a' }} />}
-      </div>
-      {/* Ondas de voz mini */}
-      {speaking && (
-        <div style={{ position: 'absolute', top: 4, left: 6, display: 'flex', gap: 1.5, alignItems: 'center', height: 10 }}>
-          {[0, 0.15, 0.3].map((d, i) => (
-            <div key={i} style={{ width: 2, borderRadius: 2, background: '#ff6a00', animation: `voiceBar 0.7s ease-in-out ${d}s infinite` }} />
-          ))}
+
+      {/* Muted locally badge */}
+      {vp.isMutedLocally && (
+        <div style={{
+          position: 'absolute', right: 10, top: 10,
+          background: 'rgba(0,0,0,0.75)', borderRadius: 6,
+          padding: '4px 8px', fontSize: 10, color: '#ff9f40',
+        }}>
+          Silenciado
         </div>
       )}
-    </div>
+
+      <style>{`
+        @keyframes voiceBar {
+          0%,100% { height:5px }
+          50% { height:22px }
+        }
+      `}</style>
+    </motion.div>
   );
 }
 
-/* ── Botão de controle ──────────────────────────────────── */
-function CtrlBtn({ children, active, onClick, danger = false, title }: {
-  children: React.ReactNode; active?: boolean; onClick: () => void; danger?: boolean; title?: string;
-}) {
-  const [hov, setHov] = useState(false);
+/* ── Screen share tile ────────────────────────────────────── */
+function ScreenShareTile({ vp }: { vp: VoiceParticipant }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const pub = Array.from(vp.participant.trackPublications.values()).find(
+      p => p.source === Track.Source.ScreenShare && p.track,
+    );
+    if (!pub?.track) return;
+    pub.track.attach(el);
+    return () => { pub.track?.detach(el); };
+  });
+
   return (
-    <button
-      title={title}
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', borderRadius: 12 }}
+    />
+  );
+}
+
+/* ── Control button ──────────────────────────────────────── */
+function ControlBtn({
+  icon, label, active, danger, onClick, disabled,
+}: {
+  icon: React.ReactNode; label?: string; active?: boolean;
+  danger?: boolean; onClick: () => void; disabled?: boolean;
+}) {
+  return (
+    <motion.button
+      whileHover={disabled ? {} : { y: -2, scale: 1.04 }}
+      whileTap={disabled ? {} : { scale: 0.95 }}
       onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      disabled={disabled}
+      title={label}
       style={{
-        width: 44, height: 44, borderRadius: 12, border: `1px solid ${danger ? 'rgba(255,78,106,0.3)' : active || hov ? '#3a2650' : '#2e2040'}`,
-        background: danger ? (hov ? '#ff4e6a' : 'rgba(255,78,106,0.12)') : hov ? '#231a32' : active ? '#1e1438' : '#17101f',
-        color: danger ? (hov ? '#fff' : '#ff4e6a') : active || hov ? '#f0eaf7' : '#9a90a8',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 0.15s',
+        height: 48, padding: '0 16px',
+        minWidth: 48,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        borderRadius: 14, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+        background: danger ? '#cc3348' : active ? 'rgba(124,90,240,0.25)' : '#18111f',
+        color: danger ? '#fff' : active ? '#c0a0ff' : '#c8bdd8',
+        outline: active ? '1px solid rgba(124,90,240,0.5)' : '1px solid #2c1e40',
+        opacity: disabled ? 0.5 : 1,
+        fontSize: label ? 12 : 18, fontWeight: label ? 700 : 400,
+        transition: 'background 0.2s, color 0.2s',
       }}
     >
-      {children}
-    </button>
+      {icon}
+      {label && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
+    </motion.button>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────── */
+export default function VoiceRoomPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const {
+    room, participants, isConnected, isConnecting, error,
+    localMicEnabled, localCamEnabled, localScreenSharing,
+    toggleMic, toggleCam, startScreenShare, stopScreenShare,
+    disconnect, toggleMuteLocally, setParticipantVolume,
+  } = useVoiceStore();
+
+  const [roomName, setRoomName] = useState('Sala de voz');
+  const [sideTab, setSideTab] = useState<'people' | 'chat'>('people');
+  const [chatMsg, setChatMsg] = useState('');
+  const [chatMessages, setChatMessages] = useState<{ id: string; author: string; text: string }[]>([]);
+  const [seconds, setSeconds] = useState(0);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const serverId = params?.serverId as string | undefined;
+  const roomId = params?.roomId as string | undefined;
+
+  /* ── Join on mount ── */
+  useEffect(() => {
+    if (!roomId || isConnected || isConnecting) return;
+
+    setJoining(true);
+    setJoinError(null);
+
+    api.post(`/voice/rooms/${roomId}/join`)
+      .then(({ data }) => {
+        const { token, livekitUrl, voiceRoom: vr } = data;
+        const displayName = vr?.name ?? 'Sala de voz';
+        setRoomName(displayName);
+        return useVoiceStore.getState().connect(livekitUrl, token, roomId, displayName);
+      })
+      .catch((err) => {
+        const msg = err?.response?.data?.message ?? err.message ?? 'Erro ao entrar na sala';
+        setJoinError(msg);
+      })
+      .finally(() => setJoining(false));
+  }, [roomId]);
+
+  /* ── Leave on unmount ── */
+  useEffect(() => {
+    return () => {
+      if (roomId) {
+        api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
+      }
+      disconnect();
+    };
+  }, [roomId]);
+
+  /* ── Sync room name ── */
+  useEffect(() => {
+    if (room && useVoiceStore.getState().roomName) {
+      setRoomName(useVoiceStore.getState().roomName!);
+    }
+  }, [room]);
+
+  /* ── Clock ── */
+  useEffect(() => {
+    if (!isConnected) return;
+    const t = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [isConnected]);
+
+  /* ── Scroll chat ── */
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  function fmtTime(s: number) {
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${h}:${m}:${sec}`;
+  }
+
+  function handleLeave() {
+    if (roomId) api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
+    disconnect();
+    router.push(serverId ? `/app/servers/${serverId}` : '/app/me');
+  }
+
+  function handleSendChat() {
+    if (!chatMsg.trim()) return;
+    const name = user?.username ?? 'Você';
+    setChatMessages(prev => [...prev, { id: Date.now().toString(), author: name, text: chatMsg.trim() }]);
+    setChatMsg('');
+  }
+
+  /* ── Derive participant list ── */
+  const localIdentity = room?.localParticipant.identity;
+  const participantList = Array.from(participants.values());
+  const screenSharer = participantList.find(p => p.screenSharing);
+
+  /* ── Grid columns based on count ── */
+  const count = participantList.length;
+  const cols = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
+
+  /* ── Loading / error states ── */
+  if (joining || isConnecting) {
+    return (
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: '#0d0a16', color: '#ede8f8', gap: 16,
+      }}>
+        <Loader2 style={{ width: 40, height: 40, color: '#7c5af0', animation: 'spin 1s linear infinite' }} />
+        <p style={{ fontSize: 15, color: '#9b8cba' }}>Entrando na sala…</p>
+        <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+      </div>
+    );
+  }
+
+  if (joinError) {
+    return (
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: '#0d0a16', color: '#ede8f8', gap: 16,
+      }}>
+        <p style={{ color: '#ff4d6d', fontSize: 15 }}>Erro: {joinError}</p>
+        <button
+          onClick={() => router.push(serverId ? `/app/servers/${serverId}` : '/app/me')}
+          style={{
+            background: '#7c5af0', color: '#fff', border: 'none', borderRadius: 10,
+            padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+          }}
+        >
+          Voltar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      background: '#08060c', color: '#f0ecff',
+      fontFamily: 'Inter,system-ui,sans-serif', overflow: 'hidden',
+    }}>
+      {/* ── Top bar ── */}
+      <header style={{
+        height: 56, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
+        borderBottom: '1px solid #1e1630', background: '#0f0b1a', flexShrink: 0,
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 10,
+          background: 'rgba(124,90,240,0.15)', border: '1px solid rgba(124,90,240,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#9b6dff', flexShrink: 0,
+        }}>
+          🎙
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 800, fontSize: 14, color: '#ede8f8' }}>{roomName}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#6b5d80' }}>
+            {count} participante{count !== 1 ? 's' : ''} · {fmtTime(seconds)}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setSideTab('people')}
+            style={{
+              background: sideTab === 'people' ? 'rgba(124,90,240,0.15)' : 'transparent',
+              border: '1px solid ' + (sideTab === 'people' ? 'rgba(124,90,240,0.3)' : '#2a1f40'),
+              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+              color: sideTab === 'people' ? '#9b6dff' : '#6b5d80', fontSize: 12,
+            }}
+          >
+            <Users style={{ width: 14, height: 14, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+            {count}
+          </button>
+          <button
+            onClick={() => setSideTab('chat')}
+            style={{
+              background: sideTab === 'chat' ? 'rgba(124,90,240,0.15)' : 'transparent',
+              border: '1px solid ' + (sideTab === 'chat' ? 'rgba(124,90,240,0.3)' : '#2a1f40'),
+              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+              color: sideTab === 'chat' ? '#9b6dff' : '#6b5d80', fontSize: 12,
+            }}
+          >
+            <MessageSquare style={{ width: 14, height: 14, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+            Chat
+          </button>
+        </div>
+      </header>
+
+      {/* ── Body ── */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+
+        {/* ── Stage area ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+          {/* Screen share view */}
+          {screenSharer && (
+            <div style={{ flex: 1, padding: 12, minHeight: 0 }}>
+              <ScreenShareTile vp={screenSharer} />
+            </div>
+          )}
+
+          {/* Participant grid */}
+          <div style={{
+            flex: screenSharer ? '0 0 auto' : 1,
+            padding: 12, minHeight: 0,
+            display: 'grid',
+            gridTemplateColumns: `repeat(${screenSharer ? Math.min(count, 6) : cols}, 1fr)`,
+            gap: 10,
+            overflowY: 'auto',
+            maxHeight: screenSharer ? 180 : undefined,
+          }}>
+            {participantList.map(vp => (
+              <VideoTile
+                key={vp.identity}
+                vp={vp}
+                isLocal={vp.identity === localIdentity}
+              />
+            ))}
+
+            {participantList.length === 0 && (
+              <div style={{
+                gridColumn: '1/-1', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                color: '#4a4560', gap: 12, padding: 40,
+              }}>
+                <p style={{ fontSize: 14, margin: 0 }}>Conectando à sala…</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Controls ── */}
+          <footer style={{
+            height: 80, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 8,
+            borderTop: '1px solid #1e1630', background: '#0c0a14', flexShrink: 0, padding: '0 16px',
+          }}>
+            <ControlBtn
+              icon={localMicEnabled ? <Mic size={18} /> : <MicOff size={18} />}
+              label={localMicEnabled ? 'Microfone' : 'Mudo'}
+              active={!localMicEnabled}
+              onClick={toggleMic}
+            />
+            <ControlBtn
+              icon={localCamEnabled ? <Video size={18} /> : <VideoOff size={18} />}
+              label={localCamEnabled ? 'Câmera' : 'Câmera off'}
+              active={!localCamEnabled}
+              onClick={toggleCam}
+            />
+            <ControlBtn
+              icon={localScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+              label={localScreenSharing ? 'Parar' : 'Tela'}
+              active={localScreenSharing}
+              onClick={localScreenSharing ? stopScreenShare : () => startScreenShare('1080p30')}
+            />
+            <div style={{ width: 1, height: 32, background: '#2a1f40', margin: '0 4px' }} />
+            <ControlBtn
+              icon={<PhoneOff size={18} />}
+              label="Sair"
+              danger
+              onClick={handleLeave}
+            />
+          </footer>
+        </div>
+
+        {/* ── Side panel ── */}
+        <AnimatePresence>
+          {(sideTab === 'people' || sideTab === 'chat') && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 260, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              style={{
+                borderLeft: '1px solid #1e1630', background: '#0d0a16',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0,
+              }}
+            >
+              {/* Tabs */}
+              <div style={{
+                display: 'flex', borderBottom: '1px solid #1e1630', flexShrink: 0,
+              }}>
+                {(['people', 'chat'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setSideTab(tab)}
+                    style={{
+                      flex: 1, height: 44, border: 0, background: 'transparent',
+                      color: sideTab === tab ? '#c0a0ff' : '#6b5d80',
+                      fontWeight: 700, cursor: 'pointer', fontSize: 12,
+                      borderBottom: sideTab === tab ? '2px solid #7c5af0' : '2px solid transparent',
+                    }}
+                  >
+                    {tab === 'people' ? `Pessoas (${count})` : 'Chat'}
+                  </button>
+                ))}
+              </div>
+
+              {/* People list */}
+              {sideTab === 'people' && (
+                <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+                  {participantList.map(vp => {
+                    const name = vp.displayName || vp.identity;
+                    const isLocal = vp.identity === localIdentity;
+                    return (
+                      <div
+                        key={vp.identity}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 8px', borderRadius: 10,
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                      >
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+                          background: 'linear-gradient(135deg,#7c5af0,#b142f5)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 800, fontSize: 13, color: '#fff',
+                        }}>
+                          {name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#ede8f8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {name}{isLocal ? ' (você)' : ''}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#6b5d80' }}>
+                            {vp.isSpeaking ? '🎙 Falando' : vp.micEnabled ? 'Conectado' : '🔇 Mudo'}
+                          </p>
+                        </div>
+                        {!isLocal && (
+                          <button
+                            onClick={() => toggleMuteLocally(vp.identity)}
+                            title={vp.isMutedLocally ? 'Ativar som' : 'Silenciar localmente'}
+                            style={{
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              color: vp.isMutedLocally ? '#ff9f40' : '#4a4560',
+                              padding: 4,
+                            }}
+                          >
+                            {vp.isMutedLocally ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Chat */}
+              {sideTab === 'chat' && (
+                <>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {chatMessages.length === 0 && (
+                      <p style={{ color: '#4a4560', fontSize: 12, textAlign: 'center', marginTop: 20 }}>
+                        Sem mensagens ainda.
+                      </p>
+                    )}
+                    {chatMessages.map(msg => (
+                      <div key={msg.id} style={{
+                        background: '#18111f', padding: '8px 10px', borderRadius: 10, fontSize: 12,
+                      }}>
+                        <p style={{ margin: '0 0 3px', color: '#9b6dff', fontWeight: 700, fontSize: 11 }}>{msg.author}</p>
+                        <p style={{ margin: 0, color: '#d4cce8' }}>{msg.text}</p>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+                  <div style={{ padding: '0 10px 10px', flexShrink: 0 }}>
+                    <input
+                      value={chatMsg}
+                      onChange={e => setChatMsg(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+                      placeholder="Mensagem na sala…"
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        background: '#18111f', border: '1px solid #2a1f40',
+                        borderRadius: 10, padding: '9px 12px', color: '#ede8f8',
+                        fontSize: 12, outline: 'none',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }

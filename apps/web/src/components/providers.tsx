@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { connectSocket } from '@/lib/socket';
+import { useSocketStore } from '@/stores/socket.store';
 import { Toaster } from '@/components/ui/toaster';
 
 const queryClient = new QueryClient({
@@ -26,7 +26,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // Reconecta sessão ao recarregar a página
     if (isAuthenticated && accessToken) {
       refreshUser();
-      connectSocket(accessToken);
+      // Use socket store so DM handlers (dm:new, dm:updated, dm:deleted)
+      // are registered globally on page load / refresh
+      useSocketStore.getState().init(accessToken);
     }
   }, []);
 

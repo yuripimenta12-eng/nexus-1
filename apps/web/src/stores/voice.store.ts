@@ -2,12 +2,10 @@ import { create } from 'zustand';
 import {
   Room,
   RoomEvent,
-  LocalParticipant,
+  ParticipantEvent,
   RemoteParticipant,
   Participant,
   Track,
-  TrackPublication,
-  VideoQuality,
   ConnectionQuality,
 } from 'livekit-client';
 
@@ -21,7 +19,7 @@ export interface VoiceParticipant {
   camEnabled: boolean;
   screenSharing: boolean;
   connectionQuality: ConnectionQuality;
-  // volume do participante LOCAL (só afeta quem está ouvindo)
+  /** volume local (0-100) — só afeta quem está ouvindo */
   localVolume: number;
   isMutedLocally: boolean;
   participant: Participant;
@@ -48,6 +46,7 @@ interface VoiceStore {
   stopScreenShare: () => Promise<void>;
   setParticipantVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
+  updateParticipant: (p: Participant) => void;
 }
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({
@@ -68,8 +67,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
     try {
       const room = new Room({
-        adaptiveStream: true,       // qualidade adaptativa
-        dynacast: true,             // simulcast dinâmico
+        adaptiveStream: true,
+        dynacast: true,
         videoCaptureDefaults: {
           resolution: { width: 1280, height: 720, frameRate: 30 },
         },
@@ -80,8 +79,22 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         },
       });
 
+      // ── Helper: configura isSpeakingChanged por participante ──
+      // Mais responsivo que ActiveSpeakersChanged para detecção local
+      const setupSpeakingListener = (p: Participant) => {
+        p.on(ParticipantEvent.IsSpeakingChanged, (speaking: boolean) => {
+          set(state => {
+            const next = new Map(state.participants);
+            const vp = next.get(p.identity);
+            if (vp) next.set(p.identity, { ...vp, isSpeaking: speaking });
+            return { participants: next };
+          });
+        });
+      };
+
       // ── Eventos da Room ──────────────────────────────────────
       room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
+        setupSpeakingListener(p);
         get().updateParticipant(p);
       });
 
@@ -93,11 +106,12 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         });
       });
 
-      room.on(RoomEvent.TrackPublished, (pub, p) => get().updateParticipant(p));
-      room.on(RoomEvent.TrackUnpublished, (pub, p) => get().updateParticipant(p));
-      room.on(RoomEvent.TrackSubscribed, (_, pub, p) => get().updateParticipant(p));
-      room.on(RoomEvent.TrackUnsubscribed, (_, pub, p) => get().updateParticipant(p));
+      room.on(RoomEvent.TrackPublished, (_pub, p) => get().updateParticipant(p));
+      room.on(RoomEvent.TrackUnpublished, (_pub, p) => get().updateParticipant(p));
+      room.on(RoomEvent.TrackSubscribed, (_track, _pub, p) => get().updateParticipant(p));
+      room.on(RoomEvent.TrackUnsubscribed, (_track, _pub, p) => get().updateParticipant(p));
 
+      // ActiveSpeakersChanged: detecção server-side (grupo de falantes ativos)
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
         const speakingSet = new Set(speakers.map(s => s.identity));
         set((state) => {
@@ -123,6 +137,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
           localCamEnabled: lp.isCameraEnabled,
           localScreenSharing: lp.isScreenShareEnabled,
         });
+        get().updateParticipant(lp);
       });
 
       room.on(RoomEvent.LocalTrackUnpublished, () => {
@@ -132,6 +147,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
           localCamEnabled: lp.isCameraEnabled,
           localScreenSharing: lp.isScreenShareEnabled,
         });
+        get().updateParticipant(lp);
       });
 
       room.on(RoomEvent.Disconnected, () => {
@@ -144,16 +160,17 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       });
 
       // Conecta ao LiveKit
-      await room.connect(url, token, {
-        autoSubscribe: true,
-      });
+      await room.connect(url, token, { autoSubscribe: true });
 
-      // Adiciona participantes já presentes
+      // Configura listener de fala para o participante local APÓS conectar
+      setupSpeakingListener(room.localParticipant);
+
+      // Popula participantes iniciais
       const initParticipants = new Map<string, VoiceParticipant>();
       room.remoteParticipants.forEach((p) => {
+        setupSpeakingListener(p);
         initParticipants.set(p.identity, buildParticipant(p));
       });
-      // Adiciona participante local
       initParticipants.set(
         room.localParticipant.identity,
         buildParticipant(room.localParticipant),
@@ -171,11 +188,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         localScreenSharing: room.localParticipant.isScreenShareEnabled,
       });
 
-      // Ativa microfone automaticamente
+      // Ativa microfone automaticamente ao entrar
       await room.localParticipant.setMicrophoneEnabled(true);
 
     } catch (err: any) {
-      set({ isConnecting: false, error: err.message });
+      set({ isConnecting: false, error: err.message ?? 'Erro ao conectar' });
       throw err;
     }
   },
@@ -203,6 +220,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     const newState = !room.localParticipant.isMicrophoneEnabled;
     await room.localParticipant.setMicrophoneEnabled(newState);
     set({ localMicEnabled: newState });
+    // Atualiza participante local para refletir mudança
+    get().updateParticipant(room.localParticipant);
   },
 
   toggleCam: async () => {
@@ -211,33 +230,30 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     const newState = !room.localParticipant.isCameraEnabled;
     await room.localParticipant.setCameraEnabled(newState);
     set({ localCamEnabled: newState });
+    get().updateParticipant(room.localParticipant);
   },
 
   startScreenShare: async (quality = '1080p30') => {
     const { room } = get();
     if (!room) return;
 
-    // Configurações de qualidade para screen share
     const qualityMap = {
-      '720p30':  { width: 1280, height: 720, frameRate: 30, maxBitrate: 2_000_000 },
+      '720p30':  { width: 1280, height: 720,  frameRate: 30, maxBitrate: 2_000_000 },
       '1080p30': { width: 1920, height: 1080, frameRate: 30, maxBitrate: 4_000_000 },
       '1080p60': { width: 1920, height: 1080, frameRate: 60, maxBitrate: 8_000_000 },
     };
 
     const opts = qualityMap[quality];
-
     await room.localParticipant.setScreenShareEnabled(true, {
       resolution: opts,
-      audio: true, // captura áudio do sistema quando suportado
+      audio: true,
     });
-
     set({ localScreenSharing: true });
   },
 
   stopScreenShare: async () => {
     const { room } = get();
     if (!room) return;
-
     await room.localParticipant.setScreenShareEnabled(false);
     set({ localScreenSharing: false });
   },
@@ -247,7 +263,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const next = new Map(state.participants);
       const p = next.get(identity);
       if (p) {
-        // Define volume no elemento de áudio (0-1)
         p.participant.getTrackPublications().forEach((pub) => {
           if (pub.track?.kind === 'audio') {
             (pub.track as any).setVolume?.(volume / 100);
@@ -265,7 +280,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const p = next.get(identity);
       if (p) {
         const muted = !p.isMutedLocally;
-        // Silencia o áudio localmente
         p.participant.getTrackPublications().forEach((pub) => {
           if (pub.track?.kind === 'audio') {
             (pub.track as any).setVolume?.(muted ? 0 : (p.localVolume || 100) / 100);
@@ -277,20 +291,19 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     });
   },
 
-  // Helper interno (não exposto pelo tipo mas usado pelos callbacks)
   updateParticipant: (p: Participant) => {
     set((state) => {
       const next = new Map(state.participants);
       const existing = next.get(p.identity);
       next.set(p.identity, {
         ...buildParticipant(p),
-        localVolume: existing?.localVolume ?? 100,
+        localVolume:    existing?.localVolume    ?? 100,
         isMutedLocally: existing?.isMutedLocally ?? false,
       });
       return { participants: next };
     });
   },
-} as any));
+}));
 
 // ── Helper ────────────────────────────────────────────────────
 function buildParticipant(p: Participant): VoiceParticipant {

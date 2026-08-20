@@ -27,6 +27,24 @@ export class UsersService {
     return safe;
   }
 
+  async searchUsers(query: string, excludeUserId: string) {
+    if (!query || query.trim().length < 2) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: excludeUserId },
+        OR: [
+          { username: { contains: query.toLowerCase(), mode: 'insensitive' } },
+          { profile: { displayName: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
+      take: 20,
+      include: { profile: { select: { displayName: true, avatarUrl: true, status: true } } },
+    });
+
+    return users.map(({ passwordHash, ...u }) => u);
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const profile = await this.prisma.profile.update({
       where: { userId },
