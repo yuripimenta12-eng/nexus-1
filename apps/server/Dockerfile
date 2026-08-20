@@ -13,7 +13,8 @@ RUN npm install
 COPY . .
 
 # Generate Prisma client and compile TypeScript
-RUN npx prisma generate && npm run build
+# Verification step: build FAILS if dist/main.js not created
+RUN npx prisma generate && npm run build && echo "=== BUILD OK ===" && ls -la /app/dist/ && ls -la /app/dist/main.js
 
 EXPOSE 3001
 
