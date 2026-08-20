@@ -14,7 +14,7 @@ import { UsersModule } from '../users/users.module';
     PassportModule,
     UsersModule,
     JwtModule.registerAsync({
-      useFactory: (config: ConfigService) => (, JwtModule{h
+      useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_ACCESS_SECRET'),
         signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRES', '15m') },
       }),
