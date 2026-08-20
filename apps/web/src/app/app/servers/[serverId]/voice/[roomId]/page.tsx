@@ -1,588 +1,450 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Volume2, VolumeX, Users, MessageSquare, Loader2,
+  PhoneOff, Settings, Volume2, VolumeX, Maximize2, Minimize2,
+  Wifi, WifiOff, Users, ChevronDown,
 } from 'lucide-react';
-import { Track } from 'livekit-client';
-import { useVoiceStore, VoiceParticipant } from '@/stores/voice.store';
+import {
+  Track,
+  ConnectionQuality,
+  Participant,
+  RemoteParticipant,
+  LocalParticipant,
+  TrackPublication,
+  VideoTrack,
+} from 'livekit-client';
+import { VideoTrack as LKVideoTrack, useParticipants, useLocalParticipant } from '@livekit/components-react';
+import { useVoiceStore } from '@/stores/voice.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { cn } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 import api from '@/lib/api';
 
-/* ── Video tile: attaches the real camera track ───────────── */
-function VideoTile({ vp, isLocal }: { vp: VoiceParticipant; isLocal: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+export default function VoicePage() {
+  const params = useParams();
+  const router = useRouter();
+  const roomId = params.roomId as string;
+  const serverId = params.serverId as string;
+  const { user } = useAuthStore();
 
-  // Attach/detach video track
+  const {
+    connect, disconnect, isConnected, isConnecting, error,
+    localMicEnabled, localCamEnabled, localScreenSharing,
+    toggleMic, toggleCam, startScreenShare, stopScreenShare,
+    participants, quality, voiceRoomId,
+  } = useVoiceStore();
+
+  const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>('1080p30');
+  const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
+
+  // Traduz erros técnicos do LiveKit para mensagens amigáveis
+  function friendlyError(msg: string): string {
+    if (msg?.includes('invalid api key') || msg?.includes('invalid API key')) {
+      return 'Credenciais de voz inválidas. Contate o administrador do servidor.';
+    }
+    if (msg?.includes('not found') || msg?.includes('404')) {
+      return 'Sala de voz não encontrada.';
+    }
+    if (msg?.includes('forbidden') || msg?.includes('403')) {
+      return 'Você não tem permissão para entrar nesta sala.';
+    }
+    if (msg?.includes('network') || msg?.includes('timeout') || msg?.includes('timed out')) {
+      return 'Erro de rede. Verifique sua conexão e tente novamente.';
+    }
+    return msg || 'Erro desconhecido ao conectar.';
+  }
+
+  // Conecta ao entrar na página
+  const joinRoom = async () => {
+    if (isConnected && voiceRoomId === roomId) return;
+    setJoinError(null);
+    setIsJoining(true);
+    try {
+      const { data } = await api.post(`/voice/rooms/${roomId}/join`);
+      await connect(data.livekitUrl, data.token, roomId, data.voiceRoom.name);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Erro ao conectar';
+      setJoinError(friendlyError(msg));
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    const pub = Array.from(vp.participant.trackPublications.values()).find(
-      p => p.source === Track.Source.Camera && p.track && !p.isMuted,
-    );
-    if (!pub?.track) return;
-    pub.track.attach(el);
-    return () => { pub.track?.detach(el); };
-  });
+    joinRoom();
+  }, [roomId]);
 
-  // Attach/detach audio track (remote only)
-  useEffect(() => {
-    if (isLocal) return;
-    const el = audioRef.current;
-    if (!el) return;
-    const pub = Array.from(vp.participant.trackPublications.values()).find(
-      p => p.source === Track.Source.Microphone && p.track,
-    );
-    if (!pub?.track) return;
-    pub.track.attach(el);
-    return () => { pub.track?.detach(el); };
-  });
+  const handleLeave = async () => {
+    await api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
+    await disconnect();
+    router.push(`/app/servers/${serverId}`);
+  };
 
-  const name = vp.displayName || vp.identity;
-  const initials = name.slice(0, 2).toUpperCase();
+  const handleScreenShare = async () => {
+    if (localScreenSharing) {
+      await stopScreenShare();
+    } else {
+      await startScreenShare(screenQuality);
+    }
+  };
+
+  const participantsList = Array.from(participants.values());
+  const screenSharers = participantsList.filter(p => p.screenSharing);
+  const primaryScreenSharer = focusedParticipant
+    ? participantsList.find(p => p.identity === focusedParticipant && p.screenSharing)
+    : screenSharers[0];
+
+  const qualityColor = {
+    [ConnectionQuality.Excellent]: 'text-success',
+    [ConnectionQuality.Good]: 'text-success',
+    [ConnectionQuality.Poor]: 'text-warning',
+    [ConnectionQuality.Lost]: 'text-destructive',
+    [ConnectionQuality.Unknown]: 'text-muted',
+  }[quality] || 'text-muted';
+
+  if (isConnecting || isJoining) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white font-medium">Conectando à sala...</p>
+          <p className="text-muted text-sm mt-1">Aguarde enquanto configuramos sua conexão</p>
+        </div>
+      </div>
+    );
+  }
+
+  const displayError = joinError || error;
+
+  if (displayError) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <WifiOff className="w-8 h-8 text-destructive" />
+          </div>
+          <h3 className="text-white font-semibold mb-2">Erro na conexão</h3>
+          <p className="text-muted text-sm mb-6">{displayError}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => { setJoinError(null); joinRoom(); }}
+              className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
+            >
+              Tentar novamente
+            </button>
+            <button onClick={() => router.push(`/app/servers/${serverId}`)} className="btn-ghost">
+              Voltar ao servidor
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex flex-col bg-background-secondary', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
+      {/* Header */}
+      <div className="h-12 flex items-center justify-between px-4 bg-background-secondary border-b border-border shrink-0">
+        <div className="flex items-center gap-2">
+          <Volume2 className="w-4 h-4 text-muted" />
+          <span className="text-white font-medium text-sm">Sala de Voz</span>
+          <span className={cn('text-xs flex items-center gap-1', qualityColor)}>
+            <Wifi className="w-3 h-3" />
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted text-xs">{participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}</span>
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="text-muted hover:text-white p-1 rounded transition-colors"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Área principal */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Conteúdo (vídeos/tela) */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Screen share principal */}
+          {primaryScreenSharer ? (
+            <div className="flex-1 relative bg-black overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <ParticipantScreenShare
+                  participant={primaryScreenSharer.participant}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+              <div className="absolute bottom-3 left-3 text-white text-xs bg-black/60 px-2 py-1 rounded-md">
+                🖥️ {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+              </div>
+
+              {/* Outros screen shares */}
+              {screenSharers.length > 1 && (
+                <div className="absolute bottom-3 right-3 flex gap-2">
+                  {screenSharers.filter(p => p.identity !== primaryScreenSharer?.identity).map(p => (
+                    <button
+                      key={p.identity}
+                      onClick={() => setFocusedParticipant(p.identity)}
+                      className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-border hover:border-accent transition-colors"
+                    >
+                      <ParticipantScreenShare participant={p.participant} className="w-full h-full object-cover" />
+                      <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
+                        {p.participant.name || p.identity}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Mini câmeras */}
+              <div className="absolute top-3 right-3 flex flex-col gap-2">
+                {participantsList.filter(p => p.camEnabled).slice(0, 4).map(p => (
+                  <div key={p.identity} className={cn(
+                    'w-28 h-20 rounded-lg overflow-hidden bg-surface-overlay border-2 border-border',
+                    p.isSpeaking && 'border-accent speaking-ring',
+                  )}>
+                    <ParticipantCamera participant={p.participant} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Sem screen share: grid de participantes */
+            <div className="flex-1 overflow-auto p-4">
+              <div className={cn(
+                'grid gap-3 h-full content-start',
+                participantsList.length === 1 && 'grid-cols-1 max-w-md mx-auto',
+                participantsList.length === 2 && 'grid-cols-2',
+                participantsList.length <= 4 && participantsList.length > 2 && 'grid-cols-2',
+                participantsList.length > 4 && 'grid-cols-3',
+              )}>
+                {participantsList.map(p => (
+                  <ParticipantTile key={p.identity} voiceParticipant={p} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de controles */}
+      <div className="h-20 flex items-center justify-between px-6 bg-background border-t border-border shrink-0">
+        {/* Info da chamada */}
+        <div className="flex items-center gap-2 min-w-0 w-48">
+          <div className="min-w-0">
+            <p className="text-white text-sm font-medium truncate">Sala de Voz</p>
+            <p className={cn('text-xs', qualityColor)}>
+              {quality === ConnectionQuality.Excellent && '● Excelente'}
+              {quality === ConnectionQuality.Good && '● Boa'}
+              {quality === ConnectionQuality.Poor && '⚠ Ruim'}
+              {quality === ConnectionQuality.Lost && '✕ Sem conexão'}
+              {quality === ConnectionQuality.Unknown && '○ Conectando'}
+            </p>
+          </div>
+        </div>
+
+        {/* Controles centrais */}
+        <div className="flex items-center gap-3">
+          <ControlButton
+            active={localMicEnabled}
+            onClick={toggleMic}
+            activeIcon={<Mic className="w-5 h-5" />}
+            inactiveIcon={<MicOff className="w-5 h-5" />}
+            activeTitle="Desativar microfone"
+            inactiveTitle="Ativar microfone"
+            danger={!localMicEnabled}
+          />
+
+          <ControlButton
+            active={localCamEnabled}
+            onClick={toggleCam}
+            activeIcon={<Video className="w-5 h-5" />}
+            inactiveIcon={<VideoOff className="w-5 h-5" />}
+            activeTitle="Desativar câmera"
+            inactiveTitle="Ativar câmera"
+          />
+
+          <ControlButton
+            active={localScreenSharing}
+            onClick={handleScreenShare}
+            activeIcon={<Monitor className="w-5 h-5" />}
+            inactiveIcon={<Monitor className="w-5 h-5" />}
+            activeTitle="Parar compartilhamento"
+            inactiveTitle="Compartilhar tela"
+            accent={localScreenSharing}
+          />
+
+          {/* Qualidade de screen share */}
+          {!localScreenSharing && (
+            <select
+              value={screenQuality}
+              onChange={(e) => setScreenQuality(e.target.value as any)}
+              className="text-xs bg-surface border border-border rounded-md px-2 py-1 text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              <option value="720p30">720p 30fps</option>
+              <option value="1080p30">1080p 30fps</option>
+              <option value="1080p60">1080p 60fps</option>
+            </select>
+          )}
+
+          {/* Sair */}
+          <button
+            onClick={handleLeave}
+            className="h-11 px-5 rounded-xl bg-destructive hover:bg-red-600 text-white
+                       flex items-center gap-2 transition-colors active:scale-95 font-medium text-sm"
+          >
+            <PhoneOff className="w-4 h-4" />
+            Sair
+          </button>
+        </div>
+
+        {/* Configurações */}
+        <div className="w-48 flex justify-end">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="btn-ghost"
+          >
+            <Settings className="w-4 h-4 mr-1" />
+            Configurações
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Tile de participante ──────────────────────────────────────
+function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
+  const { setParticipantVolume, toggleMuteLocally } = useVoiceStore();
+  const hasCam = voiceParticipant.camEnabled;
 
   return (
     <motion.div
-      animate={{
-        boxShadow: vp.isSpeaking
-          ? '0 0 0 2px #7c5af0, 0 0 24px rgba(124,90,240,0.35)'
-          : '0 0 0 1px #2c1e40',
-      }}
-      transition={{ duration: 0.2 }}
-      style={{
-        position: 'relative', borderRadius: 16, overflow: 'hidden',
-        background: 'radial-gradient(circle at 50% 38%,#1a1030 0,#0d0a16 100%)',
-        minHeight: 180, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-      }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={cn(
+        'relative rounded-xl overflow-hidden bg-surface aspect-video flex items-center justify-center',
+        'border-2 transition-colors',
+        voiceParticipant.isSpeaking ? 'border-accent' : 'border-border',
+      )}
     >
-      {/* Video element (hidden when cam off) */}
-      <video
-        ref={videoRef}
-        autoPlay
-        muted={isLocal}
-        playsInline
-        style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%',
-          objectFit: 'cover',
-          display: vp.camEnabled ? 'block' : 'none',
-        }}
-      />
-
-      {/* Audio element (remote only) */}
-      {!isLocal && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
-
-      {/* Avatar fallback (when cam off) */}
-      {!vp.camEnabled && (
-        <div style={{
-          width: 72, height: 72, borderRadius: 24, flexShrink: 0,
-          background: 'linear-gradient(135deg,#7c5af0,#b142f5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 900, fontSize: 24, color: '#fff',
-          boxShadow: vp.isSpeaking ? '0 0 24px rgba(124,90,240,0.6)' : 'none',
-        }}>
-          {initials}
+      {/* Vídeo da câmera */}
+      {hasCam ? (
+        <ParticipantCamera participant={voiceParticipant.participant} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <Avatar
+            src={null}
+            name={voiceParticipant.participant.name || voiceParticipant.identity}
+            size="xl"
+          />
+          {voiceParticipant.isSpeaking && (
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="w-1 bg-accent rounded-full animate-bounce"
+                  style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Speaking waves */}
-      {vp.isSpeaking && (
-        <div style={{ position: 'absolute', bottom: 44, display: 'flex', gap: 3, alignItems: 'flex-end' }}>
-          {[0, 0.1, 0.2, 0.1, 0].map((delay, i) => (
-            <div key={i} style={{
-              width: 3, background: '#7c5af0', borderRadius: 3,
-              animation: `voiceBar 0.6s ease-in-out ${delay}s infinite`,
-            }} />
-          ))}
+      {/* Overlay info */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+        <div className="flex items-center justify-between">
+          <span className="text-white text-xs font-medium truncate">
+            {voiceParticipant.participant.name || voiceParticipant.identity}
+          </span>
+          <div className="flex items-center gap-1">
+            {!voiceParticipant.micEnabled && (
+              <MicOff className="w-3 h-3 text-destructive" />
+            )}
+            {voiceParticipant.screenSharing && (
+              <Monitor className="w-3 h-3 text-accent" />
+            )}
+            <ConnectionQualityDot quality={voiceParticipant.connectionQuality} />
+          </div>
         </div>
-      )}
-
-      {/* Nameplate */}
-      <div style={{
-        position: 'absolute', left: 10, bottom: 10,
-        display: 'flex', alignItems: 'center', gap: 6,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-        borderRadius: 8, padding: '5px 9px', fontSize: 12, fontWeight: 700,
-      }}>
-        <span style={{ color: vp.micEnabled ? '#43e3a3' : '#ff4d6d', fontSize: 10 }}>
-          {vp.micEnabled ? '●' : '⊘'}
-        </span>
-        {name}{isLocal ? ' (você)' : ''}
       </div>
 
-      {/* Muted locally badge */}
-      {vp.isMutedLocally && (
-        <div style={{
-          position: 'absolute', right: 10, top: 10,
-          background: 'rgba(0,0,0,0.75)', borderRadius: 6,
-          padding: '4px 8px', fontSize: 10, color: '#ff9f40',
-        }}>
-          Silenciado
-        </div>
+      {/* Speaking ring */}
+      {voiceParticipant.isSpeaking && (
+        <div className="absolute inset-0 border-2 border-accent rounded-xl pointer-events-none animate-pulse" />
       )}
-
-      <style>{`
-        @keyframes voiceBar {
-          0%,100% { height:5px }
-          50% { height:22px }
-        }
-      `}</style>
     </motion.div>
   );
 }
 
-/* ── Screen share tile ────────────────────────────────────── */
-function ScreenShareTile({ vp }: { vp: VoiceParticipant }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+function ConnectionQualityDot({ quality }: { quality: ConnectionQuality }) {
+  const color = {
+    [ConnectionQuality.Excellent]: 'bg-success',
+    [ConnectionQuality.Good]: 'bg-success',
+    [ConnectionQuality.Poor]: 'bg-warning',
+    [ConnectionQuality.Lost]: 'bg-destructive',
+    [ConnectionQuality.Unknown]: 'bg-muted',
+  }[quality] || 'bg-muted';
 
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    const pub = Array.from(vp.participant.trackPublications.values()).find(
-      p => p.source === Track.Source.ScreenShare && p.track,
-    );
-    if (!pub?.track) return;
-    pub.track.attach(el);
-    return () => { pub.track?.detach(el); };
-  });
+  return <div className={cn('w-2 h-2 rounded-full', color)} />;
+}
+
+function ControlButton({ active, onClick, activeIcon, inactiveIcon, activeTitle, inactiveTitle, danger, accent }: any) {
+  return (
+    <button
+      onClick={onClick}
+      title={active ? activeTitle : inactiveTitle}
+      className={cn(
+        'w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95',
+        accent
+          ? 'bg-accent text-white hover:bg-accent-hover'
+          : danger && !active
+            ? 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white'
+            : active
+              ? 'bg-surface-raised text-white hover:bg-surface-overlay'
+              : 'bg-surface-raised text-muted hover:bg-surface-overlay hover:text-white',
+      )}
+    >
+      {active ? activeIcon : inactiveIcon}
+    </button>
+  );
+}
+
+// ── Wrappers para tracks LiveKit ───────────────────────────────
+function ParticipantCamera({ participant, className }: { participant: Participant; className?: string }) {
+  const camPub = Array.from(participant.trackPublications.values()).find(
+    p => p.source === Track.Source.Camera && p.track,
+  );
+
+  if (!camPub?.track) return null;
 
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', borderRadius: 12 }}
+    <LKVideoTrack
+      trackRef={{ participant, source: Track.Source.Camera }}
+      className={className}
     />
   );
 }
 
-/* ── Control button ──────────────────────────────────────── */
-function ControlBtn({
-  icon, label, active, danger, onClick, disabled,
-}: {
-  icon: React.ReactNode; label?: string; active?: boolean;
-  danger?: boolean; onClick: () => void; disabled?: boolean;
-}) {
-  return (
-    <motion.button
-      whileHover={disabled ? {} : { y: -2, scale: 1.04 }}
-      whileTap={disabled ? {} : { scale: 0.95 }}
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      style={{
-        height: 48, padding: '0 16px',
-        minWidth: 48,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        borderRadius: 14, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-        background: danger ? '#cc3348' : active ? 'rgba(124,90,240,0.25)' : '#18111f',
-        color: danger ? '#fff' : active ? '#c0a0ff' : '#c8bdd8',
-        outline: active ? '1px solid rgba(124,90,240,0.5)' : '1px solid #2c1e40',
-        opacity: disabled ? 0.5 : 1,
-        fontSize: label ? 12 : 18, fontWeight: label ? 700 : 400,
-        transition: 'background 0.2s, color 0.2s',
-      }}
-    >
-      {icon}
-      {label && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
-    </motion.button>
+function ParticipantScreenShare({ participant, className }: { participant: Participant; className?: string }) {
+  const screenPub = Array.from(participant.trackPublications.values()).find(
+    p => p.source === Track.Source.ScreenShare && p.track,
   );
-}
 
-/* ── Main page ───────────────────────────────────────────── */
-export default function VoiceRoomPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { user } = useAuthStore();
-  const {
-    room, participants, isConnected, isConnecting, error,
-    localMicEnabled, localCamEnabled, localScreenSharing,
-    toggleMic, toggleCam, startScreenShare, stopScreenShare,
-    disconnect, toggleMuteLocally, setParticipantVolume,
-  } = useVoiceStore();
-
-  const [roomName, setRoomName] = useState('Sala de voz');
-  const [sideTab, setSideTab] = useState<'people' | 'chat'>('people');
-  const [chatMsg, setChatMsg] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ id: string; author: string; text: string }[]>([]);
-  const [seconds, setSeconds] = useState(0);
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const serverId = params?.serverId as string | undefined;
-  const roomId = params?.roomId as string | undefined;
-
-  /* ── Join on mount ── */
-  useEffect(() => {
-    if (!roomId || isConnected || isConnecting) return;
-
-    setJoining(true);
-    setJoinError(null);
-
-    api.post(`/voice/rooms/${roomId}/join`)
-      .then(({ data }) => {
-        const { token, livekitUrl, voiceRoom: vr } = data;
-        const displayName = vr?.name ?? 'Sala de voz';
-        setRoomName(displayName);
-        return useVoiceStore.getState().connect(livekitUrl, token, roomId, displayName);
-      })
-      .catch((err) => {
-        const msg = err?.response?.data?.message ?? err.message ?? 'Erro ao entrar na sala';
-        setJoinError(msg);
-      })
-      .finally(() => setJoining(false));
-  }, [roomId]);
-
-  /* ── Leave on unmount ── */
-  useEffect(() => {
-    return () => {
-      if (roomId) {
-        api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
-      }
-      disconnect();
-    };
-  }, [roomId]);
-
-  /* ── Sync room name ── */
-  useEffect(() => {
-    if (room && useVoiceStore.getState().roomName) {
-      setRoomName(useVoiceStore.getState().roomName!);
-    }
-  }, [room]);
-
-  /* ── Clock ── */
-  useEffect(() => {
-    if (!isConnected) return;
-    const t = setInterval(() => setSeconds(s => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [isConnected]);
-
-  /* ── Scroll chat ── */
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  function fmtTime(s: number) {
-    const h = String(Math.floor(s / 3600)).padStart(2, '0');
-    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-    const sec = String(s % 60).padStart(2, '0');
-    return `${h}:${m}:${sec}`;
-  }
-
-  function handleLeave() {
-    if (roomId) api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
-    disconnect();
-    router.push(serverId ? `/app/servers/${serverId}` : '/app/me');
-  }
-
-  function handleSendChat() {
-    if (!chatMsg.trim()) return;
-    const name = user?.username ?? 'Você';
-    setChatMessages(prev => [...prev, { id: Date.now().toString(), author: name, text: chatMsg.trim() }]);
-    setChatMsg('');
-  }
-
-  /* ── Derive participant list ── */
-  const localIdentity = room?.localParticipant.identity;
-  const participantList = Array.from(participants.values());
-  const screenSharer = participantList.find(p => p.screenSharing);
-
-  /* ── Grid columns based on count ── */
-  const count = participantList.length;
-  const cols = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
-
-  /* ── Loading / error states ── */
-  if (joining || isConnecting) {
-    return (
-      <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: '#0d0a16', color: '#ede8f8', gap: 16,
-      }}>
-        <Loader2 style={{ width: 40, height: 40, color: '#7c5af0', animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 15, color: '#9b8cba' }}>Entrando na sala…</p>
-        <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
-      </div>
-    );
-  }
-
-  if (joinError) {
-    return (
-      <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: '#0d0a16', color: '#ede8f8', gap: 16,
-      }}>
-        <p style={{ color: '#ff4d6d', fontSize: 15 }}>Erro: {joinError}</p>
-        <button
-          onClick={() => router.push(serverId ? `/app/servers/${serverId}` : '/app/me')}
-          style={{
-            background: '#7c5af0', color: '#fff', border: 'none', borderRadius: 10,
-            padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
-          }}
-        >
-          Voltar
-        </button>
-      </div>
-    );
-  }
+  if (!screenPub?.track) return null;
 
   return (
-    <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column',
-      background: '#08060c', color: '#f0ecff',
-      fontFamily: 'Inter,system-ui,sans-serif', overflow: 'hidden',
-    }}>
-      {/* ── Top bar ── */}
-      <header style={{
-        height: 56, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
-        borderBottom: '1px solid #1e1630', background: '#0f0b1a', flexShrink: 0,
-      }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: 10,
-          background: 'rgba(124,90,240,0.15)', border: '1px solid rgba(124,90,240,0.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#9b6dff', flexShrink: 0,
-        }}>
-          🎙
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 800, fontSize: 14, color: '#ede8f8' }}>{roomName}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#6b5d80' }}>
-            {count} participante{count !== 1 ? 's' : ''} · {fmtTime(seconds)}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={() => setSideTab('people')}
-            style={{
-              background: sideTab === 'people' ? 'rgba(124,90,240,0.15)' : 'transparent',
-              border: '1px solid ' + (sideTab === 'people' ? 'rgba(124,90,240,0.3)' : '#2a1f40'),
-              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
-              color: sideTab === 'people' ? '#9b6dff' : '#6b5d80', fontSize: 12,
-            }}
-          >
-            <Users style={{ width: 14, height: 14, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-            {count}
-          </button>
-          <button
-            onClick={() => setSideTab('chat')}
-            style={{
-              background: sideTab === 'chat' ? 'rgba(124,90,240,0.15)' : 'transparent',
-              border: '1px solid ' + (sideTab === 'chat' ? 'rgba(124,90,240,0.3)' : '#2a1f40'),
-              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
-              color: sideTab === 'chat' ? '#9b6dff' : '#6b5d80', fontSize: 12,
-            }}
-          >
-            <MessageSquare style={{ width: 14, height: 14, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-            Chat
-          </button>
-        </div>
-      </header>
-
-      {/* ── Body ── */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-
-        {/* ── Stage area ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-
-          {/* Screen share view */}
-          {screenSharer && (
-            <div style={{ flex: 1, padding: 12, minHeight: 0 }}>
-              <ScreenShareTile vp={screenSharer} />
-            </div>
-          )}
-
-          {/* Participant grid */}
-          <div style={{
-            flex: screenSharer ? '0 0 auto' : 1,
-            padding: 12, minHeight: 0,
-            display: 'grid',
-            gridTemplateColumns: `repeat(${screenSharer ? Math.min(count, 6) : cols}, 1fr)`,
-            gap: 10,
-            overflowY: 'auto',
-            maxHeight: screenSharer ? 180 : undefined,
-          }}>
-            {participantList.map(vp => (
-              <VideoTile
-                key={vp.identity}
-                vp={vp}
-                isLocal={vp.identity === localIdentity}
-              />
-            ))}
-
-            {participantList.length === 0 && (
-              <div style={{
-                gridColumn: '1/-1', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                color: '#4a4560', gap: 12, padding: 40,
-              }}>
-                <p style={{ fontSize: 14, margin: 0 }}>Conectando à sala…</p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Controls ── */}
-          <footer style={{
-            height: 80, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: 8,
-            borderTop: '1px solid #1e1630', background: '#0c0a14', flexShrink: 0, padding: '0 16px',
-          }}>
-            <ControlBtn
-              icon={localMicEnabled ? <Mic size={18} /> : <MicOff size={18} />}
-              label={localMicEnabled ? 'Microfone' : 'Mudo'}
-              active={!localMicEnabled}
-              onClick={toggleMic}
-            />
-            <ControlBtn
-              icon={localCamEnabled ? <Video size={18} /> : <VideoOff size={18} />}
-              label={localCamEnabled ? 'Câmera' : 'Câmera off'}
-              active={!localCamEnabled}
-              onClick={toggleCam}
-            />
-            <ControlBtn
-              icon={localScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
-              label={localScreenSharing ? 'Parar' : 'Tela'}
-              active={localScreenSharing}
-              onClick={localScreenSharing ? stopScreenShare : () => startScreenShare('1080p30')}
-            />
-            <div style={{ width: 1, height: 32, background: '#2a1f40', margin: '0 4px' }} />
-            <ControlBtn
-              icon={<PhoneOff size={18} />}
-              label="Sair"
-              danger
-              onClick={handleLeave}
-            />
-          </footer>
-        </div>
-
-        {/* ── Side panel ── */}
-        <AnimatePresence>
-          {(sideTab === 'people' || sideTab === 'chat') && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 260, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              style={{
-                borderLeft: '1px solid #1e1630', background: '#0d0a16',
-                display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0,
-              }}
-            >
-              {/* Tabs */}
-              <div style={{
-                display: 'flex', borderBottom: '1px solid #1e1630', flexShrink: 0,
-              }}>
-                {(['people', 'chat'] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setSideTab(tab)}
-                    style={{
-                      flex: 1, height: 44, border: 0, background: 'transparent',
-                      color: sideTab === tab ? '#c0a0ff' : '#6b5d80',
-                      fontWeight: 700, cursor: 'pointer', fontSize: 12,
-                      borderBottom: sideTab === tab ? '2px solid #7c5af0' : '2px solid transparent',
-                    }}
-                  >
-                    {tab === 'people' ? `Pessoas (${count})` : 'Chat'}
-                  </button>
-                ))}
-              </div>
-
-              {/* People list */}
-              {sideTab === 'people' && (
-                <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
-                  {participantList.map(vp => {
-                    const name = vp.displayName || vp.identity;
-                    const isLocal = vp.identity === localIdentity;
-                    return (
-                      <div
-                        key={vp.identity}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '8px 8px', borderRadius: 10,
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                      >
-                        <div style={{
-                          width: 36, height: 36, borderRadius: 12, flexShrink: 0,
-                          background: 'linear-gradient(135deg,#7c5af0,#b142f5)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontWeight: 800, fontSize: 13, color: '#fff',
-                        }}>
-                          {name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#ede8f8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {name}{isLocal ? ' (você)' : ''}
-                          </p>
-                          <p style={{ margin: 0, fontSize: 11, color: '#6b5d80' }}>
-                            {vp.isSpeaking ? '🎙 Falando' : vp.micEnabled ? 'Conectado' : '🔇 Mudo'}
-                          </p>
-                        </div>
-                        {!isLocal && (
-                          <button
-                            onClick={() => toggleMuteLocally(vp.identity)}
-                            title={vp.isMutedLocally ? 'Ativar som' : 'Silenciar localmente'}
-                            style={{
-                              background: 'transparent', border: 'none', cursor: 'pointer',
-                              color: vp.isMutedLocally ? '#ff9f40' : '#4a4560',
-                              padding: 4,
-                            }}
-                          >
-                            {vp.isMutedLocally ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Chat */}
-              {sideTab === 'chat' && (
-                <>
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {chatMessages.length === 0 && (
-                      <p style={{ color: '#4a4560', fontSize: 12, textAlign: 'center', marginTop: 20 }}>
-                        Sem mensagens ainda.
-                      </p>
-                    )}
-                    {chatMessages.map(msg => (
-                      <div key={msg.id} style={{
-                        background: '#18111f', padding: '8px 10px', borderRadius: 10, fontSize: 12,
-                      }}>
-                        <p style={{ margin: '0 0 3px', color: '#9b6dff', fontWeight: 700, fontSize: 11 }}>{msg.author}</p>
-                        <p style={{ margin: 0, color: '#d4cce8' }}>{msg.text}</p>
-                      </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                  <div style={{ padding: '0 10px 10px', flexShrink: 0 }}>
-                    <input
-                      value={chatMsg}
-                      onChange={e => setChatMsg(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-                      placeholder="Mensagem na sala…"
-                      style={{
-                        width: '100%', boxSizing: 'border-box',
-                        background: '#18111f', border: '1px solid #2a1f40',
-                        borderRadius: 10, padding: '9px 12px', color: '#ede8f8',
-                        fontSize: 12, outline: 'none',
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-            </motion.aside>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+    <LKVideoTrack
+      trackRef={{ participant, source: Track.Source.ScreenShare }}
+      className={className}
+    />
   );
 }

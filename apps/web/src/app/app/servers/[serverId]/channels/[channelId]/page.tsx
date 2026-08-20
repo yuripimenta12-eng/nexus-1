@@ -2,197 +2,511 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { Hash, Reply, Edit2, Trash2, SmilePlus, Loader2, ChevronDown, Plus, Send } from 'lucide-react';
-import { format, isToday, isYesterday } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useAuthStore } from '@/stores/auth.store';
-import { useSocketStore } from '@/stores/socket.store';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { getInitials } from '@/lib/utils';
+import { getSocket } from '@/lib/socket';
+import { useAuthStore } from '@/stores/auth.store';
+import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
+import Image from 'next/image';
 
-/* ── Types ───────────────────────────────────────── */
-interface Author {
-  id: string;
-  username: string;
-  profile: { displayName: string; avatarUrl: string | null } | null;
-}
-interface Reaction { userId: string; emoji: string; }
 interface Message {
   id: string;
   content: string;
-  authorId: string;
-  channelId: string;
   createdAt: string;
   edited: boolean;
-  editedAt?: string;
   deleted: boolean;
-  author: Author;
-  reactions: Reaction[];
-  attachments: { id: string; url: string; name: string }[];
-  replyTo?: { id: string; content: string; author: Author } | null;
+  authorId: string;
+  author: {
+    id: string;
+    username: string;
+    profile: { displayName: string; avatarUrl: string | null };
+  };
+  reactions: Array<{ id: string; userId: string; emoji: string }>;
+  attachments: Array<{ id: string; url: string; fileName: string; fileSize: number; mimeType: string }>;
+  replyTo?: {
+    id: string;
+    content: string;
+    author: { profile: { displayName: string } };
+  } | null;
 }
 
-/* ── Helpers ─────────────────────────────────────── */
-function avatarFor(author: Author) {
-  return author.profile?.avatarUrl ?? null;
-}
-function displayNameFor(author: Author) {
-  return author.profile?.displayName || author.username;
-}
-function formatDay(date: Date) {
-  if (isToday(date)) return 'Hoje';
-  if (isYesterday(date)) return 'Ontem';
-  return format(date, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
-}
-function formatTime(iso: string) {
-  return format(new Date(iso), 'HH:mm');
+interface TypingUser {
+  userId: string;
+  username?: string;
 }
 
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+export default function ChannelPage() {
+  const params = useParams();
+  const channelId = params.channelId as string;
+  const serverId = params.serverId as string;
+  const { user } = useAuthStore();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [channelName, setChannelName] = useState<string>('');
+  const [content, setContent] = useState('');
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeout = useRef<NodeJS.Timeout>();
+  const socket = getSocket();
 
-/* ── Avatar component ─────────────────────────────── */
-function Avatar({ author, size = 36 }: { author: Author; size?: number }) {
-  const url = avatarFor(author);
-  const name = displayNameFor(author);
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: url ? 'transparent' : 'linear-gradient(135deg,#7c5af0,#b142f5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.35, fontWeight: 900, color: '#fff',
-      overflow: 'hidden',
-    }}>
-      {url
-        ? <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : getInitials(name)
+  // ── Carrega mensagens ─────────────────────────────────────────
+  useEffect(() => {
+    if (!channelId) return;
+    setIsLoading(true);
+    api.get(`/servers/${serverId}/channels/${channelId}`)
+      .then(({ data }) => setChannelName(data.name))
+      .catch(() => {});
+    api.get(`/channels/${channelId}/messages`)
+      .then(({ data }) => {
+        setMessages(data.messages);
+        setIsLoading(false);
+        scrollToBottom();
+      });
+  }, [channelId]);
+
+  // ── Eventos Socket.IO ─────────────────────────────────────────
+  useEffect(() => {
+    if (!channelId || !socket) return;
+
+    socket.emit('channel:join', { channelId });
+
+    socket.on('message:new', (msg: Message) => {
+      setMessages(prev => [...prev, msg]);
+      scrollToBottom();
+    });
+
+    socket.on('message:updated', (msg: Message) => {
+      setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+    });
+
+    socket.on('message:deleted', ({ messageId }: { messageId: string }) => {
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, deleted: true, content: '[mensagem excluída]' } : m
+      ));
+    });
+
+    socket.on('reaction:added', ({ messageId, userId, emoji }: any) => {
+      setMessages(prev => prev.map(m => {
+        if (m.id !== messageId) return m;
+        return { ...m, reactions: [...m.reactions, { id: Date.now().toString(), userId, emoji }] };
+      }));
+    });
+
+    socket.on('reaction:removed', ({ messageId, userId, emoji }: any) => {
+      setMessages(prev => prev.map(m => {
+        if (m.id !== messageId) return m;
+        return { ...m, reactions: m.reactions.filter(r => !(r.userId === userId && r.emoji === emoji)) };
+      }));
+    });
+
+    socket.on('typing:update', ({ userId, typing }: { userId: string; typing: boolean; channelId: string }) => {
+      setTypingUsers(prev => {
+        if (typing) {
+          if (prev.find(u => u.userId === userId)) return prev;
+          return [...prev, { userId }];
+        }
+        return prev.filter(u => u.userId !== userId);
+      });
+    });
+
+    return () => {
+      socket.emit('channel:leave', { channelId });
+      socket.off('message:new');
+      socket.off('message:updated');
+      socket.off('message:deleted');
+      socket.off('reaction:added');
+      socket.off('reaction:removed');
+      socket.off('typing:update');
+    };
+  }, [channelId]);
+
+  const scrollToBottom = () => {
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  // ── Enviar mensagem ───────────────────────────────────────────
+  const handleSend = useCallback(() => {
+    if (!content.trim()) return;
+
+    socket.emit('message:send', {
+      channelId,
+      content: content.trim(),
+      replyToId: replyTo?.id,
+    });
+
+    setContent('');
+    setReplyTo(null);
+    textareaRef.current?.focus();
+  }, [content, channelId, replyTo, socket]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (editingId) {
+        handleSaveEdit();
+      } else {
+        handleSend();
       }
+    }
+    if (e.key === 'Escape') {
+      setEditingId(null);
+      setReplyTo(null);
+    }
+  };
+
+  // ── Typing ────────────────────────────────────────────────────
+  const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+    socket.emit('typing:start', { channelId });
+    clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      socket.emit('typing:stop', { channelId });
+    }, 3000);
+  };
+
+  // ── Editar ────────────────────────────────────────────────────
+  const startEdit = (msg: Message) => {
+    setEditingId(msg.id);
+    setEditContent(msg.content);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editContent.trim() || !editingId) return;
+    socket.emit('message:edit', { messageId: editingId, content: editContent.trim() });
+    setEditingId(null);
+  };
+
+  // ── Deletar ───────────────────────────────────────────────────
+  const handleDelete = (msg: Message) => {
+    setDeleteConfirmId(msg.id);
+  };
+
+  const confirmDelete = (messageId: string) => {
+    socket.emit('message:delete', { messageId, channelId });
+    setDeleteConfirmId(null);
+  };
+
+  // ── Reação ────────────────────────────────────────────────────
+  const handleReaction = (messageId: string, emoji: string) => {
+    const message = messages.find(m => m.id === messageId);
+    const hasReacted = message?.reactions.some(r => r.userId === user?.id && r.emoji === emoji);
+
+    if (hasReacted) {
+      socket.emit('reaction:remove', { messageId, channelId, emoji });
+    } else {
+      socket.emit('reaction:add', { messageId, channelId, emoji });
+    }
+  };
+
+  // ── Agrupa reações ────────────────────────────────────────────
+  const groupReactions = (reactions: Message['reactions']) => {
+    const map = new Map<string, string[]>();
+    reactions.forEach(r => {
+      if (!map.has(r.emoji)) map.set(r.emoji, []);
+      map.get(r.emoji)!.push(r.userId);
+    });
+    return Array.from(map.entries()).map(([emoji, users]) => ({ emoji, count: users.length, reacted: users.includes(user?.id || '') }));
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      {/* Header do canal */}
+      <div className="h-12 flex items-center gap-2 px-4 border-b border-border bg-background-secondary shrink-0">
+        <Hash className="w-5 h-5 text-muted" />
+        <h2 className="font-semibold text-white text-sm">
+          {channelName || 'canal'}
+        </h2>
+      </div>
+
+      {/* Modal de confirmação de exclusão */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setDeleteConfirmId(null)}>
+          <div className="bg-surface border border-border rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold text-lg mb-2">Excluir mensagem</h3>
+            <p className="text-muted text-sm mb-6">Tem certeza? Esta ação não pode ser desfeita.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 rounded-lg bg-surface-raised text-muted hover:text-white text-sm transition-colors">
+                Cancelar
+              </button>
+              <button onClick={() => confirmDelete(deleteConfirmId)}
+                className="px-4 py-2 rounded-lg bg-destructive hover:bg-red-600 text-white text-sm font-medium transition-colors">
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagens */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-0.5">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4">
+              <Hash className="w-8 h-8 text-muted" />
+            </div>
+            <h3 className="text-white font-semibold text-xl mb-1">Seja o primeiro a escrever!</h3>
+            <p className="text-muted text-sm">Este é o início deste canal.</p>
+          </div>
+        ) : (
+          messages.map((msg, i) => {
+            const isOwn = msg.authorId === user?.id;
+            const isConsecutive = i > 0 && messages[i - 1].authorId === msg.authorId &&
+              new Date(msg.createdAt).getTime() - new Date(messages[i - 1].createdAt).getTime() < 5 * 60 * 1000;
+
+            return (
+              <MessageRow
+                key={msg.id}
+                msg={msg}
+                isOwn={isOwn}
+                isConsecutive={isConsecutive}
+                onReply={() => setReplyTo(msg)}
+                onEdit={() => startEdit(msg)}
+                onDelete={() => handleDelete(msg)}
+                onReaction={(emoji) => handleReaction(msg.id, emoji)}
+                editingId={editingId}
+                editContent={editContent}
+                setEditContent={setEditContent}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={() => setEditingId(null)}
+                groupedReactions={groupReactions(msg.reactions)}
+                currentUserId={user?.id || ''}
+              />
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Typing indicator */}
+      <AnimatePresence>
+        {typingUsers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="px-4 py-1 flex items-center gap-2"
+          >
+            <div className="flex gap-0.5">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-muted animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+            <span className="text-muted text-xs">
+              {typingUsers.length === 1 ? 'alguém está digitando...' : 'várias pessoas estão digitando...'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Barra de input */}
+      <div className="px-4 pb-4 pt-2 shrink-0">
+        {/* Reply preview */}
+        <AnimatePresence>
+          {replyTo && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-center gap-2 px-3 py-2 mb-1 bg-surface rounded-t-md border border-border"
+            >
+              <Reply className="w-3.5 h-3.5 text-muted shrink-0" />
+              <span className="text-muted text-xs">
+                Respondendo para{' '}
+                <span className="text-accent font-medium">{replyTo.author.profile.displayName}</span>
+                {': '}
+                <span className="text-muted-foreground">{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span>
+              </span>
+              <button onClick={() => setReplyTo(null)} className="ml-auto text-muted hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className={cn(
+          'flex items-end gap-2 bg-surface-raised rounded-xl px-3 py-2 border border-border',
+          replyTo && 'rounded-t-none border-t-0',
+        )}>
+          <button className="text-muted hover:text-white p-1 rounded transition-colors">
+            <Paperclip className="w-5 h-5" />
+          </button>
+
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleTyping}
+            onKeyDown={handleKeyDown}
+            placeholder="Escrever uma mensagem..."
+            rows={1}
+            className="flex-1 bg-transparent text-white text-sm resize-none focus:outline-none
+                       placeholder:text-muted min-h-[24px] max-h-36 leading-6 py-0.5"
+            style={{ height: 'auto' }}
+            onInput={(e) => {
+              const t = e.target as HTMLTextAreaElement;
+              t.style.height = 'auto';
+              t.style.height = `${t.scrollHeight}px`;
+            }}
+          />
+
+          <div className="flex items-center gap-1">
+            <button className="text-muted hover:text-warning p-1 rounded transition-colors">
+              <Smile className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={!content.trim()}
+              className={cn(
+                'w-8 h-8 rounded-lg flex items-center justify-center transition-all',
+                content.trim()
+                  ? 'bg-accent text-white hover:bg-accent-hover'
+                  : 'text-muted cursor-not-allowed',
+              )}
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ── Message row ─────────────────────────────────── */
+// ── Componente de mensagem ─────────────────────────────────────
 function MessageRow({
-  msg, isMine, onEdit, onDelete, onReact, onReply,
-}: {
-  msg: Message;
-  isMine: boolean;
-  onEdit: (msg: Message) => void;
-  onDelete: (msg: Message) => void;
-  onReact: (msgId: string, emoji: string) => void;
-  onReply: (msg: Message) => void;
-}) {
-  const [hover, setHover] = useState(false);
-  const [emojiMenu, setEmojiMenu] = useState(false);
-
-  if (msg.deleted) {
-    return (
-      <div style={{ padding: '4px 16px', color: '#4a4560', fontSize: 13, fontStyle: 'italic' }}>
-        [mensagem excluída]
-      </div>
-    );
-  }
+  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction,
+  editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
+  groupedReactions, currentUserId,
+}: any) {
+  const isEditing = editingId === msg.id;
 
   return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => { setHover(false); setEmojiMenu(false); }}
-      style={{
-        display: 'flex', gap: 12, padding: '4px 16px',
-        background: hover ? 'rgba(255,255,255,0.02)' : 'transparent',
-        borderRadius: 8, position: 'relative',
-      }}
-    >
-      <Avatar author={msg.author} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Reply quote */}
-        {msg.replyTo && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            marginBottom: 4, opacity: 0.6,
-          }}>
-            <Reply style={{ width: 12, height: 12, color: '#7c5af0' }} />
-            <span style={{ fontSize: 12, color: '#9b6dff' }}>
-              {displayNameFor(msg.replyTo.author)}
-            </span>
-            <span style={{ fontSize: 12, color: '#7a748e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {msg.replyTo.content.slice(0, 60)}
-            </span>
+    <div className={cn('message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40', !isConsecutive && 'mt-4')}>
+      {/* Avatar */}
+      <div className="w-10 shrink-0 mt-0.5">
+        {!isConsecutive ? (
+          <Avatar src={msg.author.profile.avatarUrl} name={msg.author.profile.displayName} size="md" />
+        ) : (
+          <span className="text-muted text-[10px] leading-none mt-1.5 block text-right opacity-0 group-hover:opacity-100">
+            {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+
+      {/* Conteúdo */}
+      <div className="flex-1 min-w-0">
+        {/* Autor + data */}
+        {!isConsecutive && (
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <span className="font-medium text-white text-sm">{msg.author.profile.displayName}</span>
+            <span className="text-muted text-xs">{formatMessageDate(msg.createdAt)}</span>
           </div>
         )}
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
-          <span style={{ color: '#ede8f8', fontWeight: 700, fontSize: 14 }}>
-            {displayNameFor(msg.author)}
-          </span>
-          <span style={{ color: '#4a4560', fontSize: 11 }}>
-            {formatTime(msg.createdAt)}
-            {msg.edited && ' (editado)'}
-          </span>
-        </div>
+        {/* Reply preview */}
+        {msg.replyTo && (
+          <div className="flex items-center gap-1.5 mb-1 text-muted text-xs">
+            <Reply className="w-3 h-3" />
+            <span className="text-accent font-medium">{msg.replyTo.author.profile.displayName}</span>
+            <span className="truncate">{msg.replyTo.content.slice(0, 60)}</span>
+          </div>
+        )}
 
-        {/* Content */}
-        <p style={{ color: '#cdc8e0', fontSize: 14, margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>
-          {msg.content}
-        </p>
+        {/* Conteúdo da mensagem */}
+        {isEditing ? (
+          <div className="space-y-1">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSaveEdit(); }
+                if (e.key === 'Escape') onCancelEdit();
+              }}
+              className="nexus-input text-sm resize-none w-full"
+              rows={2}
+              autoFocus
+            />
+            <div className="flex items-center gap-2 text-xs">
+              <button onClick={onSaveEdit} className="text-accent hover:underline">salvar</button>
+              <span className="text-muted">·</span>
+              <button onClick={onCancelEdit} className="text-muted hover:text-white">cancelar</button>
+            </div>
+          </div>
+        ) : (
+          <p className={cn('text-sm leading-relaxed break-words', msg.deleted && 'text-muted italic')}>
+            {msg.content}
+            {msg.edited && !msg.deleted && (
+              <span className="text-muted text-[10px] ml-1">(editado)</span>
+            )}
+          </p>
+        )}
 
-        {/* Reactions */}
-        {msg.reactions.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-            {Object.entries(
-              msg.reactions.reduce<Record<string, number>>((acc, r) => {
-                acc[r.emoji] = (acc[r.emoji] ?? 0) + 1;
-                return acc;
-              }, {})
-            ).map(([emoji, count]) => (
+        {/* Attachments */}
+        {msg.attachments?.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {msg.attachments.map((att: any) => (
+              isImageMime(att.mimeType) ? (
+                <div key={att.id} className="rounded-lg overflow-hidden max-w-xs">
+                  <Image src={att.url} alt={att.fileName} width={300} height={200} className="object-cover" />
+                </div>
+              ) : (
+                <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 p-2 bg-surface rounded-lg text-sm text-muted-foreground hover:text-white border border-border">
+                  <Paperclip className="w-4 h-4" />
+                  <span className="truncate max-w-[200px]">{att.fileName}</span>
+                  <span className="text-muted text-xs shrink-0">{formatFileSize(att.fileSize)}</span>
+                </a>
+              )
+            ))}
+          </div>
+        )}
+
+        {/* Reações */}
+        {groupedReactions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {groupedReactions.map(({ emoji, count, reacted }: any) => (
               <button
                 key={emoji}
-                onClick={() => onReact(msg.id, emoji)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  background: 'rgba(124,90,240,0.12)', border: '1px solid rgba(124,90,240,0.25)',
-                  borderRadius: 10, padding: '2px 8px', cursor: 'pointer',
-                  fontSize: 13, color: '#cdc8e0',
-                }}
+                onClick={() => onReaction(emoji)}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-colors',
+                  reacted
+                    ? 'bg-accent/20 border-accent/40 text-accent'
+                    : 'bg-surface border-border text-muted hover:bg-surface-raised hover:text-white',
+                )}
               >
-                {emoji} <span style={{ fontSize: 11 }}>{count}</span>
+                <span>{emoji}</span>
+                <span className="text-xs">{count}</span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Hover actions */}
-      {hover && (
-        <div style={{
-          position: 'absolute', right: 16, top: -18,
-          display: 'flex', gap: 2,
-          background: '#1a1428', border: '1px solid #2a1f40',
-          borderRadius: 8, padding: '3px 4px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-          zIndex: 10,
-        }}>
-          {/* Quick emojis */}
-          {QUICK_EMOJIS.map(e => (
-            <button key={e} onClick={() => onReact(msg.id, e)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 3px', borderRadius: 4 }}
-              title={e}
-            >
-              {e}
-            </button>
-          ))}
-          <div style={{ width: 1, background: '#2a1f40', margin: '2px 2px' }} />
-          <button onClick={() => onReply(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a748e', padding: '2px 4px', borderRadius: 4 }} title="Responder">
-            <Reply style={{ width: 14, height: 14 }} />
-          </button>
-          {isMine && (
+      {/* Actions */}
+      {!msg.deleted && (
+        <div className="message-actions flex items-start gap-0.5 mt-0.5 shrink-0">
+          <ActionBtn onClick={onReply} title="Responder"><Reply className="w-3.5 h-3.5" /></ActionBtn>
+          <ActionBtn onClick={() => onReaction('👍')} title="Reagir"><Smile className="w-3.5 h-3.5" /></ActionBtn>
+          {isOwn && (
             <>
-              <button onClick={() => onEdit(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a748e', padding: '2px 4px', borderRadius: 4 }} title="Editar">
-                <Edit2 style={{ width: 14, height: 14 }} />
-              </button>
-              <button onClick={() => onDelete(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff6060', padding: '2px 4px', borderRadius: 4 }} title="Deletar">
-                <Trash2 style={{ width: 14, height: 14 }} />
-              </button>
+              <ActionBtn onClick={onEdit} title="Editar"><Edit2 className="w-3.5 h-3.5" /></ActionBtn>
+              <ActionBtn onClick={onDelete} title="Deletar" danger><Trash2 className="w-3.5 h-3.5" /></ActionBtn>
             </>
           )}
         </div>
@@ -201,444 +515,19 @@ function MessageRow({
   );
 }
 
-/* ── Typing indicator ────────────────────────────── */
-function TypingIndicator({ users }: { users: string[] }) {
-  if (!users.length) return null;
-  const text = users.length === 1 ? `${users[0]} está digitando…`
-    : users.length === 2 ? `${users[0]} e ${users[1]} estão digitando…`
-    : 'Vários usuários estão digitando…';
+function ActionBtn({ children, onClick, title, danger }: any) {
   return (
-    <div style={{ padding: '4px 16px 8px', color: '#7a748e', fontSize: 12 }}>
-      <span style={{ fontStyle: 'italic' }}>{text}</span>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Main channel page
-══════════════════════════════════════════════════ */
-export default function ChannelPage() {
-  const params = useParams<{ serverId: string; channelId: string }>();
-  const { channelId, serverId } = params;
-  const { user } = useAuthStore();
-  const socket = useSocketStore();
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [channelName, setChannelName] = useState('');
-
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [editingMsg, setEditingMsg] = useState<Message | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [showScrollBtn, setShowScrollBtn] = useState(false);
-
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isAtBottom = useRef(true);
-
-  /* ── Scroll helpers ── */
-  const scrollToBottom = (smooth = false) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
-  };
-
-  /* ── Load messages ── */
-  const loadMessages = useCallback(async (cursor?: string) => {
-    try {
-      const params = new URLSearchParams({ limit: '50' });
-      if (cursor) params.set('cursor', cursor);
-      const { data } = await api.get(`/channels/${channelId}/messages?${params}`);
-      return data as { messages: Message[]; nextCursor: string | null };
-    } catch {
-      return { messages: [], nextCursor: null };
-    }
-  }, [channelId]);
-
-  /* ── Initial load + join channel ── */
-  useEffect(() => {
-    if (!channelId) return;
-
-    setLoading(true);
-    setMessages([]);
-    setNextCursor(null);
-
-    // Join socket room
-    socket.emit('server:join', { serverId });
-    socket.emit('channel:join', { channelId });
-
-    // Load channel info + messages in parallel
-    // Channel detail is at /servers/:serverId/channels/:channelId
-    Promise.all([
-      api.get(`/servers/${serverId}/channels/${channelId}`).catch(() => null),
-      loadMessages(),
-    ]).then(([chanRes, msgData]) => {
-      if (chanRes?.data?.name) setChannelName(chanRes.data.name);
-      setMessages(msgData.messages);
-      setNextCursor(msgData.nextCursor);
-      setLoading(false);
-      setTimeout(() => scrollToBottom(), 50);
-    });
-
-    return () => {
-      socket.emit('channel:leave', { channelId });
-    };
-  }, [channelId, serverId]);
-
-  /* ── Socket events ── */
-  useEffect(() => {
-    if (!channelId) return;
-
-    const onNew = (msg: Message) => {
-      if (msg.channelId !== channelId) return;
-      setMessages(prev => [...prev, msg]);
-      if (isAtBottom.current) setTimeout(() => scrollToBottom(true), 30);
-      else setShowScrollBtn(true);
-    };
-    const onUpdated = (msg: Message) => {
-      if (msg.channelId !== channelId) return;
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
-    };
-    const onDeleted = ({ messageId }: { messageId: string }) => {
-      setMessages(prev => prev.map(m =>
-        m.id === messageId ? { ...m, deleted: true, content: '[mensagem excluída]' } : m
-      ));
-    };
-    const onTyping = ({ channelId: cId, userId, typing }: { channelId: string; userId: string; typing: boolean }) => {
-      if (cId !== channelId || userId === user?.id) return;
-      const name = userId.slice(0, 6); // fallback display
-      setTypingUsers(prev =>
-        typing ? (prev.includes(name) ? prev : [...prev, name]) : prev.filter(u => u !== name)
-      );
-    };
-
-    socket.on('message:new', onNew);
-    socket.on('message:updated', onUpdated);
-    socket.on('message:deleted', onDeleted);
-    socket.on('typing:update', onTyping);
-
-    return () => {
-      socket.off('message:new', onNew);
-      socket.off('message:updated', onUpdated);
-      socket.off('message:deleted', onDeleted);
-      socket.off('typing:update', onTyping);
-    };
-  }, [channelId, user?.id]);
-
-  /* ── Scroll tracking ── */
-  const handleScroll = () => {
-    const el = listRef.current;
-    if (!el) return;
-    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    isAtBottom.current = distFromBottom < 80;
-    setShowScrollBtn(distFromBottom > 200);
-
-    // Load more when near top
-    if (el.scrollTop < 100 && !loadingMore && nextCursor) {
-      setLoadingMore(true);
-      const prevHeight = el.scrollHeight;
-      loadMessages(nextCursor).then(data => {
-        setMessages(prev => [...data.messages, ...prev]);
-        setNextCursor(data.nextCursor);
-        setLoadingMore(false);
-        // Restore scroll position
-        requestAnimationFrame(() => {
-          el.scrollTop = el.scrollHeight - prevHeight;
-        });
-      });
-    }
-  };
-
-  /* ── Typing signal ── */
-  const handleInputChange = (val: string) => {
-    setInput(val);
-    if (val.trim()) {
-      socket.emit('typing:start', { channelId });
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      typingTimer.current = setTimeout(() => {
-        socket.emit('typing:stop', { channelId });
-      }, 3000);
-    } else {
-      socket.emit('typing:stop', { channelId });
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-    }
-  };
-
-  /* ── Send message (via SOCKET) ── */
-  const sendMessage = async () => {
-    const content = input.trim();
-    if (!content || sending) return;
-    setSending(true);
-    socket.emit('typing:stop', { channelId });
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-
-    try {
-      socket.emit('message:send', {
-        channelId,
-        content,
-        replyToId: replyTo?.id,
-      });
-      setInput('');
-      setReplyTo(null);
-      isAtBottom.current = true;
-      setTimeout(() => scrollToBottom(true), 50);
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
-  };
-
-  /* ── Edit message ── */
-  const submitEdit = () => {
-    if (!editingMsg || !editContent.trim()) return;
-    socket.emit('message:edit', { messageId: editingMsg.id, content: editContent.trim() });
-    setEditingMsg(null);
-    setEditContent('');
-  };
-
-  /* ── Delete message ── */
-  const handleDelete = (msg: Message) => {
-    if (!confirm('Deletar mensagem?')) return;
-    socket.emit('message:delete', { messageId: msg.id, channelId });
-  };
-
-  /* ── React ── */
-  const handleReact = (messageId: string, emoji: string) => {
-    const existing = messages.find(m => m.id === messageId);
-    const alreadyReacted = existing?.reactions.some(r => r.userId === user?.id && r.emoji === emoji);
-    if (alreadyReacted) {
-      socket.emit('reaction:remove', { messageId, channelId, emoji });
-    } else {
-      socket.emit('reaction:add', { messageId, channelId, emoji });
-    }
-  };
-
-  /* ── Key handler for textarea ── */
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (editingMsg) submitEdit();
-      else sendMessage();
-    }
-    if (e.key === 'Escape') {
-      setEditingMsg(null);
-      setEditContent('');
-      setReplyTo(null);
-    }
-  };
-
-  /* ── Group messages by day ── */
-  const grouped: { day: string; msgs: Message[] }[] = [];
-  for (const msg of messages) {
-    const day = formatDay(new Date(msg.createdAt));
-    if (!grouped.length || grouped[grouped.length - 1].day !== day) {
-      grouped.push({ day, msgs: [msg] });
-    } else {
-      grouped[grouped.length - 1].msgs.push(msg);
-    }
-  }
-
-  /* ── Render ── */
-  return (
-    <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column', height: '100%',
-      background: '#09070d', overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{
-        height: 52, flexShrink: 0, borderBottom: '1px solid #1e1630',
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '0 16px',
-        background: '#0b0816',
-      }}>
-        <Hash style={{ width: 18, height: 18, color: '#7c5af0' }} />
-        <span style={{ color: '#ede8f8', fontWeight: 700, fontSize: 15 }}>
-          {channelName || 'canal'}
-        </span>
-      </div>
-
-      {/* Messages list */}
-      <div
-        ref={listRef}
-        onScroll={handleScroll}
-        style={{
-          flex: 1, overflowY: 'auto', padding: '16px 0',
-          scrollbarWidth: 'thin', scrollbarColor: '#2a1f40 transparent',
-          position: 'relative',
-        }}
-      >
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
-            <Loader2 style={{ width: 24, height: 24, color: '#7c5af0', animation: 'spin 1s linear infinite' }} />
-          </div>
-        )}
-
-        {loadingMore && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 12 }}>
-            <Loader2 style={{ width: 16, height: 16, color: '#7a748e', animation: 'spin 1s linear infinite' }} />
-          </div>
-        )}
-
-        {!loading && messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 48, color: '#4a4560' }}>
-            <Hash style={{ width: 40, height: 40, marginBottom: 12, opacity: 0.4 }} />
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#7a748e' }}>
-              Bem-vindo a #{channelName}!
-            </p>
-            <p style={{ margin: '8px 0 0', fontSize: 13 }}>
-              Seja o primeiro a enviar uma mensagem.
-            </p>
-          </div>
-        )}
-
-        {grouped.map(group => (
-          <div key={group.day}>
-            {/* Day separator */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '12px 16px',
-            }}>
-              <div style={{ flex: 1, height: 1, background: '#1e1630' }} />
-              <span style={{ color: '#4a4560', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                {group.day}
-              </span>
-              <div style={{ flex: 1, height: 1, background: '#1e1630' }} />
-            </div>
-
-            {group.msgs.map(msg => (
-              <MessageRow
-                key={msg.id}
-                msg={msg}
-                isMine={msg.authorId === user?.id}
-                onEdit={m => { setEditingMsg(m); setEditContent(m.content); }}
-                onDelete={handleDelete}
-                onReact={handleReact}
-                onReply={m => { setReplyTo(m); inputRef.current?.focus(); }}
-              />
-            ))}
-          </div>
-        ))}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Scroll to bottom button */}
-      {showScrollBtn && (
-        <button
-          onClick={() => { scrollToBottom(true); setShowScrollBtn(false); }}
-          style={{
-            position: 'absolute', bottom: 90, right: 24,
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#7c5af0,#b142f5)',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(124,90,240,0.4)',
-          }}
-        >
-          <ChevronDown style={{ width: 18, height: 18, color: '#fff' }} />
-        </button>
+    <button
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+        danger
+          ? 'text-muted hover:bg-destructive/10 hover:text-destructive'
+          : 'text-muted hover:bg-surface-raised hover:text-white',
       )}
-
-      {/* Typing indicator */}
-      <TypingIndicator users={typingUsers} />
-
-      {/* Edit mode banner */}
-      {editingMsg && (
-        <div style={{
-          padding: '8px 16px',
-          background: 'rgba(124,90,240,0.1)',
-          borderTop: '1px solid rgba(124,90,240,0.2)',
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 12, color: '#9b6dff',
-        }}>
-          <Edit2 style={{ width: 13, height: 13 }} />
-          Editando mensagem — pressione Esc para cancelar
-        </div>
-      )}
-
-      {/* Reply banner */}
-      {replyTo && !editingMsg && (
-        <div style={{
-          padding: '8px 16px',
-          background: 'rgba(124,90,240,0.08)',
-          borderTop: '1px solid rgba(124,90,240,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontSize: 12, color: '#9b6dff',
-        }}>
-          <span>
-            <Reply style={{ width: 12, height: 12, display: 'inline', marginRight: 6 }} />
-            Respondendo a <strong>{displayNameFor(replyTo.author)}</strong>
-          </span>
-          <button
-            onClick={() => setReplyTo(null)}
-            style={{ background: 'none', border: 'none', color: '#7a748e', cursor: 'pointer', padding: 2 }}
-          >✕</button>
-        </div>
-      )}
-
-      {/* Input area */}
-      <div style={{
-        padding: '12px 16px',
-        borderTop: '1px solid #1e1630',
-        background: '#0b0816',
-        flexShrink: 0,
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'flex-end', gap: 10,
-          background: '#131020',
-          border: '1px solid #2a1f40',
-          borderRadius: 12,
-          padding: '10px 14px',
-        }}>
-          <textarea
-            ref={inputRef}
-            value={editingMsg ? editContent : input}
-            onChange={e => editingMsg ? setEditContent(e.target.value) : handleInputChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={editingMsg ? 'Editar mensagem…' : `Mensagem em #${channelName}`}
-            rows={1}
-            style={{
-              flex: 1, background: 'none', border: 'none', outline: 'none',
-              color: '#ede8f8', fontSize: 14, lineHeight: 1.5,
-              resize: 'none', fontFamily: 'Inter, system-ui, sans-serif',
-              maxHeight: 120, overflowY: 'auto',
-            }}
-            onInput={e => {
-              const el = e.currentTarget;
-              el.style.height = 'auto';
-              el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-            }}
-          />
-          <button
-            onClick={editingMsg ? submitEdit : sendMessage}
-            disabled={!(editingMsg ? editContent.trim() : input.trim()) || sending}
-            style={{
-              width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-              background: (editingMsg ? editContent.trim() : input.trim())
-                ? 'linear-gradient(135deg,#7c5af0,#b142f5)'
-                : 'rgba(255,255,255,0.05)',
-              border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.15s',
-            }}
-          >
-            <Send style={{
-              width: 15, height: 15,
-              color: (editingMsg ? editContent.trim() : input.trim()) ? '#fff' : '#4a4560',
-            }} />
-          </button>
-        </div>
-        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#4a4560', paddingLeft: 2 }}>
-          Enter para enviar · Shift+Enter para nova linha
-        </p>
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    >
+      {children}
+    </button>
   );
 }

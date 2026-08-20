@@ -1,368 +1,195 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { getInitials } from '@/lib/utils';
+import { useRouter, useParams } from 'next/navigation';
+import { Plus, Settings, Hash, Compass, X, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { cn, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
-import { InviteModal } from '@/components/modals/invite-modal';
-import { ServerContextMenu } from '@/components/menus/server-context-menu';
-import { CreateServerModal } from '@/components/modals/create-server-modal';
 
-interface Server { id: string; name: string; iconUrl: string | null; }
-
-/* ── Pill indicator (left side of active server) ─── */
-function ActivePill({ visible }: { visible: boolean }) {
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.span
-          initial={{ scaleY: 0, opacity: 0 }}
-          animate={{ scaleY: 1, opacity: 1 }}
-          exit={{ scaleY: 0, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: 3,
-            height: 28,
-            borderRadius: '0 3px 3px 0',
-            background: 'linear-gradient(180deg,#ff6a00,#7c5af0)',
-            boxShadow: '0 0 8px rgba(124,90,240,0.6)',
-          }}
-        />
-      )}
-    </AnimatePresence>
-  );
-}
-
-/* ── Server orb ─────────────────────────────────── */
-function ServerOrb({
-  server, active, onClick,
-}: { server: Server; active: boolean; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-  const show = hovered || active;
-
-  return (
-    <div
-      style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <ActivePill visible={active} />
-
-      {/* Tooltip */}
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -6 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'absolute',
-              left: 72,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: '#0d0a16',
-              border: '1px solid #2a1f40',
-              borderRadius: 8,
-              padding: '5px 10px',
-              fontSize: 12,
-              fontWeight: 700,
-              color: '#ede8f8',
-              whiteSpace: 'nowrap',
-              zIndex: 100,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-              pointerEvents: 'none',
-            }}
-          >
-            {server.name}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        onClick={onClick}
-        animate={{
-          borderRadius: active ? '14px' : '22px',
-          scale: active ? 1.05 : 1,
-        }}
-        whileHover={{ borderRadius: '14px', scale: 1.05 }}
-        transition={{ type: 'spring', stiffness: 350, damping: 22 }}
-        style={{
-          width: 44,
-          height: 44,
-          marginLeft: 18,
-          overflow: 'hidden',
-          cursor: 'pointer',
-          border: 'none',
-          flexShrink: 0,
-          position: 'relative',
-          background: server.iconUrl
-            ? 'transparent'
-            : active
-              ? 'linear-gradient(135deg,#7c5af0,#b142f5)'
-              : '#1a1629',
-          boxShadow: active
-            ? '0 0 0 2px #7c5af0, 0 0 16px rgba(124,90,240,0.4)'
-            : show
-              ? '0 0 0 2px rgba(124,90,240,0.4)'
-              : '0 2px 8px rgba(0,0,0,0.4)',
-          transition: 'box-shadow 0.2s',
-        }}
-        title={server.name}
-      >
-        {server.iconUrl ? (
-          <img
-            src={server.iconUrl}
-            alt={server.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          <span style={{ color: '#fff', fontWeight: 900, fontSize: 14, letterSpacing: -0.5 }}>
-            {getInitials(server.name)}
-          </span>
-        )}
-      </motion.button>
-    </div>
-  );
-}
-
-/* ── Icon-only button (DM, Add server) ─────────── */
-function IconOrb({
-  icon, onClick, active, tooltip, gradient,
-}: {
-  icon: React.ReactNode;
-  onClick: () => void;
-  active?: boolean;
-  tooltip: string;
-  gradient?: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <ActivePill visible={!!active} />
-
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -6 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'absolute',
-              left: 72,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: '#0d0a16',
-              border: '1px solid #2a1f40',
-              borderRadius: 8,
-              padding: '5px 10px',
-              fontSize: 12,
-              fontWeight: 700,
-              color: '#ede8f8',
-              whiteSpace: 'nowrap',
-              zIndex: 100,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-              pointerEvents: 'none',
-            }}
-          >
-            {tooltip}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        onClick={onClick}
-        animate={{ borderRadius: active ? '14px' : '22px' }}
-        whileHover={{ borderRadius: '14px', scale: 1.05 }}
-        transition={{ type: 'spring', stiffness: 350, damping: 22 }}
-        style={{
-          width: 44,
-          height: 44,
-          marginLeft: 18,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          border: 'none',
-          flexShrink: 0,
-          background: gradient
-            ? 'linear-gradient(135deg,#ff6a00,#7c5af0)'
-            : active
-              ? 'linear-gradient(135deg,#7c5af0,#b142f5)'
-              : '#1a1629',
-          color: gradient || active ? '#fff' : '#7c5af0',
-          boxShadow: active
-            ? '0 0 0 2px #7c5af0, 0 0 16px rgba(124,90,240,0.4)'
-            : hovered
-              ? '0 0 0 2px rgba(124,90,240,0.4)'
-              : '0 2px 8px rgba(0,0,0,0.4)',
-          transition: 'box-shadow 0.2s, color 0.2s, background 0.2s',
-        }}
-      >
-        {icon}
-      </motion.button>
-    </div>
-  );
+interface Server {
+  id: string;
+  name: string;
+  iconUrl: string | null;
 }
 
 export function ServersSidebar() {
-  const params = useParams();
   const router = useRouter();
   const { user } = useAuthStore();
-  const activeServerId = params?.serverId as string | undefined;
   const [servers, setServers] = useState<Server[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; server: Server } | null>(null);
-  const [inviteServer, setInviteServer] = useState<Server | null>(null);
-  const [showCreateServer, setShowCreateServer] = useState(false);
+  const params = useParams();
+  const activeServerId = params?.serverId as string;
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newServerName, setNewServerName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   useEffect(() => {
     api.get('/users/@me/servers').then(({ data }) => {
-      const items: any[] = Array.isArray(data) ? data : data.servers ?? [];
-      // API returns ServerMember[] — each item has a nested `server` object
-      setServers(items.map(item => item.server ?? item));
+      setServers(data.map((m: any) => m.server));
     });
   }, []);
 
-  const handleContextMenu = (e: React.MouseEvent, server: Server) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, server });
+  const handleCreateServer = async () => {
+    if (!newServerName.trim()) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const { data } = await api.post('/servers', { name: newServerName.trim() });
+      setServers(prev => [...prev, data]);
+      setShowCreateModal(false);
+      setNewServerName('');
+      router.push(`/app/servers/${data.id}`);
+    } catch (e: any) {
+      setCreateError(e?.response?.data?.message || 'Erro ao criar servidor');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
-    <div
-      style={{
-        width: 72,
-        minWidth: 72,
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: 12,
-        paddingBottom: 12,
-        gap: 0,
-        background: '#09070d',
-        borderRight: '1px solid #160f24',
-        overflowY: 'auto',
-        overflowX: 'visible',
-        scrollbarWidth: 'none',
-        flexShrink: 0,
-        zIndex: 10,
-      }}
-    >
-      {/* Logo / DM button */}
-      <IconOrb
-        tooltip="Mensagens Diretas"
-        active={!activeServerId}
+    <div className="w-[72px] h-full flex flex-col items-center py-3 gap-2 bg-background overflow-y-auto shrink-0">
+      {/* Home / DMs */}
+      <ServerIcon
+        label="Mensagens Diretas"
+        isActive={!activeServerId}
         onClick={() => router.push('/app/me')}
-        icon={
-          <img
-            src="/nexus-logo.png"
-            alt="Nexus"
-            style={{ width: 26, height: 26, objectFit: 'cover', objectPosition: '50% 18%', borderRadius: 6 }}
-          />
-        }
-      />
-
-      {/* Divider */}
-      <div
-        style={{
-          width: 32,
-          height: 1,
-          margin: '10px 0',
-          borderRadius: 1,
-          background: 'linear-gradient(90deg,transparent,#2a1f40,transparent)',
-        }}
-      />
-
-      {/* Server list */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          width: '100%',
-          alignItems: 'center',
-          overflowX: 'visible',
-        }}
       >
-        {servers.map(server => (
-          <div key={server.id} onContextMenu={e => handleContextMenu(e, server)}>
-            <ServerOrb
-              server={server}
-              active={activeServerId === server.id}
-              onClick={() => router.push(`/app/servers/${server.id}`)}
+        <Hash className="w-5 h-5" />
+      </ServerIcon>
+
+      {/* Divisor */}
+      <div className="w-8 h-px bg-border my-1" />
+
+      {/* Servidores */}
+      {servers.map((server) => (
+        <ServerIcon
+          key={server.id}
+          label={server.name}
+          isActive={activeServerId === server.id}
+          onClick={() => router.push(`/app/servers/${server.id}`)}
+        >
+          {server.iconUrl ? (
+            <Image src={server.iconUrl} alt={server.name} width={48} height={48} className="object-cover" />
+          ) : (
+            <span className="text-sm font-bold">{getInitials(server.name)}</span>
+          )}
+        </ServerIcon>
+      ))}
+
+      {/* Criar servidor */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="w-12 h-12 rounded-full bg-surface hover:bg-success hover:rounded-xl
+                   transition-all duration-200 flex items-center justify-center
+                   text-success hover:text-white group"
+        title="Criar servidor"
+      >
+        <Plus className="w-5 h-5" />
+      </button>
+
+      {/* Modal criar servidor */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setShowCreateModal(false)}>
+          <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-semibold text-lg">Criar servidor</h2>
+              <button onClick={() => setShowCreateModal(false)}
+                className="text-muted hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-muted text-sm mb-4">Dê um nome ao seu servidor. Você sempre pode mudá-lo depois.</p>
+            <input
+              autoFocus
+              value={newServerName}
+              onChange={e => setNewServerName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateServer(); if (e.key === 'Escape') setShowCreateModal(false); }}
+              placeholder="Nome do servidor"
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2.5
+                         text-white text-sm placeholder:text-muted focus:border-accent outline-none transition-colors mb-2"
             />
+            {createError && <p className="text-destructive text-xs mb-2">{createError}</p>}
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 rounded-lg bg-surface-raised text-muted hover:text-white text-sm transition-colors">
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateServer}
+                disabled={!newServerName.trim() || creating}
+                className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium
+                           transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {creating && <Loader2 className="w-4 h-4 animate-spin" />}
+                Criar servidor
+              </button>
+            </div>
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Config */}
+      <button
+        onClick={() => router.push('/app/me/settings')}
+        className="w-12 h-12 rounded-full bg-surface hover:bg-surface-raised transition-all duration-200
+                   flex items-center justify-center text-muted hover:text-white"
+        title="Configurações"
+      >
+        <Settings className="w-5 h-5" />
+      </button>
+    </div>
+  );
+}
+
+function ServerIcon({
+  children,
+  label,
+  isActive,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="relative group">
+      {/* Indicador ativo */}
+      <motion.div
+        animate={{ scaleY: isActive ? 1 : 0 }}
+        initial={false}
+        className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"
+      />
+
+      <button
+        onClick={onClick}
+        title={label}
+        className={cn(
+          'w-12 h-12 flex items-center justify-center overflow-hidden',
+          'transition-all duration-200 cursor-pointer',
+          isActive
+            ? 'rounded-xl bg-accent text-white'
+            : 'rounded-full bg-surface-raised text-muted hover:rounded-xl hover:bg-accent hover:text-white',
+        )}
+      >
+        {children}
+      </button>
+
+      {/* Tooltip */}
+      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <div className="bg-surface-overlay border border-border rounded-md px-3 py-1.5 shadow-xl whitespace-nowrap">
+          <p className="text-white text-sm font-medium">{label}</p>
+        </div>
       </div>
-
-      {/* Add server */}
-      <div style={{ marginTop: 6 }}>
-        <IconOrb
-          tooltip="Criar Servidor"
-          gradient
-          onClick={() => setShowCreateServer(true)}
-          icon={<Plus style={{ width: 18, height: 18 }} />}
-        />
-      </div>
-
-      {/* Context menu */}
-      <AnimatePresence>
-        {contextMenu && (
-          <ServerContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            server={contextMenu.server}
-            isAdmin={user?.isAdmin}
-            onClose={() => setContextMenu(null)}
-            onInvite={() => setInviteServer(contextMenu.server)}
-            onSettings={() => router.push(`/app/servers/${contextMenu.server.id}/settings`)}
-            onLeave={async () => {
-              await api.delete(`/servers/${contextMenu.server.id}/leave`).catch(() => {});
-              setServers(prev => prev.filter(s => s.id !== contextMenu.server.id));
-              router.push('/app/me');
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Invite modal */}
-      <AnimatePresence>
-        {inviteServer && (
-          <InviteModal
-            serverId={inviteServer.id}
-            serverName={inviteServer.name}
-            onClose={() => setInviteServer(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Create Server modal */}
-      <AnimatePresence>
-        {showCreateServer && (
-          <CreateServerModal
-            onClose={() => setShowCreateServer(false)}
-            onCreated={(newServer) => {
-              setServers(prev => [...prev, newServer]);
-              setShowCreateServer(false);
-              router.push(`/app/servers/${newServer.id}`);
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
