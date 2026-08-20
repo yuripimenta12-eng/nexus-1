@@ -10,19 +10,19 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [
-    PassportModule,
-    UsersModule,
-    JwtModule.registerAsync({
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRES', '15m') },
-      }),
-      inject: [ConfigService],
-    }),
-  ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, JwtRefreshStrategy],
-  exports: [AuthService],
+    imports: [
+          PassportModule,
+          UsersModule,
+          JwtModule.registerAsync({
+                  useFactory: (config: ConfigService) => ({
+                            secret: config.get<string>('JWT_ACCESS_SECRET'),
+                            signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRES', '15m') },
+                  }),
+                  inject: [ConfigService],
+          }),
+        ],
+    controllers: [AuthController],
+    providers: [AuthService, JwtStrategy, LocalStrategy, JwtRefreshStrategy],
+    exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+  export class AuthModule {}
