@@ -1,7 +1,7 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# Install build tools needed for native modules (argon2, sharp)
-RUN apk add --no-cache python3 make g++
+# Install build tools and OpenSSL (required for Prisma and native modules)
+RUN apt-get update && apt-get install -y python3 make g++ openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
