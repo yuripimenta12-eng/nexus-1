@@ -17,6 +17,12 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('nexus_access_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
+  // A instância força Content-Type: application/json por padrão; em uploads
+  // (FormData) isso impede o navegador de definir o boundary multipart e o
+  // NestJS/multer não recebe o arquivo. Remove o header nesse caso.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 
