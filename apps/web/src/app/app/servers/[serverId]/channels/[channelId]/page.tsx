@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2 } from 'lucide-react';
+import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu } from 'lucide-react';
 import api from '@/lib/api';
 import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
-import Image from 'next/image';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -58,8 +57,11 @@ export default function ChannelPage() {
   const [editContent, setEditContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<NodeJS.Timeout>();
   const socket = getSocket();
 
@@ -427,9 +429,41 @@ export default function ChannelPage() {
           'focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(122,44,255,0.09)] transition-shadow',
           replyTo && 'rounded-t-none border-t-0',
         )}>
-          <button className="text-muted hover:text-white p-1 rounded transition-colors">
-            <Paperclip className="w-5 h-5" />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingFile}
+            title="Enviar imagem ou arquivo"
+            className="text-muted hover:text-white p-1 rounded transition-colors disabled:opacity-50"
+          >
+            {uploadingFile ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.zip,.txt,.doc,.docx,.xls,.xlsx"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setUploadError('');
+              setUploadingFile(true);
+              try {
+                const form = new FormData();
+                form.append('file', file);
+                // O texto digitado vira legenda do anexo
+                form.append('content', content.trim());
+                await api.post(`/upload/attachment/${channelId}`, form);
+                setContent('');
+                // A mensagem chega para todos (inclusive nós) via socket message:new
+              } catch (err: any) {
+                setUploadError(err?.response?.data?.message || 'Erro ao enviar o arquivo');
+                setTimeout(() => setUploadError(''), 4000);
+              } finally {
+                setUploadingFile(false);
+              }
+            }}
+          />
 
           <textarea
             ref={textareaRef}
@@ -466,6 +500,9 @@ export default function ChannelPage() {
             </button>
           </div>
         </div>
+        {uploadError && (
+          <p className="text-destructive text-xs mt-1.5 px-1">{uploadError}</p>
+        )}
       </div>
     </div>
   );
@@ -552,9 +589,12 @@ function MessageRow({
           <div className="mt-2 flex flex-wrap gap-2">
             {msg.attachments.map((att: any) => (
               isImageMime(att.mimeType) ? (
-                <div key={att.id} className="rounded-lg overflow-hidden max-w-xs">
-                  <Image src={att.url} alt={att.fileName} width={300} height={200} className="object-cover" />
-                </div>
+                <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
+                  className="rounded-lg overflow-hidden max-w-xs border border-[var(--th-line)]">
+                  {/* img simples: next/image não aceita data URLs (fallback de storage) */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={att.url} alt={att.fileName} className="max-w-full max-h-80 object-contain" />
+                </a>
               ) : (
                 <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 p-2 bg-surface rounded-lg text-sm text-muted-foreground hover:text-white border border-border">

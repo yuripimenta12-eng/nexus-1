@@ -346,6 +346,31 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     }
   }
 
+  // ── Voz: chat efêmero da sala (não persiste no banco) ─────────
+  @SubscribeMessage('voice:chat')
+  async handleVoiceChat(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { voiceRoomId: string; content: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) throw new WsException('Não autenticado');
+
+    const content = (data.content || '').trim().slice(0, 1000);
+    if (!content) return;
+
+    // Rate limiting compartilhado com as mensagens de canal
+    if (!checkRateLimit(client.id)) {
+      client.emit('error', { message: 'Muitas mensagens. Aguarde alguns segundos.' });
+      return;
+    }
+
+    this.server.to(`voice:${data.voiceRoomId}`).emit('voice:chat', {
+      userId,
+      content,
+      ts: Date.now(),
+    });
+  }
+
   // ── Voz: sair da sala ─────────────────────────────────────────
   @SubscribeMessage('voice:leave')
   async handleVoiceLeave(

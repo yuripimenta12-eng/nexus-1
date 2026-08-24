@@ -8,6 +8,7 @@ import {
   PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
+  MessageCircle, Send,
 } from 'lucide-react';
 import {
   Track,
@@ -19,6 +20,7 @@ import { useVoiceStore } from '@/stores/voice.store';
 import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn, getInitials } from '@/lib/utils';
+import { getSocket } from '@/lib/socket';
 import api from '@/lib/api';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -67,9 +69,42 @@ export default function VoicePage() {
   );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
-  const [sideTab, setSideTab] = useState<'people' | 'audio'>('people');
+  const [sideTab, setSideTab] = useState<'people' | 'chat' | 'audio'>('people');
+
+  // ── Chat efêmero da sala (vive só enquanto a chamada dura) ────
+  interface CallChatMsg { userId: string; content: string; ts: number; }
+  const [chatMessages, setChatMessages] = useState<CallChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const sideTabRef = useRef(sideTab);
+  sideTabRef.current = sideTab;
+
+  useEffect(() => {
+    const socket = getSocket();
+    const onChat = (msg: CallChatMsg) => {
+      setChatMessages(prev => [...prev.slice(-199), msg]);
+      if (sideTabRef.current !== 'chat') setChatUnread(n => n + 1);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    };
+    socket.on('voice:chat', onChat);
+    return () => { socket.off('voice:chat', onChat); };
+  }, [roomId]);
+
+  const sendChat = () => {
+    const content = chatInput.trim();
+    if (!content) return;
+    getSocket().emit('voice:chat', { voiceRoomId: roomId, content });
+    setChatInput('');
+  };
+
+  const chatNameFor = (id: string) => {
+    const p = participants.get(id);
+    return p?.participant?.name || (id === user?.id ? 'Você' : id.slice(0, 8));
+  };
   const [toast, setToast] = useState<string | null>(null);
 
   // Cargos dos membros (para o menu de moderação por participante)
@@ -266,6 +301,20 @@ export default function VoicePage() {
               <ShieldCheck className="w-3 h-3" /> Conexão protegida
             </span>
             <CallTimer connected={isConnected} />
+            {/* Abre o painel Pessoas/Chat/Áudio no celular */}
+            <button
+              onClick={() => { setPanelOpen(true); setChatUnread(0); }}
+              className="lg:hidden relative ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
+              title="Pessoas e chat"
+            >
+              <Users className="w-4 h-4" />
+              {chatUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-orange text-white
+                                 text-[8px] font-black grid place-items-center">
+                  {chatUnread > 9 ? '+' : chatUnread}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
@@ -339,9 +388,9 @@ export default function VoicePage() {
               <div className={cn(
                 'grid gap-3 h-full content-stretch',
                 participantsList.length === 1 && 'grid-cols-1 max-w-2xl mx-auto',
-                participantsList.length === 2 && 'grid-cols-2',
-                participantsList.length > 2 && participantsList.length <= 4 && 'grid-cols-2',
-                participantsList.length > 4 && 'grid-cols-3',
+                participantsList.length === 2 && 'grid-cols-1 sm:grid-cols-2',
+                participantsList.length > 2 && participantsList.length <= 4 && 'grid-cols-1 sm:grid-cols-2',
+                participantsList.length > 4 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
               )}>
                 {participantsList.map(p => (
                   <ParticipantTile key={p.identity} voiceParticipant={p} />
@@ -351,7 +400,7 @@ export default function VoicePage() {
           )}
 
           {/* Controles */}
-          <div className="h-[84px] flex items-center justify-center gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-3">
+          <div className="h-[84px] flex items-center justify-center gap-1.5 sm:gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-2 sm:px-3 overflow-x-auto">
             <ControlButton
               onClick={toggleMic}
               danger={!localMicEnabled}
@@ -406,8 +455,19 @@ export default function VoicePage() {
           </div>
         </div>
 
-        {/* Painel lateral */}
-        <aside className="hidden lg:flex w-[280px] flex-col border-l border-[var(--th-line-2)] bg-[var(--th-side)] shrink-0">
+        {/* Fundo escurecido atrás do painel (só mobile) */}
+        {panelOpen && (
+          <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setPanelOpen(false)} />
+        )}
+
+        {/* Painel lateral: fixo no desktop, gaveta pela direita no celular */}
+        <aside className={cn(
+          'flex-col border-l border-[var(--th-line-2)] bg-[var(--th-side)] shrink-0',
+          'lg:flex lg:static lg:w-[280px] lg:z-auto lg:shadow-none',
+          panelOpen
+            ? 'flex fixed inset-y-0 right-0 z-50 w-[min(320px,85vw)] shadow-2xl'
+            : 'hidden',
+        )}>
           <div className="h-[70px] flex items-end px-3.5 border-b border-[var(--th-line-2)] shrink-0">
             <button
               onClick={() => setSideTab('people')}
@@ -417,6 +477,21 @@ export default function VoicePage() {
               )}
             >
               <Users className="w-3.5 h-3.5" /> Pessoas · {participantsList.length}
+            </button>
+            <button
+              onClick={() => { setSideTab('chat'); setChatUnread(0); }}
+              className={cn(
+                'relative h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                sideTab === 'chat' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
+              )}
+            >
+              <MessageCircle className="w-3.5 h-3.5" /> Chat
+              {chatUnread > 0 && sideTab !== 'chat' && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-orange text-white
+                                 text-[9px] font-black grid place-items-center">
+                  {chatUnread > 9 ? '9+' : chatUnread}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setSideTab('audio')}
@@ -581,6 +656,74 @@ export default function VoicePage() {
               >
                 <UserPlus className="w-4 h-4" /> Convidar amigos
               </button>
+            </div>
+          ) : sideTab === 'chat' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {chatMessages.length === 0 && (
+                  <p className="text-[#786e83] text-xs text-center py-8">
+                    Converse por texto sem sair da chamada.
+                    <br />As mensagens somem quando a sala esvazia.
+                  </p>
+                )}
+                {chatMessages.map((m, i) => {
+                  const mine = m.userId === user?.id;
+                  const [c1, c2] = gradientFor(m.userId);
+                  const prevSame = i > 0 && chatMessages[i - 1].userId === m.userId;
+                  return (
+                    <div key={`${m.ts}-${i}`} className={cn('flex gap-2', prevSame && '-mt-1')}>
+                      {!prevSame ? (
+                        <div
+                          className="w-7 h-7 rounded-lg grid place-items-center font-black text-[9px] text-white shrink-0 mt-0.5"
+                          style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                        >
+                          {getInitials(chatNameFor(m.userId))}
+                        </div>
+                      ) : (
+                        <div className="w-7 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        {!prevSame && (
+                          <b className={cn('block text-[11px]', mine ? 'text-orange' : 'text-[#d3a8ef]')}>
+                            {chatNameFor(m.userId)}
+                          </b>
+                        )}
+                        <p className="text-[#d2cadb] text-xs leading-relaxed break-words bg-[var(--th-panel-2)]
+                                      rounded-lg px-2.5 py-1.5 inline-block max-w-full">
+                          {m.content}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef} />
+              </div>
+
+              <div className="p-3 border-t border-[var(--th-line-2)] shrink-0">
+                <div className="flex items-center gap-2 bg-[var(--th-panel-2)] border border-[var(--th-line-2)]
+                                rounded-xl px-3 py-2 focus-within:border-accent transition-colors">
+                  <input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') sendChat(); }}
+                    placeholder="Mensagem para a sala..."
+                    maxLength={1000}
+                    className="flex-1 bg-transparent text-white text-xs focus:outline-none placeholder:text-[#786e83]"
+                  />
+                  <button
+                    onClick={sendChat}
+                    disabled={!chatInput.trim()}
+                    className={cn(
+                      'w-7 h-7 rounded-lg grid place-items-center transition-all active:scale-95 shrink-0',
+                      chatInput.trim()
+                        ? 'bg-gradient-to-br from-orange to-accent text-white'
+                        : 'text-[#786e83]',
+                    )}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <VoiceAudioPanel />
