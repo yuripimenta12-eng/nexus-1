@@ -20,9 +20,13 @@ export default function InvitePage() {
     // Espera o estado persistido carregar antes de decidir
     if (!hasHydrated) return;
     if (!isAuthenticated) {
-      // Guarda o convite para retomar depois do login/cadastro
+      // Guarda o convite para retomar depois do login/cadastro.
+      // Quem chega por um convite normalmente ainda NÃO tem conta — então
+      // mandamos para o CADASTRO (a tela tem link para "já tenho conta").
+      // Mandar para o /login fazia o amigo novo tentar entrar sem conta e
+      // receber "credenciais inválidas" toda vez.
       localStorage.setItem('nexus_pending_invite', code);
-      router.push('/auth/login');
+      router.push('/auth/register');
       return;
     }
     setStatus('ready');

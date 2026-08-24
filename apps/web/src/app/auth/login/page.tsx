@@ -20,6 +20,10 @@ export default function LoginPage() {
   const { login, isLoading, isAuthenticated, hasHydrated } = useAuthStore();
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
+  const [invited,  setInvited]  = useState(false);
+  useEffect(() => {
+    setInvited(!!localStorage.getItem('nexus_pending_invite'));
+  }, []);
 
   // Quem já tem sessão válida volta para o app (ou para o convite pendente)
   useEffect(() => {
@@ -229,6 +233,14 @@ export default function LoginPage() {
             boxShadow: '0 35px 90px #0008,0 0 0 1px #ffffff05 inset',
           }}
         >
+          {/* Aviso de convite */}
+          {invited && (
+            <div style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 12, background: 'rgba(122,44,255,0.12)', border: '1px solid rgba(122,44,255,0.4)', color: '#eee6f7', fontSize: 13 }}>
+              🎉 Você foi convidado! Entre com sua conta para participar — ou{' '}
+              <Link href="/auth/register" style={{ color: '#ff9650', fontWeight: 700 }}>crie uma agora</Link>.
+            </div>
+          )}
+
           {/* Header */}
           <div style={{ marginBottom: 28 }}>
             <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 28, letterSpacing: -0.5, lineHeight: 1.1, margin: '0 0 6px' }}>
@@ -369,25 +381,6 @@ export default function LoginPage() {
           <p style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: '#6f6478' }}>
             🔒 Sua conexão é protegida e criptografada.
           </p>
-
-          {/* Demo credentials */}
-          <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: '#17101e', border: '1px solid #2a1d35' }}>
-            <p style={{ color: '#786e83', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, marginTop: 0 }}>
-              Credenciais de demonstração
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, color: '#9a90a8', fontSize: 11 }}>
-              <div>
-                <span style={{ color: '#cfc5d8', fontWeight: 600 }}>Admin:</span>
-                <p style={{ margin: '2px 0', fontFamily: 'monospace' }}>admin@nexus.local</p>
-                <p style={{ margin: 0, fontFamily: 'monospace' }}>Admin@123456</p>
-              </div>
-              <div>
-                <span style={{ color: '#cfc5d8', fontWeight: 600 }}>Demo:</span>
-                <p style={{ margin: '2px 0', fontFamily: 'monospace' }}>demo@nexus.local</p>
-                <p style={{ margin: 0, fontFamily: 'monospace' }}>Demo@123456</p>
-              </div>
-            </div>
-          </div>
         </form>
       </section>
     </div>

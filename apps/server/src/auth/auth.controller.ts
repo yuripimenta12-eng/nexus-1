@@ -25,7 +25,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 registros por minuto por IP
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 registros/min por IP (amigos na mesma rede compartilham IP)
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(dto);
     this.setRefreshCookie(res, result.refreshToken);

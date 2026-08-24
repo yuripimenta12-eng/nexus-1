@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,6 +30,11 @@ export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser, isLoading } = useAuthStore();
   const [error, setError] = useState('');
+  // Detecta se o usuário chegou por um link de convite (para mostrar o aviso)
+  const [invited, setInvited] = useState(false);
+  useEffect(() => {
+    setInvited(!!localStorage.getItem('nexus_pending_invite'));
+  }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -67,6 +72,16 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-bold text-white">Nexus</h1>
           <p className="text-muted mt-1">Crie sua conta</p>
         </div>
+
+        {invited && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3">
+            <MessageSquare className="w-5 h-5 text-accent shrink-0" />
+            <p className="text-sm text-white">
+              Você foi convidado! Crie sua conta para entrar no servidor —
+              é rápido e grátis.
+            </p>
+          </div>
+        )}
 
         <div className="bg-surface border border-border rounded-xl p-8">
           <h2 className="text-xl font-semibold text-white mb-6">Cadastro</h2>
