@@ -75,7 +75,7 @@ export function VoiceVideoSettings() {
           <button
             onClick={requestPermission}
             className="w-full mb-3 border border-dashed border-[#4d3560] rounded-[13px] p-3 text-[#b99dcf]
-                       text-sm bg-[#17101e] hover:border-accent hover:text-white transition-colors"
+                       text-sm bg-[var(--th-panel-2)] hover:border-accent hover:text-white transition-colors"
           >
             🔒 Clique para permitir acesso e listar seus dispositivos pelo nome
           </button>
@@ -142,14 +142,14 @@ export function VoiceVideoSettings() {
                   'relative flex items-center gap-4 text-left rounded-2xl border p-4 transition-all',
                   active
                     ? 'border-[#8b48ff] bg-gradient-to-br from-[#26143c] to-[#160e22] shadow-[0_0_24px_rgba(122,44,255,0.15)]'
-                    : 'border-[#292039] bg-[#120d19] hover:border-[#4d3560]',
+                    : 'border-[var(--th-line)] bg-[var(--th-panel)] hover:border-[#4d3560]',
                 )}
               >
                 <span className={cn(
                   'w-11 h-11 rounded-[14px] grid place-items-center shrink-0 transition-all',
                   active
                     ? 'bg-gradient-to-br from-orange to-accent text-white'
-                    : 'bg-[#1c1526] text-[#8c5dcc]',
+                    : 'bg-[var(--th-panel-2)] text-[#8c5dcc]',
                 )}>
                   <Icon className="w-5 h-5" />
                 </span>
@@ -170,7 +170,7 @@ export function VoiceVideoSettings() {
 
         {/* Filtros individuais (modo personalizado) */}
         {ms.inputProfile === 'custom' && (
-          <div className="mt-3 rounded-2xl border border-[#292039] bg-[#120d19] divide-y divide-[#231a30]">
+          <div className="mt-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)]">
             <ToggleRow
               label="Supressão de ruído"
               desc="Remove ruídos de fundo como ventilador e teclado"
@@ -196,9 +196,9 @@ export function VoiceVideoSettings() {
       {/* ── Compartilhamento de tela ─────────────────────────── */}
       <section>
         <SectionLabel>Compartilhamento de tela</SectionLabel>
-        <div className="rounded-2xl border border-[#292039] bg-[#120d19] divide-y divide-[#231a30]">
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)]">
           <div className="flex items-center gap-4 p-4">
-            <span className="w-11 h-11 rounded-[14px] grid place-items-center shrink-0 bg-[#1c1526] text-[#8c5dcc]">
+            <span className="w-11 h-11 rounded-[14px] grid place-items-center shrink-0 bg-[var(--th-panel-2)] text-[#8c5dcc]">
               <MonitorUp className="w-5 h-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -208,7 +208,7 @@ export function VoiceVideoSettings() {
             <select
               value={ms.screenQuality}
               onChange={(e) => ms.setScreenQuality(e.target.value as ScreenQuality)}
-              className="bg-[#0b0810] border border-[#3d2b4a] rounded-xl px-3 py-2 text-sm text-white
+              className="bg-[var(--th-rail)] border border-[#3d2b4a] rounded-xl px-3 py-2 text-sm text-white
                          focus:outline-none focus:border-accent cursor-pointer"
             >
               <option value="720p30">720p · 30fps</option>
@@ -248,7 +248,7 @@ function DeviceSelect({
   onChange: (id: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-3 rounded-2xl border border-[#292039] bg-[#120d19] p-3
+    <label className="flex items-center gap-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-3
                       focus-within:border-accent transition-colors cursor-pointer">
       <span className="w-10 h-10 rounded-xl grid place-items-center shrink-0 text-white
                        bg-gradient-to-br from-orange to-accent">
@@ -260,7 +260,7 @@ function DeviceSelect({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full bg-transparent text-white text-sm focus:outline-none cursor-pointer
-                     [&>option]:bg-[#120d19]"
+                     [&>option]:bg-[var(--th-panel)]"
         >
           <option value="">Padrão do sistema</option>
           {options.filter(o => o.deviceId && o.deviceId !== 'default').map(o => (
@@ -282,7 +282,7 @@ function VolumeSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[#292039] bg-[#120d19] p-4">
+    <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
       <div className="flex items-center justify-between mb-3">
         <b className="text-sm text-[#cfc6dd]">{label}</b>
         <span className="text-xs font-black tabular-nums px-2 py-0.5 rounded-full text-white
@@ -406,7 +406,7 @@ function MicTest() {
   const lit = Math.round(level * BARS);
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#292039] bg-[#120d19] p-4 flex items-center gap-4">
+    <div className="mt-4 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4 flex items-center gap-4">
       <button
         onClick={testing ? stop : start}
         className={cn(

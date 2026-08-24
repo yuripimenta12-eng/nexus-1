@@ -287,12 +287,9 @@ export default function ChannelPage() {
   };
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{ background: 'radial-gradient(circle at 60% -10%, #28124c 0, transparent 38%), #09070d' }}
-    >
+    <div className="flex flex-col h-full nx-page-bg">
       {/* Header do canal */}
-      <div className="h-[70px] flex items-center gap-3 px-5 border-b border-[#292039] bg-[#0d0a13]/80 backdrop-blur shrink-0">
+      <div className="h-[70px] flex items-center gap-3 px-5 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur shrink-0">
         <span className="text-[#b05cff] text-2xl font-bold leading-none">#</span>
         <div className="min-w-0">
           <h2 className="font-semibold text-white text-[15px] truncate">
@@ -426,7 +423,7 @@ export default function ChannelPage() {
         </AnimatePresence>
 
         <div className={cn(
-          'flex items-end gap-2 bg-[#161020] rounded-[15px] px-3 py-2 border border-[#30233e]',
+          'flex items-end gap-2 bg-[var(--th-panel-2)] rounded-[15px] px-3 py-2 border border-[#30233e]',
           'focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(122,44,255,0.09)] transition-shadow',
           replyTo && 'rounded-t-none border-t-0',
         )}>

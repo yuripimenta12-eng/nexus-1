@@ -110,7 +110,7 @@
 
   body {
     @apply font-sans;
-    background: var(--nx-bg-deep);
+    background: var(--th-bg, var(--nx-bg-deep));
     color: var(--nx-text-primary);
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     line-height: 1.5;
@@ -151,14 +151,36 @@
   }
 }
 
-/* ── Temas de acento (Aparência) ───────────────────────────────────────── */
-/* O padrão (Nexus) usa os fallbacks das variáveis no tailwind.config */
+/* ── Temas (Aparência) ─────────────────────────────────────────────────── */
+/* Cada tema redefine o acento E a ambientação: fundo, brilho radial,
+   painéis, bordas e trilhos. O padrão (Nexus) fica no :root. */
+:root {
+  --th-bg: #08060c;        /* fundo profundo */
+  --th-glow: #28124c;      /* cor do brilho radial de fundo */
+  --th-glow-2: #4a1d0d;    /* brilho secundário (canto oposto) */
+  --th-panel: #120d19;     /* cartões e painéis */
+  --th-panel-2: #17101f;   /* superfícies elevadas */
+  --th-side: #0d0a13;      /* sidebar de canais */
+  --th-rail: #0c0911;      /* trilho de servidores / barras */
+  --th-line: #292039;      /* bordas */
+  --th-line-2: #30223d;    /* bordas mais visíveis */
+}
+
 [data-accent='ember'] {
   --th-orange: #ff9345;
   --th-orange-bright: #ffb27d;
   --th-accent: #ff4f79;
   --th-accent-hover: #ff7597;
   --nx-purple: #ff4f79;
+  --th-bg: #0d0609;
+  --th-glow: #4c1226;
+  --th-glow-2: #4a1d0d;
+  --th-panel: #190d13;
+  --th-panel-2: #201017;
+  --th-side: #130a0e;
+  --th-rail: #100809;
+  --th-line: #392029;
+  --th-line-2: #45222e;
 }
 [data-accent='violet'] {
   --th-orange: #b142f5;
@@ -166,6 +188,15 @@
   --th-accent: #7a2cff;
   --th-accent-hover: #9b5cff;
   --nx-purple: #7a2cff;
+  --th-bg: #0a0616;
+  --th-glow: #331a66;
+  --th-glow-2: #1e1052;
+  --th-panel: #140d22;
+  --th-panel-2: #1a1129;
+  --th-side: #0f0a1c;
+  --th-rail: #0c0817;
+  --th-line: #2c2049;
+  --th-line-2: #362657;
 }
 [data-accent='ocean'] {
   --th-orange: #22d3ee;
@@ -173,6 +204,15 @@
   --th-accent: #3b82f6;
   --th-accent-hover: #60a5fa;
   --nx-purple: #3b82f6;
+  --th-bg: #05090f;
+  --th-glow: #0d2b4d;
+  --th-glow-2: #0a3540;
+  --th-panel: #0c131d;
+  --th-panel-2: #101a26;
+  --th-side: #090f17;
+  --th-rail: #070c12;
+  --th-line: #1c2b3d;
+  --th-line-2: #223349;
 }
 [data-accent='emerald'] {
   --th-orange: #42e6a4;
@@ -180,6 +220,28 @@
   --th-accent: #17a9cf;
   --th-accent-hover: #3fc2e3;
   --nx-purple: #17a9cf;
+  --th-bg: #050e0b;
+  --th-glow: #0d3b31;
+  --th-glow-2: #0a2e38;
+  --th-panel: #0b1713;
+  --th-panel-2: #0f1f1a;
+  --th-side: #081310;
+  --th-rail: #060f0c;
+  --th-line: #1a3129;
+  --th-line-2: #203b32;
+}
+
+/* Fundos de página com o brilho do tema */
+.nx-page-bg {
+  background:
+    radial-gradient(circle at 60% -10%, var(--th-glow) 0, transparent 38%),
+    var(--th-bg);
+}
+.nx-stage-bg {
+  background:
+    radial-gradient(circle at 50% -20%, var(--th-glow) 0, transparent 35%),
+    radial-gradient(circle at 15% 110%, var(--th-glow-2) 0, transparent 30%),
+    var(--th-bg);
 }
 
 /* ── Slider Nexus (range) ──────────────────────────────────────────────── */

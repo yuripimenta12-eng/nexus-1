@@ -206,7 +206,7 @@ export default function VoicePage() {
 
   if (isConnecting || isJoining) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#08060c]">
+      <div className="flex-1 flex items-center justify-center bg-[var(--th-bg)]">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-white font-medium">Conectando à sala...</p>
@@ -220,7 +220,7 @@ export default function VoicePage() {
 
   if (displayError) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#08060c]">
+      <div className="flex-1 flex items-center justify-center bg-[var(--th-bg)]">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
             <WifiOff className="w-8 h-8 text-destructive" />
@@ -244,10 +244,7 @@ export default function VoicePage() {
   }
 
   return (
-    <div
-      className={cn('flex flex-col', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}
-      style={{ background: 'radial-gradient(circle at 50% -20%, #32134f 0, transparent 35%), #08060c' }}
-    >
+    <div className={cn('flex flex-col nx-stage-bg', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
       {/* Renderizador de áudio remoto (oculto) */}
       <AudioRenderer />
 
@@ -255,7 +252,7 @@ export default function VoicePage() {
         {/* Palco */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar */}
-          <div className="h-[70px] flex items-center px-5 border-b border-[#30223d] bg-[#0c0913]/70 backdrop-blur-md shrink-0">
+          <div className="h-[70px] flex items-center px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0">
             <div className="w-[38px] h-[38px] grid place-items-center rounded-xl bg-[#22142f] text-[#c887ff] mr-3">
               <Volume2 className="w-4 h-4" />
             </div>
@@ -302,7 +299,7 @@ export default function VoicePage() {
                       <button
                         key={p.identity}
                         onClick={() => setFocusedParticipant(p.identity)}
-                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-[#2c2036] hover:border-accent transition-colors"
+                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-[var(--th-line-2)] hover:border-accent transition-colors"
                       >
                         <VideoTrackRenderer
                           participant={p.participant}
@@ -324,7 +321,7 @@ export default function VoicePage() {
                     key={p.identity}
                     className={cn(
                       'w-28 h-20 rounded-lg overflow-hidden bg-[#14101a] border-2',
-                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[#2c2036]',
+                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
                     )}
                   >
                     <VideoTrackRenderer
@@ -354,7 +351,7 @@ export default function VoicePage() {
           )}
 
           {/* Controles */}
-          <div className="h-[84px] flex items-center justify-center gap-2.5 border-t border-[#30223d] bg-[#0c0912] shrink-0 px-3">
+          <div className="h-[84px] flex items-center justify-center gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-3">
             <ControlButton
               onClick={toggleMic}
               danger={!localMicEnabled}
@@ -379,7 +376,7 @@ export default function VoicePage() {
                 'hover:-translate-y-0.5',
                 localScreenSharing
                   ? 'bg-[#2a173e] text-[#dcaaff] border-[#8849bf]'
-                  : 'bg-[#17101f] text-[#d1c6da] border-[#352641] hover:border-[#7842a0] hover:bg-[#21152c]',
+                  : 'bg-[var(--th-panel-2)] text-[#d1c6da] border-[var(--th-line-2)] hover:border-[#7842a0] hover:bg-[#21152c]',
               )}
             >
               <Monitor className="w-[17px] h-[17px]" />
@@ -390,7 +387,7 @@ export default function VoicePage() {
               <select
                 value={screenQuality}
                 onChange={(e) => setScreenQuality(e.target.value as any)}
-                className="h-12 text-xs bg-[#17101f] border border-[#352641] rounded-[15px] px-2 text-[#d1c6da] focus:outline-none focus:border-[#7842a0]"
+                className="h-12 text-xs bg-[var(--th-panel-2)] border border-[var(--th-line-2)] rounded-[15px] px-2 text-[#d1c6da] focus:outline-none focus:border-[#7842a0]"
               >
                 <option value="720p30">720p 30fps</option>
                 <option value="1080p30">1080p 30fps</option>
@@ -410,8 +407,8 @@ export default function VoicePage() {
         </div>
 
         {/* Painel lateral */}
-        <aside className="hidden lg:flex w-[280px] flex-col border-l border-[#30223d] bg-[#0d0a12] shrink-0">
-          <div className="h-[70px] flex items-end px-3.5 border-b border-[#30223d] shrink-0">
+        <aside className="hidden lg:flex w-[280px] flex-col border-l border-[var(--th-line-2)] bg-[var(--th-side)] shrink-0">
+          <div className="h-[70px] flex items-end px-3.5 border-b border-[var(--th-line-2)] shrink-0">
             <button
               onClick={() => setSideTab('people')}
               className={cn(
@@ -444,10 +441,10 @@ export default function VoicePage() {
                 const role = membersMeta[p.identity]?.role;
                 const serverMuted = membersMeta[p.identity]?.mutedBy;
                 return (
-                  <div key={p.identity} className={cn('rounded-xl transition-colors', expanded && 'bg-[#17101f] border border-[#2c2036]')}>
+                  <div key={p.identity} className={cn('rounded-xl transition-colors', expanded && 'bg-[var(--th-panel-2)] border border-[var(--th-line-2)]')}>
                     <button
                       onClick={() => setExpandedMember(expanded ? null : p.identity)}
-                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#17101f] text-left"
+                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[var(--th-panel-2)] text-left"
                     >
                       <div
                         className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
@@ -534,7 +531,7 @@ export default function VoicePage() {
 
                             {canModerateTarget(p.identity) && (
                               <>
-                                <div className="border-t border-[#2c2036] my-1.5" />
+                                <div className="border-t border-[var(--th-line-2)] my-1.5" />
                                 <p className="px-2 text-[9px] text-[#786e83] font-extrabold uppercase tracking-wider">Moderação</p>
                                 <MenuAction
                                   icon={serverMuted ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
@@ -579,7 +576,7 @@ export default function VoicePage() {
               <button
                 onClick={handleInvite}
                 className="w-full mt-4 border border-dashed border-[#4d3560] rounded-[13px] p-3 text-[#b99dcf]
-                           text-sm text-center bg-[#17101e] hover:border-accent hover:text-white transition-colors
+                           text-sm text-center bg-[var(--th-panel-2)] hover:border-accent hover:text-white transition-colors
                            flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4" /> Convidar amigos
@@ -648,7 +645,7 @@ function CallTimer({ connected }: { connected: boolean }) {
   const s = String(seconds % 60).padStart(2, '0');
 
   return (
-    <span className="ml-2.5 px-2.5 py-1.5 text-[#b4a7c0] bg-[#17101e] rounded-full text-[11px] tabular-nums">
+    <span className="ml-2.5 px-2.5 py-1.5 text-[#b4a7c0] bg-[var(--th-panel-2)] rounded-full text-[11px] tabular-nums">
       {h}:{m}:{s}
     </span>
   );
@@ -675,7 +672,7 @@ function VoiceAudioPanel() {
       {remotes.map((p: any) => {
         const [c1, c2] = gradientFor(p.identity);
         return (
-          <div key={p.identity} className="bg-[#120d19] border border-[#292039] rounded-xl p-3">
+          <div key={p.identity} className="bg-[var(--th-panel)] border border-[var(--th-line)] rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
               <div
                 className="w-8 h-8 rounded-lg grid place-items-center font-black text-[10px] text-white shrink-0"
@@ -835,7 +832,7 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
         'relative rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
         speaking
           ? 'border-[#8f42ff] shadow-[inset_0_0_0_2px_rgba(255,106,0,0.4),0_0_32px_rgba(122,44,255,0.2)] -translate-y-px'
-          : 'border-[#2c2036]',
+          : 'border-[var(--th-line-2)]',
       )}
       style={{ background: `radial-gradient(circle at 50% 38%, ${glow} 0, #14101a 53%, #100c15 100%)` }}
     >
@@ -956,7 +953,7 @@ function ControlButton({
           ? 'bg-destructive/10 text-destructive border-destructive/40 hover:bg-destructive hover:text-white hover:border-destructive'
           : active
             ? 'bg-[#2a173e] text-[#dcaaff] border-[#8849bf]'
-            : 'bg-[#17101f] text-[#d1c6da] border-[#352641] hover:border-[#7842a0] hover:bg-[#21152c]',
+            : 'bg-[var(--th-panel-2)] text-[#d1c6da] border-[var(--th-line-2)] hover:border-[#7842a0] hover:bg-[#21152c]',
       )}
     >
       {children}

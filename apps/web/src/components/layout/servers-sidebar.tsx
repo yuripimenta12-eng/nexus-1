@@ -50,7 +50,7 @@ export function ServersSidebar() {
   };
 
   return (
-    <div className="w-[76px] h-full flex flex-col items-center py-4 gap-3 bg-[#0c0911] border-r border-[#30223d] overflow-y-auto shrink-0">
+    <div className="w-[76px] h-full flex flex-col items-center py-4 gap-3 bg-[var(--th-rail)] border-r border-[var(--th-line-2)] overflow-y-auto shrink-0">
       {/* Marca Nexus */}
       <button
         onClick={() => router.push('/app/me')}
@@ -84,7 +84,7 @@ export function ServersSidebar() {
       {/* Criar servidor */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="w-[46px] h-[46px] rounded-2xl border border-[#312640] bg-[#171121]
+        className="w-[46px] h-[46px] rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
                    transition-all duration-200 flex items-center justify-center
                    text-success hover:border-success hover:-translate-y-0.5"
         title="Criar servidor"
@@ -189,7 +189,7 @@ function ServerIcon({
           'transition-all duration-200 cursor-pointer font-extrabold',
           isActive
             ? 'border-[#8b48ff] text-white bg-gradient-to-br from-[#26143c] to-[#1b1028] -translate-y-0.5'
-            : 'border-[#312640] bg-[#171121] text-[#cfc6dd] hover:border-[#8b48ff] hover:text-white hover:-translate-y-0.5',
+            : 'border-[var(--th-line-2)] bg-[#171121] text-[#cfc6dd] hover:border-[#8b48ff] hover:text-white hover:-translate-y-0.5',
         )}
       >
         {children}

@@ -45,7 +45,7 @@ const ROLE_META: Record<MemberRole, { label: string; icon: any; badge: string; d
   },
   MEMBER: {
     label: 'Membro', icon: User,
-    badge: 'text-[#a99cb8] bg-[#1d1626] border border-[#312640]',
+    badge: 'text-[#a99cb8] bg-[var(--th-panel-2)] border border-[var(--th-line-2)]',
     desc: 'Conversa, entra em chamadas, abre câmera e compartilha a tela.',
   },
 };
@@ -158,12 +158,9 @@ export default function ServerSettingsPage() {
   });
 
   return (
-    <div
-      className="h-full overflow-y-auto text-white"
-      style={{ background: 'radial-gradient(circle at 60% -10%, #28124c 0, transparent 38%), #09070d' }}
-    >
+    <div className="h-full overflow-y-auto text-white nx-page-bg">
       {/* Header */}
-      <div className="px-7 pt-6 pb-4 border-b border-[#292039] bg-[#0d0a13]/70 backdrop-blur sticky top-0 z-10">
+      <div className="px-7 pt-6 pb-4 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div>
             <p className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Administração</p>
@@ -195,10 +192,10 @@ export default function ServerSettingsPage() {
               const Icon = meta.icon;
               const count = members.filter(m => m.role === r).length;
               return (
-                <div key={r} className="flex items-start gap-3 rounded-2xl border border-[#292039] bg-[#120d19] p-4">
+                <div key={r} className="flex items-start gap-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
                   <span className={cn(
                     'w-10 h-10 rounded-xl grid place-items-center shrink-0',
-                    r === 'OWNER' ? 'bg-gradient-to-br from-orange to-accent text-white' : 'bg-[#1c1526] text-[#8c5dcc]',
+                    r === 'OWNER' ? 'bg-gradient-to-br from-orange to-accent text-white' : 'bg-[var(--th-panel-2)] text-[#8c5dcc]',
                   )}>
                     <Icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
                   </span>
@@ -227,13 +224,13 @@ export default function ServerSettingsPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar membro..."
-                className="bg-[#0b0810] border border-[#292039] rounded-xl pl-9 pr-3 py-2 text-sm text-white
+                className="bg-[var(--th-rail)] border border-[var(--th-line)] rounded-xl pl-9 pr-3 py-2 text-sm text-white
                            placeholder:text-[#5c5468] focus:outline-none focus:border-accent w-56"
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[#292039] bg-[#120d19] divide-y divide-[#1d1626] overflow-hidden">
+          <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)] overflow-hidden">
             {loading && (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="w-6 h-6 text-accent animate-spin" />
@@ -281,7 +278,7 @@ export default function ServerSettingsPage() {
                       onChange={(e) => changeRole(m, e.target.value as MemberRole)}
                       className={cn(
                         'text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer focus:outline-none',
-                        'bg-[#1d1626] border border-[#312640] text-[#d3a8ef] hover:border-accent',
+                        'bg-[var(--th-panel-2)] border border-[var(--th-line-2)] text-[#d3a8ef] hover:border-accent',
                       )}
                     >
                       {myRole === 'OWNER' && <option value="ADMIN">Admin</option>}
@@ -364,7 +361,7 @@ export default function ServerSettingsPage() {
             <motion.div
               initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }}
               onClick={e => e.stopPropagation()}
-              className="bg-[#120d19] border border-[#392454] rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+              className="bg-[var(--th-panel)] border border-[#392454] rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl"
             >
               <h3 className="font-bold text-lg mb-1">
                 {confirm.action === 'kick' ? 'Expulsar' : 'Banir'}{' '}
@@ -378,7 +375,7 @@ export default function ServerSettingsPage() {
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setConfirm(null)}
-                  className="px-4 py-2 rounded-xl bg-[#1d1626] text-[#a99cb8] hover:text-white text-sm transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[var(--th-panel-2)] text-[#a99cb8] hover:text-white text-sm transition-colors"
                 >
                   Cancelar
                 </button>
