@@ -7,6 +7,7 @@ import {
   Mic, MicOff, Video, VideoOff, Monitor,
   PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
+  MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown,
 } from 'lucide-react';
 import {
   Track,
@@ -71,6 +72,28 @@ export default function VoicePage() {
   const [sideTab, setSideTab] = useState<'people' | 'audio'>('people');
   const [toast, setToast] = useState<string | null>(null);
 
+  // Cargos dos membros (para o menu de moderação por participante)
+  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean }>>({});
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!serverId) return;
+    api.get(`/servers/${serverId}/members`)
+      .then(({ data }) => {
+        const map: Record<string, { role: string; mutedBy: boolean }> = {};
+        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy }; });
+        setMembersMeta(map);
+      })
+      .catch(() => {});
+  }, [serverId]);
+
+  const ROLE_RANK: Record<string, number> = { OWNER: 0, ADMIN: 1, MODERATOR: 2, MEMBER: 3 };
+  const myRole = membersMeta[user?.id || '']?.role || 'MEMBER';
+  const canModerate = myRole === 'OWNER' || myRole === 'ADMIN' || myRole === 'MODERATOR';
+  const canModerateTarget = (identity: string) =>
+    canModerate && identity !== user?.id &&
+    (ROLE_RANK[membersMeta[identity]?.role || 'MEMBER'] > ROLE_RANK[myRole]);
+
   function notify(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
@@ -134,6 +157,44 @@ export default function VoicePage() {
     } catch {
       await navigator.clipboard.writeText(window.location.href).catch(() => {});
       notify('Link da sala copiado!');
+    }
+  };
+
+  // ── Moderação a partir da chamada ────────────────────────────
+  const modMute = async (identity: string, muted: boolean) => {
+    try {
+      await api.patch(`/moderation/servers/${serverId}/mute/${identity}`, { muted });
+      setMembersMeta(prev => ({ ...prev, [identity]: { ...prev[identity], mutedBy: muted } }));
+      notify(muted ? 'Silenciado no servidor' : 'Microfone liberado no servidor');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    }
+  };
+
+  const modVoiceKick = async (identity: string) => {
+    try {
+      await api.post(`/voice/rooms/${roomId}/kick/${identity}`);
+      notify('Participante desconectado da sala');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    }
+  };
+
+  const modKick = async (identity: string) => {
+    try {
+      await api.post(`/moderation/servers/${serverId}/kick/${identity}`, {});
+      notify('Membro expulso do servidor');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    }
+  };
+
+  const modBan = async (identity: string) => {
+    try {
+      await api.post(`/moderation/servers/${serverId}/ban/${identity}`, {});
+      notify('Membro banido do servidor');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
     }
   };
 
@@ -379,26 +440,125 @@ export default function VoicePage() {
               {participantsList.map((p: any) => {
                 const [c1, c2] = gradientFor(p.identity);
                 const isMe = p.participant instanceof LocalParticipant;
+                const expanded = expandedMember === p.identity;
+                const role = membersMeta[p.identity]?.role;
+                const serverMuted = membersMeta[p.identity]?.mutedBy;
                 return (
-                  <div key={p.identity} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#17101f]">
-                    <div
-                      className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
-                      style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                  <div key={p.identity} className={cn('rounded-xl transition-colors', expanded && 'bg-[#17101f] border border-[#2c2036]')}>
+                    <button
+                      onClick={() => setExpandedMember(expanded ? null : p.identity)}
+                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#17101f] text-left"
                     >
-                      {getInitials(p.participant.name || p.identity)}
-                    </div>
-                    <div className="min-w-0">
-                      <b className="block text-white text-xs truncate">
-                        {p.participant.name || p.identity}{isMe ? ' (você)' : ''}
-                      </b>
-                      <small className="text-[#92879f] text-[10px]">
-                        {p.isSpeaking ? 'Falando...' : p.micEnabled ? 'Conectado' : 'Microfone desligado'}
-                      </small>
-                    </div>
-                    <span className={cn(
-                      'ml-auto w-[7px] h-[7px] rounded-full shrink-0',
-                      p.isSpeaking ? 'bg-success shadow-[0_0_8px_#42e6a4]' : p.micEnabled ? 'bg-success/60' : 'bg-[#5c5468]',
-                    )} />
+                      <div
+                        className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
+                        style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                      >
+                        {getInitials(p.participant.name || p.identity)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <b className="block text-white text-xs truncate">
+                          {p.participant.name || p.identity}{isMe ? ' (você)' : ''}
+                          {role && role !== 'MEMBER' && (
+                            <span className="ml-1.5 text-[9px] font-extrabold text-[#d3a8ef]">
+                              {role === 'OWNER' ? '👑' : role === 'ADMIN' ? '🛡️' : '⚖️'}
+                            </span>
+                          )}
+                        </b>
+                        <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
+                          {serverMuted ? 'Silenciado no servidor'
+                            : p.isSpeaking ? 'Falando...'
+                            : p.micEnabled ? 'Conectado' : 'Microfone desligado'}
+                        </small>
+                      </div>
+                      <span className={cn(
+                        'w-[7px] h-[7px] rounded-full shrink-0',
+                        p.isSpeaking ? 'bg-success shadow-[0_0_8px_#42e6a4]' : p.micEnabled ? 'bg-success/60' : 'bg-[#5c5468]',
+                      )} />
+                      <ChevronDown className={cn('w-3.5 h-3.5 text-[#5c5468] shrink-0 transition-transform', expanded && 'rotate-180')} />
+                    </button>
+
+                    {/* Ações do participante */}
+                    <AnimatePresence>
+                      {expanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-2.5 pb-2.5 pt-1 space-y-1">
+                            {!isMe && (
+                              <>
+                                <MenuAction
+                                  icon={<MessageSquare className="w-3.5 h-3.5" />}
+                                  label="Enviar mensagem"
+                                  onClick={() => router.push(`/app/dms/${p.identity}`)}
+                                />
+                                {/* Volume individual */}
+                                <div className="px-2 py-1.5">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <small className="text-[10px] text-[#92879f] font-bold uppercase tracking-wider">Volume do usuário</small>
+                                    <span className="text-[10px] text-white font-black tabular-nums">
+                                      {p.isMutedLocally ? 0 : (p.localVolume ?? 100)}%
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range" min={0} max={100}
+                                    value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
+                                    disabled={p.isMutedLocally}
+                                    onChange={(e) => useVoiceStore.getState().setParticipantVolume(p.identity, Number(e.target.value))}
+                                    className="nx-range"
+                                    style={{ ['--fill' as any]: `${p.isMutedLocally ? 0 : (p.localVolume ?? 100)}%` }}
+                                  />
+                                </div>
+                                <MenuAction
+                                  icon={p.isMutedLocally ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                                  label={p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
+                                  onClick={() => useVoiceStore.getState().toggleMuteLocally(p.identity)}
+                                />
+                              </>
+                            )}
+
+                            {canModerateTarget(p.identity) && (
+                              <>
+                                <div className="border-t border-[#2c2036] my-1.5" />
+                                <p className="px-2 text-[9px] text-[#786e83] font-extrabold uppercase tracking-wider">Moderação</p>
+                                <MenuAction
+                                  icon={serverMuted ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+                                  label={serverMuted ? 'Liberar microfone no servidor' : 'Silenciar no servidor'}
+                                  danger={!serverMuted}
+                                  onClick={() => modMute(p.identity, !serverMuted)}
+                                />
+                                <MenuAction
+                                  icon={<PhoneMissed className="w-3.5 h-3.5" />}
+                                  label="Desconectar da sala"
+                                  danger
+                                  onClick={() => modVoiceKick(p.identity)}
+                                />
+                                <MenuAction
+                                  icon={<UserX className="w-3.5 h-3.5" />}
+                                  label="Expulsar do servidor"
+                                  danger
+                                  onClick={() => modKick(p.identity)}
+                                />
+                                <MenuAction
+                                  icon={<Ban className="w-3.5 h-3.5" />}
+                                  label="Banir do servidor"
+                                  danger
+                                  onClick={() => modBan(p.identity)}
+                                />
+                              </>
+                            )}
+
+                            <MenuAction
+                              icon={<Copy className="w-3.5 h-3.5" />}
+                              label="Copiar ID do usuário"
+                              onClick={() => { navigator.clipboard.writeText(p.identity); notify('ID copiado'); }}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 );
               })}
@@ -433,6 +593,30 @@ export default function VoicePage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Item de ação no menu do participante ─────────────────────────
+function MenuAction({
+  icon, label, onClick, danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors',
+        danger
+          ? 'text-[#ff8598] hover:bg-destructive/15 hover:text-destructive'
+          : 'text-[#cfc6dd] hover:bg-[#21152c] hover:text-white',
+      )}
+    >
+      {icon} {label}
+    </button>
   );
 }
 

@@ -99,7 +99,10 @@ export function AppSidebar() {
   return (
     <div className="w-60 flex flex-col bg-[#0d0a13] border-r border-[#292039] h-full shrink-0 relative">
       {/* Header do servidor */}
-      <button className="flex flex-col items-start gap-0.5 px-4 py-4 border-b border-[#292039]
+      <button
+        onClick={() => router.push(`/app/servers/${serverId}/settings`)}
+        title="Membros e cargos"
+        className="flex flex-col items-start gap-0.5 px-4 py-4 border-b border-[#292039]
                          hover:bg-surface-raised transition-colors text-left">
         <span className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Espaço conectado</span>
         <span className="flex items-center gap-1 w-full text-white font-bold text-base">

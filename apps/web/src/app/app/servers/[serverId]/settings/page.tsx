@@ -1,228 +1,411 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useParams, useRouter } from 'next/navigation';
+import {
+  Crown, Shield, Gavel, User, MicOff, Mic, UserX, Ban,
+  Copy, Loader2, UserPlus, Search,
+} from 'lucide-react';
+import { cn, getInitials } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth.store';
+import api from '@/lib/api';
 
-/* ── Types ─────────────────────────────────────── */
-interface Member { initials: string; name: string; role: string; status: 'online' | 'away'; since: string; c1: string; c2: string; }
+/* ── Tipos ─────────────────────────────────────── */
+type MemberRole = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
 
-const MEMBERS: Member[] = [
-  { initials: 'LU', name: 'Luna', role: 'Moderadora', status: 'online', since: 'Hoje, 18:32', c1: '#ba4cff', c2: '#401b83' },
-  { initials: 'RF', name: 'Rafael', role: 'Membro', status: 'online', since: 'Hoje, 17:08', c1: '#19a6cf', c2: '#2c4278' },
-  { initials: 'DK', name: 'DarkKina', role: 'Membro', status: 'away', since: 'Ontem, 23:51', c1: '#766b85', c2: '#312a3b' },
-];
-
-const CHART = [
-  { day: 'SEG', h: 40 }, { day: 'TER', h: 58 }, { day: 'QUA', h: 48 },
-  { day: 'QUI', h: 78 }, { day: 'SEX', h: 66 }, { day: 'SÁB', h: 92 }, { day: 'DOM', h: 82 },
-];
-
-const TABS = ['Visão geral', 'Membros', 'Canais', 'Cargos', 'Moderação', 'Auditoria', 'Integrações'];
-
-function HealthRing({ pct, label, sublabel }: { pct: number; label: string; sublabel: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 12, border: '1px solid #2d2137', borderRadius: 12, marginBottom: 10 }}>
-      <div style={{
-        width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-        background: `conic-gradient(#43e3a3 ${(pct / 100) * 360}deg,#2b2233 0)`,
-        display: 'grid', placeItems: 'center', position: 'relative',
-      }}>
-        <div style={{
-          position: 'absolute', inset: 5, borderRadius: '50%', background: '#15101c',
-          display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 900, zIndex: 1,
-        }}>{pct}%</div>
-      </div>
-      <div style={{ flex: 1 }}>
-        <strong style={{ display: 'block', fontSize: 11 }}>{label}</strong>
-        <small style={{ color: '#94889f', fontSize: 9 }}>{sublabel}</small>
-      </div>
-      <span style={{ color: '#43e3a3', fontSize: 9 }}>Ótimo</span>
-    </div>
-  );
+interface ServerMember {
+  id: string;
+  userId: string;
+  role: MemberRole;
+  mutedBy: boolean;
+  joinedAt: string;
+  user: {
+    id: string;
+    username: string;
+    profile: { displayName: string; avatarUrl: string | null; status?: string } | null;
+  };
 }
 
-export default function AdminPage() {
+const ROLE_META: Record<MemberRole, { label: string; icon: any; badge: string; desc: string }> = {
+  OWNER: {
+    label: 'Dono', icon: Crown,
+    badge: 'text-white bg-gradient-to-r from-orange to-accent',
+    desc: 'Controle total: canais, cargos, moderação e exclusão do servidor.',
+  },
+  ADMIN: {
+    label: 'Admin', icon: Shield,
+    badge: 'text-[#ffb27d] bg-[#3a2113] border border-[#6b3a1c]',
+    desc: 'Gerencia canais e salas, silencia, expulsa e bane membros, muda cargos abaixo do dele.',
+  },
+  MODERATOR: {
+    label: 'Moderador', icon: Gavel,
+    badge: 'text-[#d3a8ef] bg-[#2a1937] border border-[#54306e]',
+    desc: 'Mantém a ordem: silencia membros e remove participantes das salas de voz.',
+  },
+  MEMBER: {
+    label: 'Membro', icon: User,
+    badge: 'text-[#a99cb8] bg-[#1d1626] border border-[#312640]',
+    desc: 'Conversa, entra em chamadas, abre câmera e compartilha a tela.',
+  },
+};
+
+const ROLE_ORDER: MemberRole[] = ['OWNER', 'ADMIN', 'MODERATOR', 'MEMBER'];
+
+function gradientFor(id: string): [string, string] {
+  const palette: [string, string][] = [
+    ['#ff7620', '#6d27d9'], ['#bc4cff', '#3d1c82'], ['#17a9cf', '#2f427c'],
+    ['#ff558d', '#7b2dac'], ['#ffb02e', '#c2410c'], ['#42e6a4', '#0f766e'],
+  ];
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+
+export default function ServerSettingsPage() {
   const params = useParams();
-  const [activeTab, setActiveTab] = useState('Visão geral');
+  const router = useRouter();
+  const serverId = params.serverId as string;
+  const { user } = useAuthStore();
+
+  const [members, setMembers] = useState<ServerMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
+  const [confirm, setConfirm] = useState<{ action: 'kick' | 'ban'; member: ServerMember } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const myRole: MemberRole = members.find(m => m.userId === user?.id)?.role || 'MEMBER';
+  const canModerate = myRole === 'OWNER' || myRole === 'ADMIN' || myRole === 'MODERATOR';
+  const canManageRoles = myRole === 'OWNER' || myRole === 'ADMIN';
 
   function notify(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(''), 1800);
+    setTimeout(() => setToast(''), 2200);
   }
 
+  const loadMembers = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/servers/${serverId}/members`);
+      setMembers(data);
+    } catch {
+      notify('Erro ao carregar membros');
+    } finally {
+      setLoading(false);
+    }
+  }, [serverId]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  // ── Ações de moderação ─────────────────────────────────────────
+  const changeRole = async (m: ServerMember, role: MemberRole) => {
+    setBusy(m.userId);
+    try {
+      await api.patch(`/moderation/servers/${serverId}/role/${m.userId}`, { role });
+      setMembers(prev => prev.map(x => x.userId === m.userId ? { ...x, role } : x));
+      notify(`${m.user.profile?.displayName || m.user.username} agora é ${ROLE_META[role].label}`);
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão para mudar este cargo');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleMute = async (m: ServerMember) => {
+    setBusy(m.userId);
+    try {
+      await api.patch(`/moderation/servers/${serverId}/mute/${m.userId}`, { muted: !m.mutedBy });
+      setMembers(prev => prev.map(x => x.userId === m.userId ? { ...x, mutedBy: !m.mutedBy } : x));
+      notify(m.mutedBy ? 'Microfone liberado no servidor' : 'Silenciado no servidor');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const doConfirmedAction = async () => {
+    if (!confirm) return;
+    const { action, member } = confirm;
+    setBusy(member.userId);
+    try {
+      await api.post(`/moderation/servers/${serverId}/${action}/${member.userId}`, {});
+      setMembers(prev => prev.filter(x => x.userId !== member.userId));
+      notify(action === 'kick' ? 'Membro expulso do servidor' : 'Membro banido do servidor');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    } finally {
+      setBusy(null);
+      setConfirm(null);
+    }
+  };
+
+  const copyInvite = async () => {
+    try {
+      const { data } = await api.post(`/invites/servers/${serverId}`, { expiresInHours: 168 });
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/${data.code}`);
+      notify('Link de convite copiado!');
+    } catch {
+      notify('Sem permissão para criar convites');
+    }
+  };
+
+  const filtered = members.filter(m => {
+    const q = search.toLowerCase();
+    return !q ||
+      m.user.username.toLowerCase().includes(q) ||
+      (m.user.profile?.displayName || '').toLowerCase().includes(q);
+  });
+
   return (
-    <div style={{
-      height: '100%', overflowY: 'auto',
-      background: 'linear-gradient(180deg,rgba(50,19,77,0.15),transparent 30%)',
-      color: '#f7f3ff', fontFamily: 'Inter,system-ui,sans-serif', fontSize: 14,
-    }}>
-      {/* Top header + tabs */}
-      <div style={{
-        padding: '20px 28px 0',
-        borderBottom: '1px solid #32243f',
-        background: 'rgba(13,9,18,0.6)',
-        position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(8px)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+    <div
+      className="h-full overflow-y-auto text-white"
+      style={{ background: 'radial-gradient(circle at 60% -10%, #28124c 0, transparent 38%), #09070d' }}
+    >
+      {/* Header */}
+      <div className="px-7 pt-6 pb-4 border-b border-[#292039] bg-[#0d0a13]/70 backdrop-blur sticky top-0 z-10">
+        <div className="flex items-center gap-3">
           <div>
-            <h1 style={{ margin: 0, fontSize: 20 }}>Painel de administração</h1>
-            <p style={{ margin: '3px 0 0', color: '#94889f', fontSize: 12 }}>Controle sua comunidade e acompanhe o que está acontecendo.</p>
+            <p className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Administração</p>
+            <h1 className="text-xl font-bold mt-0.5">Membros e cargos</h1>
+            <p className="text-[#92879f] text-xs mt-1">
+              Controle quem participa e o que cada pessoa pode fazer na sua comunidade.
+            </p>
           </div>
-          <div style={{
-            marginLeft: 'auto', border: '1px solid #423150', borderRadius: 11,
-            background: '#16101d', color: '#c8bccf', padding: '7px 12px', fontSize: 12, cursor: 'pointer',
-          }}>
-            Últimos 7 dias ⌄
-          </div>
-        </div>
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 2 }}>
-          {TABS.map(tab => (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); notify('Seção carregada'); }}
-              style={{
-                border: 0, background: 'transparent',
-                color: activeTab === tab ? '#fff' : '#716778',
-                fontWeight: activeTab === tab ? 800 : 400,
-                padding: '8px 14px', cursor: 'pointer', fontSize: 12,
-                borderBottom: activeTab === tab ? '2px solid #ff6a00' : '2px solid transparent',
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+          <button
+            onClick={copyInvite}
+            className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-extrabold text-white
+                       bg-gradient-to-r from-orange to-accent shadow-[0_5px_18px_rgba(255,90,0,0.2)]
+                       hover:opacity-90 active:scale-95 transition-all"
+          >
+            <UserPlus className="w-4 h-4" /> Convidar
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ padding: '24px 28px' }}>
-        {/* Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-          {[
-            { label: 'Membros', value: '2.846', delta: '↑ 12% esta semana' },
-            { label: 'Online agora', value: '438', delta: '● 15% do total' },
-            { label: 'Minutos em call', value: '18,4 mil', delta: '↑ 8,2%' },
-            { label: 'Mensagens hoje', value: '7.293', delta: '↑ 19%' },
-          ].map(m => (
-            <div key={m.label} style={{
-              border: '1px solid #32243f', borderRadius: 16,
-              background: 'linear-gradient(145deg,#181020,#110d18)', padding: 16,
-            }}>
-              <div style={{ color: '#94889f', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{m.label}</div>
-              <strong style={{ display: 'block', fontSize: 23, margin: '7px 0 4px' }}>{m.value}</strong>
-              <span style={{ color: '#43e3a3', fontSize: 9 }}>{m.delta}</span>
-            </div>
-          ))}
-        </div>
+      <div className="p-7 max-w-4xl space-y-8">
+        {/* ── Cargos do Nexus ───────────────────────────────── */}
+        <section>
+          <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px] mb-3">
+            Cargos do servidor
+          </p>
+          <div className="grid sm:grid-cols-2 gap-2.5">
+            {ROLE_ORDER.map(r => {
+              const meta = ROLE_META[r];
+              const Icon = meta.icon;
+              const count = members.filter(m => m.role === r).length;
+              return (
+                <div key={r} className="flex items-start gap-3 rounded-2xl border border-[#292039] bg-[#120d19] p-4">
+                  <span className={cn(
+                    'w-10 h-10 rounded-xl grid place-items-center shrink-0',
+                    r === 'OWNER' ? 'bg-gradient-to-br from-orange to-accent text-white' : 'bg-[#1c1526] text-[#8c5dcc]',
+                  )}>
+                    <Icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <b className="text-sm">{meta.label}</b>
+                      <span className="text-[10px] text-[#92879f]">{count} membro{count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <p className="text-xs text-[#92879f] mt-0.5 leading-relaxed">{meta.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
-        {/* Charts + Health */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 0.75fr', gap: 14, marginBottom: 14 }}>
-          {/* Activity */}
-          <div style={{ border: '1px solid #32243f', borderRadius: 16, background: 'linear-gradient(145deg,#181020,#110d18)', padding: 18 }}>
-            <h3 style={{ margin: '0 0 15px', fontSize: 13 }}>Atividade da comunidade</h3>
-            <div style={{ height: 160, display: 'flex', alignItems: 'flex-end', gap: 8, borderBottom: '1px solid #3a2a45', padding: '0 5px' }}>
-              {CHART.map((bar, i) => (
-                <motion.div
-                  key={bar.day}
-                  initial={{ scaleY: 0 }} animate={{ scaleY: 1 }}
-                  transition={{ delay: i * 0.06, type: 'spring', stiffness: 300, damping: 24 }}
-                  style={{
-                    flex: 1, minWidth: 18, height: `${bar.h}%`,
-                    borderRadius: '6px 6px 0 0',
-                    background: 'linear-gradient(#7a2cff,#ff6a00)',
-                    opacity: 0.8, transformOrigin: 'bottom',
-                    cursor: 'pointer',
-                  }}
-                  whileHover={{ opacity: 1 }}
-                  title={`${bar.day}: ${bar.h}%`}
-                />
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 8 }}>
-              {CHART.map(b => (
-                <span key={b.day} style={{ fontSize: 8, color: '#796e83' }}>{b.day}</span>
-              ))}
+        {/* ── Membros ───────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center gap-3 mb-3">
+            <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px]">
+              Membros — {members.length}
+            </p>
+            <div className="ml-auto relative">
+              <Search className="w-3.5 h-3.5 text-[#92879f] absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar membro..."
+                className="bg-[#0b0810] border border-[#292039] rounded-xl pl-9 pr-3 py-2 text-sm text-white
+                           placeholder:text-[#5c5468] focus:outline-none focus:border-accent w-56"
+              />
             </div>
           </div>
 
-          {/* System health */}
-          <div style={{ border: '1px solid #32243f', borderRadius: 16, background: 'linear-gradient(145deg,#181020,#110d18)', padding: 18 }}>
-            <h3 style={{ margin: '0 0 15px', fontSize: 13 }}>Saúde do sistema</h3>
-            <HealthRing pct={99} label="Chamadas de voz" sublabel="Latência média 31 ms" />
-            <HealthRing pct={98} label="Streaming de tela" sublabel="1080p disponível" />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              {['＋ Criar cargo', '⚑ Revisar denúncias', '⌁ Copiar convite'].map(btn => (
-                <button key={btn} onClick={() => notify('Ação aberta')} style={{
-                  border: '1px solid #3c2a4a', borderRadius: 11,
-                  background: '#181020', color: '#c4b7cd',
-                  padding: '8px 10px', cursor: 'pointer', fontSize: 10,
-                }}>
-                  {btn}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Members table */}
-        <div style={{ border: '1px solid #32243f', borderRadius: 16, background: 'linear-gradient(145deg,#181020,#110d18)', padding: 18 }}>
-          <h3 style={{ margin: '0 0 4px', fontSize: 13 }}>Membros recentes</h3>
-          <div style={{
-            display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 80px',
-            alignItems: 'center', padding: '10px 6px',
-            fontSize: 8, color: '#716778', textTransform: 'uppercase',
-          }}>
-            <span>Usuário</span><span>Cargo</span><span>Status</span><span>Entrada</span><span>Ações</span>
-          </div>
-          {MEMBERS.map(m => (
-            <div key={m.name} style={{
-              display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 80px',
-              alignItems: 'center', padding: '10px 6px',
-              borderTop: '1px solid #2a1f34', fontSize: 10,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{
-                  width: 31, height: 31, borderRadius: 10, flexShrink: 0,
-                  background: `linear-gradient(145deg,${m.c1},${m.c2})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 900, fontSize: 9, color: '#fff',
-                }}>{m.initials}</div>
-                {m.name}
+          <div className="rounded-2xl border border-[#292039] bg-[#120d19] divide-y divide-[#1d1626] overflow-hidden">
+            {loading && (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 text-accent animate-spin" />
               </div>
-              <span style={{ width: 'max-content', padding: '5px 8px', borderRadius: 15, background: '#2a1937', color: '#d3a8ef' }}>
-                {m.role}
-              </span>
-              <span style={{ color: m.status === 'online' ? '#43e3a3' : '#ffbe63' }}>
-                ● {m.status === 'online' ? 'Online' : 'Ausente'}
-              </span>
-              <span style={{ color: '#94889f' }}>{m.since}</span>
-              <button onClick={() => notify('Ação administrativa aberta')} style={{
-                border: '1px solid #3a2b47', borderRadius: 8,
-                background: '#181020', color: '#c3b7cb', cursor: 'pointer',
-                padding: '5px 10px', fontSize: 10,
-              }}>•••</button>
-            </div>
-          ))}
-        </div>
+            )}
+
+            {!loading && filtered.length === 0 && (
+              <p className="text-[#92879f] text-sm text-center py-8">Nenhum membro encontrado.</p>
+            )}
+
+            {filtered.map(m => {
+              const [c1, c2] = gradientFor(m.userId);
+              const meta = ROLE_META[m.role];
+              const isMe = m.userId === user?.id;
+              const targetBelowMe = ROLE_ORDER.indexOf(m.role) > ROLE_ORDER.indexOf(myRole);
+              const isBusy = busy === m.userId;
+
+              return (
+                <div key={m.id} className="flex items-center gap-3 p-3.5 hover:bg-white/[0.02] transition-colors">
+                  <div
+                    className="w-10 h-10 rounded-xl grid place-items-center font-black text-xs text-white shrink-0"
+                    style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                  >
+                    {getInitials(m.user.profile?.displayName || m.user.username)}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <b className="text-sm truncate">{m.user.profile?.displayName || m.user.username}</b>
+                      {isMe && <span className="text-[10px] text-[#92879f]">(você)</span>}
+                      {m.mutedBy && (
+                        <span className="flex items-center gap-1 text-[10px] text-destructive">
+                          <MicOff className="w-3 h-3" /> silenciado
+                        </span>
+                      )}
+                    </div>
+                    <small className="text-[#92879f] text-xs">@{m.user.username}</small>
+                  </div>
+
+                  {/* Cargo */}
+                  {canManageRoles && !isMe && m.role !== 'OWNER' && targetBelowMe ? (
+                    <select
+                      value={m.role}
+                      disabled={isBusy}
+                      onChange={(e) => changeRole(m, e.target.value as MemberRole)}
+                      className={cn(
+                        'text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer focus:outline-none',
+                        'bg-[#1d1626] border border-[#312640] text-[#d3a8ef] hover:border-accent',
+                      )}
+                    >
+                      {myRole === 'OWNER' && <option value="ADMIN">Admin</option>}
+                      <option value="MODERATOR">Moderador</option>
+                      <option value="MEMBER">Membro</option>
+                    </select>
+                  ) : (
+                    <span className={cn('text-[11px] font-extrabold rounded-full px-3 py-1.5 flex items-center gap-1.5', meta.badge)}>
+                      <meta.icon className="w-3 h-3" /> {meta.label}
+                    </span>
+                  )}
+
+                  {/* Ações de moderação */}
+                  {canModerate && !isMe && m.role !== 'OWNER' && targetBelowMe && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => toggleMute(m)}
+                        disabled={isBusy}
+                        title={m.mutedBy ? 'Liberar microfone no servidor' : 'Silenciar no servidor'}
+                        className={cn(
+                          'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
+                          m.mutedBy
+                            ? 'bg-destructive/15 text-destructive hover:bg-destructive hover:text-white'
+                            : 'text-[#92879f] hover:text-white hover:bg-[#21152c]',
+                        )}
+                      >
+                        {m.mutedBy ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => setConfirm({ action: 'kick', member: m })}
+                        disabled={isBusy}
+                        title="Expulsar do servidor"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                                   hover:text-warning hover:bg-[#21152c] transition-colors"
+                      >
+                        <UserX className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setConfirm({ action: 'ban', member: m })}
+                        disabled={isBusy}
+                        title="Banir do servidor"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                                   hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Ban className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(m.userId); notify('ID copiado'); }}
+                        title="Copiar ID do usuário"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                                   hover:text-white hover:bg-[#21152c] transition-colors"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {isBusy && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
+                </div>
+              );
+            })}
+          </div>
+
+          {!canModerate && !loading && (
+            <p className="text-[#5c5468] text-xs mt-3">
+              Só o dono, admins e moderadores podem gerenciar membros.
+            </p>
+          )}
+        </section>
       </div>
+
+      {/* Modal de confirmação */}
+      <AnimatePresence>
+        {confirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+            onClick={() => setConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#120d19] border border-[#392454] rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <h3 className="font-bold text-lg mb-1">
+                {confirm.action === 'kick' ? 'Expulsar' : 'Banir'}{' '}
+                {confirm.member.user.profile?.displayName || confirm.member.user.username}?
+              </h3>
+              <p className="text-[#92879f] text-sm mb-6">
+                {confirm.action === 'kick'
+                  ? 'A pessoa sai do servidor mas pode voltar com um novo convite.'
+                  : 'A pessoa é removida e não consegue mais entrar, mesmo com convite.'}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirm(null)}
+                  className="px-4 py-2 rounded-xl bg-[#1d1626] text-[#a99cb8] hover:text-white text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={doConfirmedAction}
+                  className="px-4 py-2 rounded-xl bg-destructive hover:bg-red-600 text-white text-sm font-bold transition-colors"
+                >
+                  {confirm.action === 'kick' ? 'Expulsar' : 'Banir'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: toast ? 1 : 0, y: toast ? 0 : 40 }}
-        style={{
-          position: 'fixed', left: '50%', bottom: 20,
-          transform: 'translateX(-50%)',
-          background: '#1b1125', border: '1px solid #713b9a',
-          padding: '11px 15px', borderRadius: 11, pointerEvents: 'none',
-          whiteSpace: 'nowrap', fontSize: 13,
-        }}
-      >
-        {toast}
-      </motion.div>
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+            className="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 px-4 py-2.5 rounded-xl
+                       bg-[#1a1024] border border-[#6f36a1] text-white text-sm shadow-2xl"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
