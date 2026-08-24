@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { User, Bell, Shield, Palette, Mic, LogOut, Check, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -95,6 +95,25 @@ export default function SettingsPage() {
   const router = useRouter();
   const [saveSuccess, setSaveSuccess] = useState('');
 
+  // Abre direto numa seção via ?section=voice (usado pelo popover da chamada)
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section && sections.some(s => s.id === section)) setActiveSection(section);
+  }, []);
+
+  // Fechar: volta para onde estava (ESC ou botão X)
+  const handleClose = () => {
+    if (window.history.length > 1) router.back();
+    else router.push('/app');
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleLogout = async () => {
     const { logout } = useAuthStore.getState();
     await logout();
@@ -143,6 +162,20 @@ export default function SettingsPage() {
             <LogOut size={16} /><span>Sair</span>
           </button>
         </div>
+      </div>
+
+      {/* Botão fechar (X · ESC) */}
+      <div className="fixed top-5 right-5 z-40 flex flex-col items-center gap-1">
+        <button
+          onClick={handleClose}
+          title="Fechar configurações (Esc)"
+          className="w-10 h-10 rounded-full border-2 border-[#4d3560] text-[#a99cb8]
+                     hover:border-accent hover:text-white flex items-center justify-center
+                     transition-colors active:scale-95 bg-[var(--th-panel)]"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <span className="text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
       </div>
 
       {/* Conteúdo */}

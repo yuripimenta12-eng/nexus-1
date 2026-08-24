@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Crown, Shield, Gavel, User, MicOff, Mic, UserX, Ban,
-  Copy, Loader2, UserPlus, Search,
+  Copy, Loader2, UserPlus, Search, X,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -97,6 +97,15 @@ export default function ServerSettingsPage() {
 
   useEffect(() => { loadMembers(); }, [loadMembers]);
 
+  // Fechar: volta para o servidor (ESC ou botão X)
+  const handleClose = () => router.push(`/app/servers/${serverId}`);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverId]);
+
   // ── Ações de moderação ─────────────────────────────────────────
   const changeRole = async (m: ServerMember, role: MemberRole) => {
     setBusy(m.userId);
@@ -177,6 +186,18 @@ export default function ServerSettingsPage() {
           >
             <UserPlus className="w-4 h-4" /> Convidar
           </button>
+          <div className="flex flex-col items-center gap-1 ml-1">
+            <button
+              onClick={handleClose}
+              title="Fechar (Esc)"
+              className="w-10 h-10 rounded-full border-2 border-[#4d3560] text-[#a99cb8]
+                         hover:border-accent hover:text-white flex items-center justify-center
+                         transition-colors active:scale-95"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <span className="text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
+          </div>
         </div>
       </div>
 

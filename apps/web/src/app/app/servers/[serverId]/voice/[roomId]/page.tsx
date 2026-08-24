@@ -8,7 +8,7 @@ import {
   PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
-  MessageCircle, Send,
+  MessageCircle, Send, Headphones, Settings, ChevronRight,
 } from 'lucide-react';
 import {
   Track,
@@ -61,6 +61,7 @@ export default function VoicePage() {
     localMicEnabled, localCamEnabled, localScreenSharing,
     toggleMic, toggleCam, startScreenShare, stopScreenShare,
     participants, quality, voiceRoomId, roomName,
+    isDeafened, toggleDeafen,
   } = useVoiceStore();
 
   const askScreenQuality = useMediaStore(s => s.askScreenQuality);
@@ -70,6 +71,7 @@ export default function VoicePage() {
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
+  const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [sideTab, setSideTab] = useState<'people' | 'chat' | 'audio'>('people');
@@ -408,6 +410,30 @@ export default function VoicePage() {
             >
               {localMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </ControlButton>
+
+            <ControlButton
+              onClick={toggleDeafen}
+              danger={isDeafened}
+              title={isDeafened ? 'Reativar áudio da chamada' : 'Silenciar tudo (não ouvir ninguém)'}
+            >
+              {isDeafened ? <VolumeX className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
+            </ControlButton>
+
+            {/* Áudio rápido: dispositivo de saída + volume geral */}
+            <div className="relative">
+              <ControlButton
+                onClick={() => setAudioPopover(v => !v)}
+                active={audioPopover}
+                title="Áudio da chamada"
+              >
+                <Volume2 className="w-5 h-5" />
+              </ControlButton>
+              <AnimatePresence>
+                {audioPopover && (
+                  <QuickAudioPopover onClose={() => setAudioPopover(false)} />
+                )}
+              </AnimatePresence>
+            </div>
 
             <ControlButton
               onClick={toggleCam}
@@ -749,6 +775,106 @@ export default function VoicePage() {
   );
 }
 
+// ── Popover de áudio rápido (dispositivo de saída + volume geral) ─
+function QuickAudioPopover({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const ms = useMediaStore();
+  const { switchAudioOutput, applyOutputVolume, isDeafened, toggleDeafen } = useVoiceStore();
+  const [speakers, setSpeakers] = useState<{ deviceId: string; label: string }[]>([]);
+
+  useEffect(() => {
+    navigator.mediaDevices?.enumerateDevices?.()
+      .then(devices => {
+        setSpeakers(
+          devices
+            .filter(d => d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default')
+            .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Saída ${i + 1}` })),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <>
+      {/* clique fora fecha */}
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+        transition={{ duration: 0.15 }}
+        className="absolute bottom-[60px] left-1/2 -translate-x-1/2 z-50 w-[280px]
+                   bg-[var(--th-panel-2)] border border-[var(--th-line-2)] rounded-2xl shadow-2xl p-4"
+      >
+        {/* Dispositivo de saída */}
+        <label className="block">
+          <b className="block text-white text-sm mb-0.5">Dispositivo de saída</b>
+          <div className="flex items-center gap-1 text-[#92879f]">
+            <select
+              value={ms.audioOutputId}
+              onChange={(e) => switchAudioOutput(e.target.value)}
+              className="flex-1 bg-transparent text-xs focus:outline-none cursor-pointer py-1
+                         [&>option]:bg-[var(--th-panel-2)] text-[#b8b0cc]"
+            >
+              <option value="">Padrão do sistema</option>
+              {speakers.map(s => (
+                <option key={s.deviceId} value={s.deviceId}>{s.label}</option>
+              ))}
+            </select>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+          </div>
+        </label>
+
+        <div className="h-px bg-[var(--th-line-2)] my-3" />
+
+        {/* Volume de saída */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <b className="text-white text-sm">Volume de saída</b>
+            <span className="text-[10px] font-black tabular-nums px-1.5 py-0.5 rounded-full text-white
+                             bg-gradient-to-r from-orange to-accent">
+              {isDeafened ? 0 : ms.outputVolume}%
+            </span>
+          </div>
+          <input
+            type="range" min={0} max={100}
+            value={isDeafened ? 0 : ms.outputVolume}
+            disabled={isDeafened}
+            onChange={(e) => { ms.setOutputVolume(Number(e.target.value)); applyOutputVolume(); }}
+            className="nx-range"
+            style={{ ['--fill' as any]: `${isDeafened ? 0 : ms.outputVolume}%` }}
+          />
+        </div>
+
+        {/* Silenciar tudo */}
+        <button
+          onClick={toggleDeafen}
+          className={cn(
+            'w-full mt-3 flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors',
+            isDeafened
+              ? 'bg-destructive/15 text-destructive'
+              : 'text-[#cfc6dd] hover:bg-[#21152c] hover:text-white',
+          )}
+        >
+          {isDeafened ? <VolumeX className="w-4 h-4" /> : <Headphones className="w-4 h-4" />}
+          {isDeafened ? 'Reativar áudio da chamada' : 'Silenciar toda a chamada'}
+        </button>
+
+        <div className="h-px bg-[var(--th-line-2)] my-3" />
+
+        {/* Configurações completas */}
+        <button
+          onClick={() => router.push('/app/me/settings?section=voice')}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-bold
+                     text-[#cfc6dd] hover:bg-[#21152c] hover:text-white transition-colors"
+        >
+          <Settings className="w-4 h-4" /> Configurações de voz
+        </button>
+      </motion.div>
+    </>
+  );
+}
+
 // ── Item de ação no menu do participante ─────────────────────────
 function MenuAction({
   icon, label, onClick, danger,
@@ -927,13 +1053,13 @@ function AudioRenderer() {
             const el = document.createElement('audio');
             el.autoplay = true;
             el.dataset.lkIdentity = identity;
-            // Aplica volume global e dispositivo de saída das configurações
             const ms = useMediaStore.getState();
-            el.volume = Math.min(1, ((vp.localVolume ?? 100) / 100) * (ms.outputVolume / 100));
             if (ms.audioOutputId) (el as any).setSinkId?.(ms.audioOutputId)?.catch?.(() => {});
             container.appendChild(el);
             pub.track.attach(el);
             attachedRef.current.set(key, el);
+            // Volume centralizado (individual × geral × silenciar tudo)
+            useVoiceStore.getState().applyOutputVolume();
           }
         }
       });

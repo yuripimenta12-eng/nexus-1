@@ -54,6 +54,8 @@ interface VoiceStore {
   updateParticipant: (p: Participant) => void;
 
   // ── Configurações de mídia aplicadas ao vivo ──
+  isDeafened: boolean;
+  toggleDeafen: () => void;
   setInputVolume: (volume: number) => void;
   applyOutputVolume: () => void;
   switchAudioInput: (deviceId: string) => Promise<void>;
@@ -111,8 +113,11 @@ async function teardownMic(room: Room | null): Promise<void> {
 }
 
 // Aplica volume final (individual × global) em um elemento <audio>
+// Silenciar tudo (deafen): zera a saída da chamada sem perder os volumes
+let deafened = false;
+
 function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
-  if (mutedLocally) return 0;
+  if (mutedLocally || deafened) return 0;
   const out = useMediaStore.getState().outputVolume;
   return Math.min(1, (localVolume / 100) * (out / 100));
 }
@@ -276,7 +281,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         leaveVoiceRoom();
       } catch { /* ok */ }
     }
+    deafened = false;
     set({
+      isDeafened: false,
       room: null,
       roomName: null,
       voiceRoomId: null,
@@ -381,6 +388,14 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   // ── Configurações de mídia aplicadas ao vivo ─────────────────
+  isDeafened: false,
+
+  toggleDeafen: () => {
+    deafened = !deafened;
+    set({ isDeafened: deafened });
+    get().applyOutputVolume();
+  },
+
   setInputVolume: (volume) => {
     useMediaStore.getState().setInputVolume(volume);
     if (micPipeline) micPipeline.gain.gain.value = volume / 100;
