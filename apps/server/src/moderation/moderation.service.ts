@@ -123,6 +123,22 @@ export class ModerationService {
   }
 
   // ── Block ─────────────────────────────────────────────────────
+  async listBlocks(blockerId: string) {
+    return this.prisma.block.findMany({
+      where: { blockerId },
+      include: {
+        blocked: {
+          select: {
+            id: true,
+            username: true,
+            profile: { select: { displayName: true, avatarUrl: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async block(blockerId: string, blockedId: string) {
     return this.prisma.block.upsert({
       where: { blockerId_blockedId: { blockerId, blockedId } },

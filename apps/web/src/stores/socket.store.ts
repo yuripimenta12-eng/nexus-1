@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
+import { notifyIncomingMessage } from '@/lib/notify';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Socket } from 'socket.io-client';
 
 /* ── DM types ───────────────────────────────────── */
@@ -97,6 +99,12 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
       unread.set(msg.senderId, (unread.get(msg.senderId) ?? 0) + 1);
 
       set({ dmMessages: msgs, dmUnread: unread });
+
+      // Som + notificação de desktop (respeita as preferências do usuário)
+      const myId = useAuthStore.getState().user?.id;
+      if (msg.senderId !== myId) {
+        notifyIncomingMessage(msg.sender?.displayName || msg.sender?.username || 'alguém', msg.content);
+      }
     });
 
     socket.on('dm:updated', (msg: DmMessage) => {

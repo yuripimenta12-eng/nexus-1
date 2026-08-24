@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocketStore } from '@/stores/socket.store';
+import { usePrefsStore, applyAccent } from '@/stores/prefs.store';
 import { Toaster } from '@/components/ui/toaster';
 
 const queryClient = new QueryClient({
@@ -17,7 +18,13 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, accessToken, refreshUser } = useAuthStore();
+  const accent = usePrefsStore(s => s.accent);
   const initialized = useRef(false);
+
+  // Tema de acento escolhido em Aparência
+  useEffect(() => {
+    applyAccent(accent);
+  }, [accent]);
 
   useEffect(() => {
     if (initialized.current) return;

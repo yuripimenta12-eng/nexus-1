@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -64,6 +64,11 @@ export class ModerationController {
     @Body() dto: any,
   ) {
     return this.moderationService.report(reporterId, dto);
+  }
+
+  @Get('blocks')
+  listBlocks(@CurrentUser('id') blockerId: string) {
+    return this.moderationService.listBlocks(blockerId);
   }
 
   @Post('block/:userId')

@@ -36,8 +36,8 @@ module.exports = {
         },
         /* ── Brand ──────────────────────────────────────── */
         accent: {
-          DEFAULT:    '#7c5af0',
-          hover:      '#9b6dff',
+          DEFAULT:    'var(--th-accent, #7c5af0)',
+          hover:      'var(--th-accent-hover, #9b6dff)',
           deep:       '#5b3fd4',
           dim:        'rgba(124,90,240,0.18)',
           glow:       'rgba(124,90,240,0.35)',
@@ -46,8 +46,8 @@ module.exports = {
           light: '#9b6dff',
         },
         orange: {
-          DEFAULT: '#ff6a00',
-          bright:  '#ff8c33',
+          DEFAULT: 'var(--th-orange, #ff6a00)',
+          bright:  'var(--th-orange-bright, #ff8c33)',
           dim:     'rgba(255,106,0,0.15)',
           glow:    'rgba(255,106,0,0.28)',
         },

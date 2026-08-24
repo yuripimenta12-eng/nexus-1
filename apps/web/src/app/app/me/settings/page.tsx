@@ -5,6 +5,7 @@ import { User, Bell, Shield, Palette, Mic, LogOut, Check, X, Loader2 } from 'luc
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { VoiceVideoSettings } from '@/components/settings/voice-video-settings';
+import { AppearanceSettings, NotificationSettings, PrivacySettings } from '@/components/settings/prefs-settings';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
@@ -231,14 +232,24 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {activeSection !== 'profile' && activeSection !== 'voice' && (
+        {activeSection === 'appearance' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white">
-              {sections.find(s => s.id === activeSection)?.label}
-            </h2>
-            <div className="bg-surface rounded-lg p-6 border border-border">
-              <p className="text-muted text-sm">Em breve.</p>
-            </div>
+            <h2 className="text-xl font-semibold text-white">Aparência</h2>
+            <AppearanceSettings />
+          </div>
+        )}
+
+        {activeSection === 'notifications' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-white">Notificações</h2>
+            <NotificationSettings />
+          </div>
+        )}
+
+        {activeSection === 'privacy' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-white">Privacidade & Segurança</h2>
+            <PrivacySettings />
           </div>
         )}
       </div>

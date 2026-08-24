@@ -151,6 +151,37 @@
   }
 }
 
+/* ── Temas de acento (Aparência) ───────────────────────────────────────── */
+/* O padrão (Nexus) usa os fallbacks das variáveis no tailwind.config */
+[data-accent='ember'] {
+  --th-orange: #ff9345;
+  --th-orange-bright: #ffb27d;
+  --th-accent: #ff4f79;
+  --th-accent-hover: #ff7597;
+  --nx-purple: #ff4f79;
+}
+[data-accent='violet'] {
+  --th-orange: #b142f5;
+  --th-orange-bright: #c877ff;
+  --th-accent: #7a2cff;
+  --th-accent-hover: #9b5cff;
+  --nx-purple: #7a2cff;
+}
+[data-accent='ocean'] {
+  --th-orange: #22d3ee;
+  --th-orange-bright: #67e3f9;
+  --th-accent: #3b82f6;
+  --th-accent-hover: #60a5fa;
+  --nx-purple: #3b82f6;
+}
+[data-accent='emerald'] {
+  --th-orange: #42e6a4;
+  --th-orange-bright: #7cf0c3;
+  --th-accent: #17a9cf;
+  --th-accent-hover: #3fc2e3;
+  --nx-purple: #17a9cf;
+}
+
 /* ── Slider Nexus (range) ──────────────────────────────────────────────── */
 .nx-range {
   -webkit-appearance: none;

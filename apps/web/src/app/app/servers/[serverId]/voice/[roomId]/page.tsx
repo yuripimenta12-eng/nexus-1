@@ -7,7 +7,7 @@ import {
   Mic, MicOff, Video, VideoOff, Monitor,
   PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
-  MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown,
+  MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
 } from 'lucide-react';
 import {
   Track,
@@ -515,6 +515,19 @@ export default function VoicePage() {
                                   icon={p.isMutedLocally ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                                   label={p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
                                   onClick={() => useVoiceStore.getState().toggleMuteLocally(p.identity)}
+                                />
+                                <MenuAction
+                                  icon={<ShieldOff className="w-3.5 h-3.5" />}
+                                  label="Bloquear usuário"
+                                  danger
+                                  onClick={async () => {
+                                    try {
+                                      await api.post(`/moderation/block/${p.identity}`);
+                                      notify('Usuário bloqueado — gerencie em Privacidade & Segurança');
+                                    } catch {
+                                      notify('Não foi possível bloquear');
+                                    }
+                                  }}
                                 />
                               </>
                             )}
