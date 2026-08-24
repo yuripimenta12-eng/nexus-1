@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, accessToken, refreshUser } = useAuthStore();
+  const { isAuthenticated, accessToken, hasHydrated, refreshUser } = useAuthStore();
   const accent = usePrefsStore(s => s.accent);
   const initialized = useRef(false);
 
@@ -27,7 +27,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [accent]);
 
   useEffect(() => {
-    if (initialized.current) return;
+    // Espera o zustand-persist restaurar o localStorage antes de decidir.
+    // Sem isso, este efeito roda uma vez só (deps: []) e pode capturar
+    // isAuthenticated=false do estado inicial (hidratação ainda não
+    // terminou) — o refresh nunca acontece e a página fica com dados
+    // de perfil desatualizados (ex.: avatar/banner antigos) até um
+    // novo login, mesmo depois de editados em outra aba/sessão.
+    if (!hasHydrated || initialized.current) return;
     initialized.current = true;
 
     // Reconecta sessão ao recarregar a página
@@ -37,7 +43,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       // are registered globally on page load / refresh
       useSocketStore.getState().init(accessToken);
     }
-  }, []);
+  }, [hasHydrated, isAuthenticated, accessToken, refreshUser]);
 
   return (
     <QueryClientProvider client={queryClient}>
