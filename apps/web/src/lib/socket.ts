@@ -55,9 +55,12 @@ export function getSocket(): Socket {
 }
 
 export function connectSocket(token: string): Socket {
+  // Reutiliza a instância existente para não perder listeners já
+  // registrados por componentes (ex.: presença de voz na sidebar)
   if (socket) {
-    socket.disconnect();
-    socket = null;
+    (socket.auth as { token?: string }).token = token;
+    if (!socket.connected) socket.connect();
+    return socket;
   }
 
   socket = io(API_URL, {

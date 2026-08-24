@@ -57,10 +57,18 @@ export function AppSidebar() {
       if (evt.serverId === serverId) fetchPresence();
     };
     socket.on('voice:presence', onPresence);
+    // O socket pode conectar depois deste mount — refaz o join/snapshot
+    const onConnect = () => { socket.emit('server:join', { serverId }); fetchPresence(); };
+    socket.on('connect', onConnect);
+
+    // Fallback: mantém a lista correta mesmo se algum evento se perder
+    const interval = setInterval(fetchPresence, 20_000);
 
     return () => {
       cancelled = true;
       socket.off('voice:presence', onPresence);
+      socket.off('connect', onConnect);
+      clearInterval(interval);
     };
   }, [serverId]);
 
