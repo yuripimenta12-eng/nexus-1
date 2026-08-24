@@ -21,10 +21,16 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
 
-  // Quem já tem sessão válida volta direto para o app
+  // Quem já tem sessão válida volta para o app (ou para o convite pendente)
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.replace('/app');
+      const pending = localStorage.getItem('nexus_pending_invite');
+      if (pending) {
+        localStorage.removeItem('nexus_pending_invite');
+        router.replace(`/invite/${pending}`);
+      } else {
+        router.replace('/app');
+      }
     }
   }, [hasHydrated, isAuthenticated, router]);
 
@@ -36,7 +42,13 @@ export default function LoginPage() {
     setError('');
     try {
       await login(data.email, data.password);
-      router.push('/app');
+      const pending = localStorage.getItem('nexus_pending_invite');
+      if (pending) {
+        localStorage.removeItem('nexus_pending_invite');
+        router.push(`/invite/${pending}`);
+      } else {
+        router.push('/app');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao entrar. Tente novamente.');
     }

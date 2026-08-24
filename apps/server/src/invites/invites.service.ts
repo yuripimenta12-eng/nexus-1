@@ -84,7 +84,16 @@ export class InvitesService {
 
     return this.prisma.invite.findMany({
       where: { serverId },
-      include: { creator: { include: { profile: true } } },
+      // Nunca expor o usuário completo (contém passwordHash/email)
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            profile: { select: { displayName: true, avatarUrl: true } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

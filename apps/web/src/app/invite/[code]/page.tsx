@@ -11,19 +11,22 @@ export default function InvitePage() {
   const params = useParams();
   const router = useRouter();
   const code = params.code as string;
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, hasHydrated } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'ready' | 'joining' | 'success' | 'error'>('loading');
   const [serverInfo, setServerInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    // Sem auth: redireciona para login com retorno
+    // Espera o estado persistido carregar antes de decidir
+    if (!hasHydrated) return;
     if (!isAuthenticated) {
-      router.push(`/auth/login?redirect=/invite/${code}`);
+      // Guarda o convite para retomar depois do login/cadastro
+      localStorage.setItem('nexus_pending_invite', code);
+      router.push('/auth/login');
       return;
     }
     setStatus('ready');
-  }, [isAuthenticated, code, router]);
+  }, [hasHydrated, isAuthenticated, code, router]);
 
   const handleJoin = async () => {
     setStatus('joining');

@@ -39,7 +39,13 @@ export default function RegisterPage() {
     setError('');
     try {
       await registerUser(data as Required<FormData>);
-      router.push('/app');
+      const pending = localStorage.getItem('nexus_pending_invite');
+      if (pending) {
+        localStorage.removeItem('nexus_pending_invite');
+        router.push(`/invite/${pending}`);
+      } else {
+        router.push('/app');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar conta.');
     }
