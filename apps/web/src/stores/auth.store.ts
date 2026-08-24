@@ -111,9 +111,19 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => () => {
-        useAuthStore.setState({ hasHydrated: true });
-      },
     },
   ),
 );
+
+// Marca a hidratação usando a API do persist, fora do create()
+// (o callback onRehydrateStorage roda durante a criação do store e
+// não pode referenciar useAuthStore — TDZ engolia o erro em silêncio)
+if (typeof window !== 'undefined') {
+  if (useAuthStore.persist.hasHydrated()) {
+    useAuthStore.setState({ hasHydrated: true });
+  } else {
+    useAuthStore.persist.onFinishHydration(() => {
+      useAuthStore.setState({ hasHydrated: true });
+    });
+  }
+}
