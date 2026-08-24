@@ -33,7 +33,13 @@ let activeVoiceRoom: { voiceRoomId: string; serverId?: string | null } | null = 
 export function joinVoiceRoom(voiceRoomId: string, serverId?: string | null) {
   activeVoiceRoom = { voiceRoomId, serverId };
   const s = getSocket();
-  if (s.connected) s.emit('voice:join', { voiceRoomId, serverId });
+  // Sem guard de connected: o socket.io enfileira emits pré-conexão e envia
+  // assim que conectar. O re-join no handler de 'connect' cobre reconexões.
+  s.emit('voice:join', { voiceRoomId, serverId });
+  if (typeof window !== 'undefined') {
+    (window as any).__NX_SOCK = 'v2';
+    (window as any).__NX_LAST_VOICE_JOIN = { voiceRoomId, connected: s.connected, at: Date.now() };
+  }
 }
 
 export function leaveVoiceRoom() {
@@ -50,6 +56,14 @@ function attachReconnectHandlers(s: Socket) {
     activeServers.forEach(id => s.emit('server:join', { serverId: id }));
     activeChannels.forEach(id => s.emit('channel:join', { channelId: id }));
     if (activeVoiceRoom) s.emit('voice:join', activeVoiceRoom);
+    if (typeof window !== 'undefined') {
+      (window as any).__NX_SOCK_STATE = { connected: true, sid: s.id, voiceRoom: activeVoiceRoom };
+    }
+  });
+  s.on('disconnect', () => {
+    if (typeof window !== 'undefined') {
+      (window as any).__NX_SOCK_STATE = { connected: false };
+    }
   });
 }
 

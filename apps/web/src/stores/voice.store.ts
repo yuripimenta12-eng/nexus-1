@@ -244,6 +244,13 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         localScreenSharing: room.localParticipant.isScreenShareEnabled,
       });
 
+      // Anuncia presença via Socket.IO ANTES do microfone: o prompt de
+      // permissão do navegador pode ficar pendente por tempo indeterminado
+      // e não pode segurar a entrada na sala (chat/presença).
+      try {
+        joinVoiceRoom(voiceRoomId, serverId);
+      } catch { /* socket indisponível não impede a chamada */ }
+
       // Ativa microfone automaticamente; sem permissão, entra como ouvinte
       try {
         await buildAndPublishMic(room);
@@ -251,12 +258,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       } catch {
         set({ localMicEnabled: false });
       }
-
-      // Anuncia presença via Socket.IO (sidebar de todos os membros).
-      // joinVoiceRoom emite agora OU quando o socket conectar — sem corrida.
-      try {
-        joinVoiceRoom(voiceRoomId, serverId);
-      } catch { /* socket indisponível não impede a chamada */ }
 
     } catch (err: any) {
       set({ isConnecting: false, error: err.message });
