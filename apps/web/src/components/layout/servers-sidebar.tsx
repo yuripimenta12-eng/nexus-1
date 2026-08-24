@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Settings, Hash, Compass, X, Loader2 } from 'lucide-react';
+import { Plus, Settings, X, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { cn, getInitials } from '@/lib/utils';
@@ -50,18 +50,20 @@ export function ServersSidebar() {
   };
 
   return (
-    <div className="w-[72px] h-full flex flex-col items-center py-3 gap-2 bg-background overflow-y-auto shrink-0">
-      {/* Home / DMs */}
-      <ServerIcon
-        label="Mensagens Diretas"
-        isActive={!activeServerId}
+    <div className="w-[76px] h-full flex flex-col items-center py-4 gap-3 bg-[#0c0911] border-r border-[#30223d] overflow-y-auto shrink-0">
+      {/* Marca Nexus */}
+      <button
         onClick={() => router.push('/app/me')}
+        title="Mensagens Diretas"
+        className="w-12 h-12 rounded-2xl text-white text-xl font-black
+                   bg-gradient-to-br from-orange to-accent shadow-[0_0_28px_rgba(122,44,255,0.35)]
+                   transition-transform hover:scale-105 active:scale-95"
       >
-        <Hash className="w-5 h-5" />
-      </ServerIcon>
+        N
+      </button>
 
       {/* Divisor */}
-      <div className="w-8 h-px bg-border my-1" />
+      <div className="w-8 h-px bg-[#30223d]" />
 
       {/* Servidores */}
       {servers.map((server) => (
@@ -82,9 +84,9 @@ export function ServersSidebar() {
       {/* Criar servidor */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="w-12 h-12 rounded-full bg-surface hover:bg-success hover:rounded-xl
+        className="w-[46px] h-[46px] rounded-2xl border border-[#312640] bg-[#171121]
                    transition-all duration-200 flex items-center justify-center
-                   text-success hover:text-white group"
+                   text-success hover:border-success hover:-translate-y-0.5"
         title="Criar servidor"
       >
         <Plus className="w-5 h-5" />
@@ -139,12 +141,22 @@ export function ServersSidebar() {
       {/* Config */}
       <button
         onClick={() => router.push('/app/me/settings')}
-        className="w-12 h-12 rounded-full bg-surface hover:bg-surface-raised transition-all duration-200
-                   flex items-center justify-center text-muted hover:text-white"
+        className="w-[46px] h-[46px] rounded-2xl border border-transparent transition-all duration-200
+                   flex items-center justify-center text-muted hover:text-white hover:bg-[#1c1227] hover:border-[#362146]"
         title="Configurações"
       >
         <Settings className="w-5 h-5" />
       </button>
+
+      {/* Eu */}
+      <div
+        title={user?.profile?.displayName || user?.username || ''}
+        className="relative w-[43px] h-[43px] rounded-2xl grid place-items-center font-extrabold text-white text-xs
+                   bg-gradient-to-br from-[#ff7d20] to-[#6424cc]"
+      >
+        {getInitials(user?.profile?.displayName || user?.username || '?')}
+        <span className="absolute -right-0.5 -bottom-0.5 w-3 h-3 rounded-full bg-success border-[3px] border-[#0c0911]" />
+      </div>
     </div>
   );
 }
@@ -166,18 +178,18 @@ function ServerIcon({
       <motion.div
         animate={{ scaleY: isActive ? 1 : 0 }}
         initial={false}
-        className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"
+        className="absolute -left-[15px] top-1/2 -translate-y-1/2 w-1 h-7 bg-orange rounded-r-md"
       />
 
       <button
         onClick={onClick}
         title={label}
         className={cn(
-          'w-12 h-12 flex items-center justify-center overflow-hidden',
-          'transition-all duration-200 cursor-pointer',
+          'w-[46px] h-[46px] flex items-center justify-center overflow-hidden rounded-2xl border',
+          'transition-all duration-200 cursor-pointer font-extrabold',
           isActive
-            ? 'rounded-xl bg-accent text-white'
-            : 'rounded-full bg-surface-raised text-muted hover:rounded-xl hover:bg-accent hover:text-white',
+            ? 'border-[#8b48ff] text-white bg-gradient-to-br from-[#26143c] to-[#1b1028] -translate-y-0.5'
+            : 'border-[#312640] bg-[#171121] text-[#cfc6dd] hover:border-[#8b48ff] hover:text-white hover:-translate-y-0.5',
         )}
       >
         {children}

@@ -5,21 +5,45 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Video, VideoOff, Monitor,
-  PhoneOff, Settings, Volume2, VolumeX, Maximize2, Minimize2,
-  Wifi, WifiOff,
+  PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
+  WifiOff, ShieldCheck, UserPlus, Users, Sliders,
 } from 'lucide-react';
 import {
   Track,
   ConnectionQuality,
   Participant,
-  RemoteParticipant,
   LocalParticipant,
 } from 'livekit-client';
 import { useVoiceStore } from '@/stores/voice.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { cn } from '@/lib/utils';
-import { Avatar } from '@/components/ui/avatar';
+import { cn, getInitials } from '@/lib/utils';
 import api from '@/lib/api';
+
+// Gradientes por participante (paleta da referência nexus-call)
+const AVATAR_GRADIENTS: [string, string][] = [
+  ['#ff7620', '#6d27d9'],
+  ['#bc4cff', '#3d1c82'],
+  ['#17a9cf', '#2f427c'],
+  ['#ff558d', '#7b2dac'],
+  ['#ffb02e', '#c2410c'],
+  ['#42e6a4', '#0f766e'],
+];
+
+const CARD_GLOWS = ['#2b1a3c', '#332216', '#132934', '#2c1832', '#33270f', '#12312a'];
+
+function hashIdentity(identity: string): number {
+  let h = 0;
+  for (let i = 0; i < identity.length; i++) h = (h * 31 + identity.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function gradientFor(identity: string): [string, string] {
+  return AVATAR_GRADIENTS[hashIdentity(identity) % AVATAR_GRADIENTS.length];
+}
+
+function glowFor(identity: string): string {
+  return CARD_GLOWS[hashIdentity(identity) % CARD_GLOWS.length];
+}
 
 export default function VoicePage() {
   const params = useParams();
@@ -32,15 +56,21 @@ export default function VoicePage() {
     connect, disconnect, isConnected, isConnecting, error,
     localMicEnabled, localCamEnabled, localScreenSharing,
     toggleMic, toggleCam, startScreenShare, stopScreenShare,
-    participants, quality, voiceRoomId,
+    participants, quality, voiceRoomId, roomName,
   } = useVoiceStore();
 
   const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>('1080p30');
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [sideTab, setSideTab] = useState<'people' | 'audio'>('people');
+  const [toast, setToast] = useState<string | null>(null);
+
+  function notify(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  }
 
   function friendlyError(msg: string): string {
     if (msg?.includes('invalid api key') || msg?.includes('invalid API key')) {
@@ -91,23 +121,26 @@ export default function VoicePage() {
     }
   };
 
+  const handleInvite = async () => {
+    try {
+      const { data } = await api.post(`/invites/servers/${serverId}`, { expiresInHours: 168 });
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/${data.code}`);
+      notify('Link de convite copiado!');
+    } catch {
+      await navigator.clipboard.writeText(window.location.href).catch(() => {});
+      notify('Link da sala copiado!');
+    }
+  };
+
   const participantsList = Array.from(participants.values());
   const screenSharers = participantsList.filter(p => p.screenSharing);
   const primaryScreenSharer = focusedParticipant
     ? participantsList.find(p => p.identity === focusedParticipant && p.screenSharing)
     : screenSharers[0];
 
-  const qualityColor = {
-    [ConnectionQuality.Excellent]: 'text-success',
-    [ConnectionQuality.Good]: 'text-success',
-    [ConnectionQuality.Poor]: 'text-warning',
-    [ConnectionQuality.Lost]: 'text-destructive',
-    [ConnectionQuality.Unknown]: 'text-muted',
-  }[quality] || 'text-muted';
-
   if (isConnecting || isJoining) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-[#08060c]">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-white font-medium">Conectando à sala...</p>
@@ -121,7 +154,7 @@ export default function VoicePage() {
 
   if (displayError) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-[#08060c]">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
             <WifiOff className="w-8 h-8 text-destructive" />
@@ -145,36 +178,41 @@ export default function VoicePage() {
   }
 
   return (
-    <div className={cn('flex flex-col bg-background-secondary', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
+    <div
+      className={cn('flex flex-col', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}
+      style={{ background: 'radial-gradient(circle at 50% -20%, #32134f 0, transparent 35%), #08060c' }}
+    >
       {/* Renderizador de áudio remoto (oculto) */}
       <AudioRenderer />
 
-      {/* Header */}
-      <div className="h-12 flex items-center justify-between px-4 bg-background-secondary border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <Volume2 className="w-4 h-4 text-muted" />
-          <span className="text-white font-medium text-sm">Sala de Voz</span>
-          <span className={cn('text-xs flex items-center gap-1', qualityColor)}>
-            <Wifi className="w-3 h-3" />
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted text-xs">
-            {participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}
-          </span>
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="text-muted hover:text-white p-1 rounded transition-colors"
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Área principal */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Screen share principal */}
+        {/* Palco */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Topbar */}
+          <div className="h-[70px] flex items-center px-5 border-b border-[#30223d] bg-[#0c0913]/70 backdrop-blur-md shrink-0">
+            <div className="w-[38px] h-[38px] grid place-items-center rounded-xl bg-[#22142f] text-[#c887ff] mr-3">
+              <Volume2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-white text-[15px] font-semibold truncate">{roomName || 'Sala de Voz'}</h1>
+              <p className="text-[#92879f] text-[11px]">
+                {participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <span className="ml-auto hidden sm:flex items-center gap-1.5 text-[#8bdcb9] text-[11px] border border-[#26523f] rounded-full px-2.5 py-1.5">
+              <ShieldCheck className="w-3 h-3" /> Conexão protegida
+            </span>
+            <CallTimer connected={isConnected} />
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
+              title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Área principal */}
           {primaryScreenSharer ? (
             <div className="flex-1 relative bg-black overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -184,8 +222,9 @@ export default function VoicePage() {
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
-              <div className="absolute bottom-3 left-3 text-white text-xs bg-black/60 px-2 py-1 rounded-md">
-                🖥️ {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white text-xs bg-[#09070d]/75 backdrop-blur px-2.5 py-1.5 rounded-lg font-semibold">
+                <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
+                {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
               </div>
 
               {/* Outros screen shares */}
@@ -197,7 +236,7 @@ export default function VoicePage() {
                       <button
                         key={p.identity}
                         onClick={() => setFocusedParticipant(p.identity)}
-                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-border hover:border-accent transition-colors"
+                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-[#2c2036] hover:border-accent transition-colors"
                       >
                         <VideoTrackRenderer
                           participant={p.participant}
@@ -218,8 +257,8 @@ export default function VoicePage() {
                   <div
                     key={p.identity}
                     className={cn(
-                      'w-28 h-20 rounded-lg overflow-hidden bg-surface-overlay border-2 border-border',
-                      p.isSpeaking && 'border-accent',
+                      'w-28 h-20 rounded-lg overflow-hidden bg-[#14101a] border-2',
+                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[#2c2036]',
                     )}
                   >
                     <VideoTrackRenderer
@@ -232,13 +271,13 @@ export default function VoicePage() {
               </div>
             </div>
           ) : (
-            /* Sem screen share: grid de participantes */
-            <div className="flex-1 overflow-auto p-4">
+            /* Grid de participantes */
+            <div className="flex-1 overflow-auto p-[18px]">
               <div className={cn(
-                'grid gap-3 h-full content-start',
-                participantsList.length === 1 && 'grid-cols-1 max-w-md mx-auto',
+                'grid gap-3 h-full content-stretch',
+                participantsList.length === 1 && 'grid-cols-1 max-w-2xl mx-auto',
                 participantsList.length === 2 && 'grid-cols-2',
-                participantsList.length <= 4 && participantsList.length > 2 && 'grid-cols-2',
+                participantsList.length > 2 && participantsList.length <= 4 && 'grid-cols-2',
                 participantsList.length > 4 && 'grid-cols-3',
               )}>
                 {participantsList.map(p => (
@@ -247,138 +286,201 @@ export default function VoicePage() {
               </div>
             </div>
           )}
-        </div>
 
-        {/* Painel de áudio dos participantes */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 288, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-l border-border bg-background overflow-hidden shrink-0"
+          {/* Controles */}
+          <div className="h-[84px] flex items-center justify-center gap-2.5 border-t border-[#30223d] bg-[#0c0912] shrink-0 px-3">
+            <ControlButton
+              onClick={toggleMic}
+              danger={!localMicEnabled}
+              title={localMicEnabled ? 'Desativar microfone' : 'Ativar microfone'}
             >
-              <VoiceSettingsPanel onClose={() => setShowSettings(false)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              {localMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+            </ControlButton>
 
-      {/* Barra de controles */}
-      <div className="h-20 flex items-center justify-between px-6 bg-background border-t border-border shrink-0">
-        {/* Info da chamada */}
-        <div className="flex items-center gap-2 min-w-0 w-48">
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate">Sala de Voz</p>
-            <p className={cn('text-xs', qualityColor)}>
-              {quality === ConnectionQuality.Excellent && '● Excelente'}
-              {quality === ConnectionQuality.Good && '● Boa'}
-              {quality === ConnectionQuality.Poor && '⚠ Ruim'}
-              {quality === ConnectionQuality.Lost && '✕ Sem conexão'}
-              {quality === ConnectionQuality.Unknown && '○ Conectando'}
-            </p>
+            <ControlButton
+              onClick={toggleCam}
+              active={localCamEnabled}
+              title={localCamEnabled ? 'Desativar câmera' : 'Ativar câmera'}
+            >
+              {localCamEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+            </ControlButton>
+
+            <button
+              onClick={handleScreenShare}
+              title={localScreenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
+              className={cn(
+                'h-12 px-4 rounded-[15px] border text-xs font-extrabold flex items-center gap-2 transition-all',
+                'hover:-translate-y-0.5',
+                localScreenSharing
+                  ? 'bg-[#2a173e] text-[#dcaaff] border-[#8849bf]'
+                  : 'bg-[#17101f] text-[#d1c6da] border-[#352641] hover:border-[#7842a0] hover:bg-[#21152c]',
+              )}
+            >
+              <Monitor className="w-[17px] h-[17px]" />
+              <span className="hidden md:inline">{localScreenSharing ? 'Parar tela' : 'Compartilhar tela'}</span>
+            </button>
+
+            {!localScreenSharing && (
+              <select
+                value={screenQuality}
+                onChange={(e) => setScreenQuality(e.target.value as any)}
+                className="h-12 text-xs bg-[#17101f] border border-[#352641] rounded-[15px] px-2 text-[#d1c6da] focus:outline-none focus:border-[#7842a0]"
+              >
+                <option value="720p30">720p 30fps</option>
+                <option value="1080p30">1080p 30fps</option>
+                <option value="1080p60">1080p 60fps</option>
+              </select>
+            )}
+
+            <button
+              onClick={handleLeave}
+              title="Sair da chamada"
+              className="w-[66px] h-12 rounded-[15px] bg-[#ff405b] hover:bg-red-600 text-white
+                         flex items-center justify-center transition-all active:scale-95 ml-2"
+            >
+              <PhoneOff className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Controles centrais */}
-        <div className="flex items-center gap-3">
-          <ControlButton
-            active={localMicEnabled}
-            onClick={toggleMic}
-            activeIcon={<Mic className="w-5 h-5" />}
-            inactiveIcon={<MicOff className="w-5 h-5" />}
-            activeTitle="Desativar microfone"
-            inactiveTitle="Ativar microfone"
-            danger={!localMicEnabled}
-          />
-
-          <ControlButton
-            active={localCamEnabled}
-            onClick={toggleCam}
-            activeIcon={<Video className="w-5 h-5" />}
-            inactiveIcon={<VideoOff className="w-5 h-5" />}
-            activeTitle="Desativar câmera"
-            inactiveTitle="Ativar câmera"
-          />
-
-          <ControlButton
-            active={localScreenSharing}
-            onClick={handleScreenShare}
-            activeIcon={<Monitor className="w-5 h-5" />}
-            inactiveIcon={<Monitor className="w-5 h-5" />}
-            activeTitle="Parar compartilhamento"
-            inactiveTitle="Compartilhar tela"
-            accent={localScreenSharing}
-          />
-
-          {/* Qualidade de screen share */}
-          {!localScreenSharing && (
-            <select
-              value={screenQuality}
-              onChange={(e) => setScreenQuality(e.target.value as any)}
-              className="text-xs bg-surface border border-border rounded-md px-2 py-1 text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+        {/* Painel lateral */}
+        <aside className="hidden lg:flex w-[280px] flex-col border-l border-[#30223d] bg-[#0d0a12] shrink-0">
+          <div className="h-[70px] flex items-end px-3.5 border-b border-[#30223d] shrink-0">
+            <button
+              onClick={() => setSideTab('people')}
+              className={cn(
+                'h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                sideTab === 'people' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
+              )}
             >
-              <option value="720p30">720p 30fps</option>
-              <option value="1080p30">1080p 30fps</option>
-              <option value="1080p60">1080p 60fps</option>
-            </select>
+              <Users className="w-3.5 h-3.5" /> Pessoas · {participantsList.length}
+            </button>
+            <button
+              onClick={() => setSideTab('audio')}
+              className={cn(
+                'h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                sideTab === 'audio' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
+              )}
+            >
+              <Sliders className="w-3.5 h-3.5" /> Áudio
+            </button>
+          </div>
+
+          {sideTab === 'people' ? (
+            <div className="flex-1 overflow-y-auto p-4">
+              <h3 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mb-3">
+                Na chamada agora
+              </h3>
+              {participantsList.map((p: any) => {
+                const [c1, c2] = gradientFor(p.identity);
+                const isMe = p.participant instanceof LocalParticipant;
+                return (
+                  <div key={p.identity} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#17101f]">
+                    <div
+                      className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
+                      style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                    >
+                      {getInitials(p.participant.name || p.identity)}
+                    </div>
+                    <div className="min-w-0">
+                      <b className="block text-white text-xs truncate">
+                        {p.participant.name || p.identity}{isMe ? ' (você)' : ''}
+                      </b>
+                      <small className="text-[#92879f] text-[10px]">
+                        {p.isSpeaking ? 'Falando...' : p.micEnabled ? 'Conectado' : 'Microfone desligado'}
+                      </small>
+                    </div>
+                    <span className={cn(
+                      'ml-auto w-[7px] h-[7px] rounded-full shrink-0',
+                      p.isSpeaking ? 'bg-success shadow-[0_0_8px_#42e6a4]' : p.micEnabled ? 'bg-success/60' : 'bg-[#5c5468]',
+                    )} />
+                  </div>
+                );
+              })}
+
+              <button
+                onClick={handleInvite}
+                className="w-full mt-4 border border-dashed border-[#4d3560] rounded-[13px] p-3 text-[#b99dcf]
+                           text-sm text-center bg-[#17101e] hover:border-accent hover:text-white transition-colors
+                           flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" /> Convidar amigos
+              </button>
+            </div>
+          ) : (
+            <VoiceAudioPanel />
           )}
-
-          <ControlButton
-            active={showSettings}
-            onClick={() => setShowSettings(!showSettings)}
-            activeIcon={<Settings className="w-5 h-5" />}
-            inactiveIcon={<Settings className="w-5 h-5" />}
-            activeTitle="Fechar áudio dos participantes"
-            inactiveTitle="Áudio dos participantes"
-            accent={showSettings}
-          />
-
-          {/* Sair */}
-          <button
-            onClick={handleLeave}
-            className="h-11 px-5 rounded-xl bg-destructive hover:bg-red-600 text-white
-                       flex items-center gap-2 transition-colors active:scale-95 font-medium text-sm"
-          >
-            <PhoneOff className="w-4 h-4" />
-            Sair
-          </button>
-        </div>
-
-        {/* Espaço direito (simetria) */}
-        <div className="w-48" />
+        </aside>
       </div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            className="fixed left-1/2 -translate-x-1/2 bottom-[100px] z-50 px-4 py-2.5 rounded-xl
+                       bg-[#1a1024] border border-[#6f36a1] text-white text-sm shadow-2xl"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+// ── Timer da chamada ──────────────────────────────────────────────
+function CallTimer({ connected }: { connected: boolean }) {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!connected) { setSeconds(0); return; }
+    const t = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [connected]);
+
+  const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+  const s = String(seconds % 60).padStart(2, '0');
+
+  return (
+    <span className="ml-2.5 px-2.5 py-1.5 text-[#b4a7c0] bg-[#17101e] rounded-full text-[11px] tabular-nums">
+      {h}:{m}:{s}
+    </span>
+  );
+}
+
 // ── Painel de áudio: volume e mute local por participante ────────
-function VoiceSettingsPanel({ onClose }: { onClose: () => void }) {
+function VoiceAudioPanel() {
   const { participants, room, setParticipantVolume, toggleMuteLocally } = useVoiceStore();
   const localIdentity = room?.localParticipant.identity;
   const remotes = Array.from(participants.values()).filter(p => p.identity !== localIdentity);
 
   return (
-    <div className="w-72 h-full flex flex-col">
-      <div className="h-12 flex items-center justify-between px-4 border-b border-border shrink-0">
-        <span className="text-white font-medium text-sm">Áudio dos participantes</span>
-        <button onClick={onClose} className="text-muted hover:text-white p-1 rounded transition-colors">
-          <Minimize2 className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <h3 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mb-1">
+        Áudio dos participantes
+      </h3>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {remotes.length === 0 && (
-          <p className="text-muted text-xs text-center py-6">
-            Ninguém mais na chamada ainda.
-          </p>
-        )}
+      {remotes.length === 0 && (
+        <p className="text-[#92879f] text-xs text-center py-6">
+          Ninguém mais na chamada ainda.
+        </p>
+      )}
 
-        {remotes.map((p: any) => (
-          <div key={p.identity} className="bg-surface rounded-xl p-3">
+      {remotes.map((p: any) => {
+        const [c1, c2] = gradientFor(p.identity);
+        return (
+          <div key={p.identity} className="bg-[#120d19] border border-[#292039] rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Avatar src={null} name={p.participant.name || p.identity} size="sm" />
+              <div
+                className="w-8 h-8 rounded-lg grid place-items-center font-black text-[10px] text-white shrink-0"
+                style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+              >
+                {getInitials(p.participant.name || p.identity)}
+              </div>
               <span className="text-white text-sm font-medium truncate flex-1">
                 {p.participant.name || p.identity}
               </span>
@@ -389,7 +491,7 @@ function VoiceSettingsPanel({ onClose }: { onClose: () => void }) {
                   'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
                   p.isMutedLocally
                     ? 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white'
-                    : 'text-muted hover:text-white hover:bg-surface-raised',
+                    : 'text-muted hover:text-white hover:bg-[#21152c]',
                 )}
               >
                 {p.isMutedLocally ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -404,15 +506,15 @@ function VoiceSettingsPanel({ onClose }: { onClose: () => void }) {
                 value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
                 disabled={p.isMutedLocally}
                 onChange={(e) => setParticipantVolume(p.identity, Number(e.target.value))}
-                className="flex-1 accent-[#7c5af0] disabled:opacity-40"
+                className="flex-1 accent-[#7a2cff] disabled:opacity-40"
               />
               <span className="text-muted text-xs w-10 text-right tabular-nums">
                 {p.isMutedLocally ? '0' : (p.localVolume ?? 100)}%
               </span>
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -429,7 +531,6 @@ function VideoTrackRenderer({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Pega a publicação de track atual
   const pub = Array.from(participant.trackPublications.values()).find(
     p => p.source === source && p.track,
   );
@@ -459,12 +560,9 @@ function VideoTrackRenderer({
 }
 
 // ── Renderizador de áudio para participantes remotos ─────────────
-// Cria elementos <audio> fora do React DOM para não depender de
-// rerender; usa data-lk-identity para que setParticipantVolume funcione.
 function AudioRenderer() {
-  const { participants, room } = useVoiceStore() as any;
+  const { participants } = useVoiceStore() as any;
   const containerRef = useRef<HTMLDivElement>(null);
-  // Rastreia quais tracks já têm elementos de áudio
   const attachedRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   useEffect(() => {
@@ -474,7 +572,6 @@ function AudioRenderer() {
     participants.forEach((vp: any) => {
       const { participant, identity } = vp;
 
-      // Não renderiza áudio local
       if (participant instanceof LocalParticipant) return;
 
       Array.from(participant.trackPublications.values()).forEach((pub: any) => {
@@ -496,7 +593,6 @@ function AudioRenderer() {
       });
     });
 
-    // Remove áudio de participantes que saíram
     attachedRef.current.forEach((el, key) => {
       const identity = key.split(':')[0];
       if (!participants.has(identity)) {
@@ -506,7 +602,6 @@ function AudioRenderer() {
     });
   }, [participants]);
 
-  // Cleanup ao desmontar a página
   useEffect(() => {
     return () => {
       attachedRef.current.forEach(el => el.remove());
@@ -519,18 +614,24 @@ function AudioRenderer() {
 
 // ── Tile de participante ──────────────────────────────────────────
 function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
-  const { setParticipantVolume, toggleMuteLocally } = useVoiceStore();
   const hasCam = voiceParticipant.camEnabled;
+  const identity = voiceParticipant.identity;
+  const name = voiceParticipant.participant.name || identity;
+  const [c1, c2] = gradientFor(identity);
+  const glow = glowFor(identity);
+  const speaking = voiceParticipant.isSpeaking;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        'relative rounded-xl overflow-hidden bg-surface aspect-video flex items-center justify-center',
-        'border-2 transition-colors',
-        voiceParticipant.isSpeaking ? 'border-accent' : 'border-border',
+        'relative rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
+        speaking
+          ? 'border-[#8f42ff] shadow-[inset_0_0_0_2px_rgba(255,106,0,0.4),0_0_32px_rgba(122,44,255,0.2)] -translate-y-px'
+          : 'border-[#2c2036]',
       )}
+      style={{ background: `radial-gradient(circle at 50% 38%, ${glow} 0, #14101a 53%, #100c15 100%)` }}
     >
       {hasCam ? (
         <VideoTrackRenderer
@@ -539,84 +640,120 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
-        <div className="flex flex-col items-center gap-2">
-          <Avatar
-            src={null}
-            name={voiceParticipant.participant.name || voiceParticipant.identity}
-            size="xl"
-          />
-          {voiceParticipant.isSpeaking && (
-            <div className="flex gap-1">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-1 bg-accent rounded-full animate-bounce"
-                  style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        <div className="absolute inset-0 grid place-content-center text-center">
+          <div
+            className={cn(
+              'w-[82px] h-[82px] mx-auto grid place-items-center rounded-[28px] text-[25px] font-black text-white',
+              'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
+              speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
+            )}
+            style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+          >
+            {getInitials(name)}
+          </div>
 
-      {/* Overlay info */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="flex items-center justify-between">
-          <span className="text-white text-xs font-medium truncate">
-            {voiceParticipant.participant.name || voiceParticipant.identity}
-          </span>
-          <div className="flex items-center gap-1">
-            {!voiceParticipant.micEnabled && (
-              <MicOff className="w-3 h-3 text-destructive" />
-            )}
-            {voiceParticipant.screenSharing && (
-              <Monitor className="w-3 h-3 text-accent" />
-            )}
-            <ConnectionQualityDot quality={voiceParticipant.connectionQuality} />
+          {/* Ondas de voz */}
+          <div className={cn(
+            'h-7 mt-2.5 flex items-center justify-center gap-[3px] transition-opacity',
+            speaking ? 'opacity-100' : 'opacity-20',
+          )}>
+            {[0, 1, 2, 3, 4, 5, 6].map(i => (
+              <span
+                key={i}
+                className="block w-[3px] h-[5px] rounded"
+                style={{
+                  background: 'linear-gradient(#ff6a00, #7a2cff)',
+                  animation: speaking ? `nx-voice 0.72s ease-in-out infinite` : 'none',
+                  animationDelay: `${[0, 0.12, 0.24, 0.36, 0.24, 0.12, 0][i]}s`,
+                }}
+              />
+            ))}
           </div>
         </div>
+      )}
+
+      {/* Selo "falando agora" */}
+      {speaking && (
+        <span className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-[#100b16]/85 border border-[#6c35a2]
+                         text-[#d8aefe] text-[9px] uppercase tracking-wider font-black">
+          Falando agora
+        </span>
+      )}
+
+      {/* Nameplate */}
+      <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
+                      bg-[#09070d]/75 backdrop-blur font-bold text-white text-sm">
+        <span className="truncate max-w-[140px]">{name}</span>
+        {voiceParticipant.micEnabled ? (
+          <Mic className="w-3 h-3 text-[#a89cb4]" />
+        ) : (
+          <MicOff className="w-3 h-3 text-[#ff6b7f]" />
+        )}
+        {voiceParticipant.screenSharing && <Monitor className="w-3 h-3 text-[#c887ff]" />}
       </div>
 
-      {/* Speaking ring */}
-      {voiceParticipant.isSpeaking && (
-        <div className="absolute inset-0 border-2 border-accent rounded-xl pointer-events-none animate-pulse" />
-      )}
+      {/* Qualidade de rede */}
+      <span className="absolute right-3.5 bottom-3.5">
+        <ConnectionQualityBars quality={voiceParticipant.connectionQuality} />
+      </span>
     </motion.div>
   );
 }
 
-function ConnectionQualityDot({ quality }: { quality: ConnectionQuality }) {
+function ConnectionQualityBars({ quality }: { quality: ConnectionQuality }) {
   const color = {
-    [ConnectionQuality.Excellent]: 'bg-success',
-    [ConnectionQuality.Good]: 'bg-success',
-    [ConnectionQuality.Poor]: 'bg-warning',
-    [ConnectionQuality.Lost]: 'bg-destructive',
-    [ConnectionQuality.Unknown]: 'bg-muted',
-  }[quality] || 'bg-muted';
+    [ConnectionQuality.Excellent]: '#4ce0a2',
+    [ConnectionQuality.Good]: '#4ce0a2',
+    [ConnectionQuality.Poor]: '#f59e0b',
+    [ConnectionQuality.Lost]: '#ff405b',
+    [ConnectionQuality.Unknown]: '#5c5468',
+  }[quality] || '#5c5468';
 
-  return <div className={cn('w-2 h-2 rounded-full', color)} />;
+  const active = {
+    [ConnectionQuality.Excellent]: 3,
+    [ConnectionQuality.Good]: 2,
+    [ConnectionQuality.Poor]: 1,
+    [ConnectionQuality.Lost]: 0,
+    [ConnectionQuality.Unknown]: 0,
+  }[quality] ?? 0;
+
+  return (
+    <span className="flex items-end gap-[2px]">
+      {[4, 7, 10].map((h, i) => (
+        <span
+          key={i}
+          className="block w-[3px] rounded-sm"
+          style={{ height: h, background: i < active ? color : '#3a3145' }}
+        />
+      ))}
+    </span>
+  );
 }
 
 function ControlButton({
-  active, onClick, activeIcon, inactiveIcon,
-  activeTitle, inactiveTitle, danger, accent,
-}: any) {
+  children, onClick, title, active, danger,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+  active?: boolean;
+  danger?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
-      title={active ? activeTitle : inactiveTitle}
+      title={title}
       className={cn(
-        'w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95',
-        accent
-          ? 'bg-accent text-white hover:bg-accent-hover'
-          : danger && !active
-            ? 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white'
-            : active
-              ? 'bg-surface-raised text-white hover:bg-surface-overlay'
-              : 'bg-surface-raised text-muted hover:bg-surface-overlay hover:text-white',
+        'min-w-[48px] h-12 rounded-[15px] border flex items-center justify-center transition-all',
+        'hover:-translate-y-0.5 active:scale-95',
+        danger
+          ? 'bg-destructive/10 text-destructive border-destructive/40 hover:bg-destructive hover:text-white hover:border-destructive'
+          : active
+            ? 'bg-[#2a173e] text-[#dcaaff] border-[#8849bf]'
+            : 'bg-[#17101f] text-[#d1c6da] border-[#352641] hover:border-[#7842a0] hover:bg-[#21152c]',
       )}
     >
-      {active ? activeIcon : inactiveIcon}
+      {children}
     </button>
   );
 }

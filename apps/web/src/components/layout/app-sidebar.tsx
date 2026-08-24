@@ -97,12 +97,15 @@ export function AppSidebar() {
   }
 
   return (
-    <div className="w-60 flex flex-col bg-background-secondary h-full shrink-0 relative">
+    <div className="w-60 flex flex-col bg-[#0d0a13] border-r border-[#292039] h-full shrink-0 relative">
       {/* Header do servidor */}
-      <button className="h-12 flex items-center justify-between px-4 border-b border-border
-                         hover:bg-surface-raised transition-colors text-white font-semibold text-sm">
-        <span className="truncate">{server.name}</span>
-        <ChevronDown className="w-4 h-4 shrink-0 text-muted" />
+      <button className="flex flex-col items-start gap-0.5 px-4 py-4 border-b border-[#292039]
+                         hover:bg-surface-raised transition-colors text-left">
+        <span className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Espaço conectado</span>
+        <span className="flex items-center gap-1 w-full text-white font-bold text-base">
+          <span className="truncate">{server.name}</span>
+          <ChevronDown className="w-4 h-4 shrink-0 text-muted" />
+        </span>
       </button>
 
       {/* Canais */}
@@ -116,16 +119,16 @@ export function AppSidebar() {
           {textOpen && server.channels.filter(c => c.type === 'TEXT' || c.type === 'ANNOUNCEMENT').map((ch) => (
             <motion.button
               key={ch.id}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => router.push(`/app/servers/${serverId}/channels/${ch.id}`)}
               className={cn(
                 'sidebar-item w-full',
                 activeChannelId === ch.id && 'active',
               )}
             >
-              <Hash className="w-4 h-4 shrink-0 text-muted" />
+              <Hash className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
               <span className="truncate">{ch.name}</span>
             </motion.button>
           ))}
@@ -141,9 +144,9 @@ export function AppSidebar() {
             {voiceOpen && server.voiceRooms.map((room) => (
               <motion.div
                 key={room.id}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
                 <button
                   onClick={() => router.push(`/app/servers/${serverId}/voice/${room.id}`)}
@@ -152,28 +155,28 @@ export function AppSidebar() {
                     (activeRoomId === room.id || voiceRoomId === room.id) && 'active',
                   )}
                 >
-                  <Volume2 className="w-4 h-4 shrink-0 text-muted" />
+                  <Volume2 className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
                   <span className="truncate">{room.name}</span>
                   {(voicePresence[room.id]?.length ?? 0) > 0 && (
-                    <span className="ml-auto text-[10px] text-muted bg-surface-raised rounded-full px-1.5 py-0.5 shrink-0">
+                    <span className="ml-auto text-[10px] font-extrabold text-white bg-orange rounded-full px-1.5 py-0.5 shrink-0">
                       {voicePresence[room.id].length}
                     </span>
                   )}
                   {voiceRoomId === room.id && (
-                    <span className={cn('w-2 h-2 rounded-full bg-success shrink-0 animate-pulse',
+                    <span className={cn('w-2 h-2 rounded-full bg-success shrink-0 animate-pulse shadow-[0_0_8px_#42e6a4]',
                       (voicePresence[room.id]?.length ?? 0) === 0 && 'ml-auto')} />
                   )}
                 </button>
 
                 {/* Quem está na sala */}
                 {(voicePresence[room.id]?.length ?? 0) > 0 && (
-                  <div className="pl-7 pr-1 pb-1 space-y-0.5">
+                  <div className="pl-9 pr-2 pb-1.5 space-y-0.5">
                     {voicePresence[room.id].map((u) => (
-                      <div key={u.id} className="flex items-center gap-1.5 py-0.5">
-                        <Avatar src={u.avatarUrl} name={u.displayName} size="xs" />
+                      <div key={u.id} className="flex items-center gap-2 py-1">
+                        <span className="w-[7px] h-[7px] rounded-full bg-success shadow-[0_0_8px_#42e6a4] shrink-0" />
                         <span className={cn(
                           'text-xs truncate',
-                          u.id === user?.id ? 'text-white font-medium' : 'text-muted',
+                          u.id === user?.id ? 'text-white font-medium' : 'text-[#8f859d]',
                         )}>
                           {u.displayName}
                         </span>
@@ -258,7 +261,7 @@ export function AppSidebar() {
             <p className="text-white text-sm font-medium truncate leading-tight">
               {user?.profile?.displayName}
             </p>
-            <p className="text-muted text-xs truncate">@{user?.username}</p>
+            <p className="text-success text-xs truncate">● Conectado</p>
           </div>
 
           <div className="flex items-center gap-0.5">

@@ -287,13 +287,19 @@ export default function ChannelPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div
+      className="flex flex-col h-full"
+      style={{ background: 'radial-gradient(circle at 60% -10%, #28124c 0, transparent 38%), #09070d' }}
+    >
       {/* Header do canal */}
-      <div className="h-12 flex items-center gap-2 px-4 border-b border-border bg-background-secondary shrink-0">
-        <Hash className="w-5 h-5 text-muted" />
-        <h2 className="font-semibold text-white text-sm">
-          {channelName || 'canal'}
-        </h2>
+      <div className="h-[70px] flex items-center gap-3 px-5 border-b border-[#292039] bg-[#0d0a13]/80 backdrop-blur shrink-0">
+        <span className="text-[#b05cff] text-2xl font-bold leading-none">#</span>
+        <div className="min-w-0">
+          <h2 className="font-semibold text-white text-[15px] truncate">
+            {channelName || 'canal'}
+          </h2>
+          <p className="text-[#9188a2] text-[11px]">Canal de texto da comunidade</p>
+        </div>
       </div>
 
       {/* Modal de confirmação de exclusão */}
@@ -325,12 +331,22 @@ export default function ChannelPage() {
             <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4">
-              <Hash className="w-8 h-8 text-muted" />
+          <div className="flex flex-col items-center justify-center h-full">
+            <div
+              className="w-full max-w-2xl border border-[#392454] rounded-[18px] p-6 flex items-center gap-5"
+              style={{ background: 'radial-gradient(circle at 82% 20%, rgba(122,44,255,0.24), transparent 26%), linear-gradient(135deg, #1c1128, #120d1c)' }}
+            >
+              <div className="w-[55px] h-[55px] rounded-[18px] grid place-items-center text-2xl font-black text-white shrink-0
+                              bg-gradient-to-br from-orange to-accent">
+                #
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl mb-1">Bem-vindo a #{channelName || 'este canal'}</h3>
+                <p className="text-[#afa4bb] text-sm">
+                  Este é o começo da conversa. Diga um oi e chame seus amigos! 🟠🟣
+                </p>
+              </div>
             </div>
-            <h3 className="text-white font-semibold text-xl mb-1">Seja o primeiro a escrever!</h3>
-            <p className="text-muted text-sm">Este é o início deste canal.</p>
           </div>
         ) : (
           messages.map((msg, i) => {
@@ -410,7 +426,8 @@ export default function ChannelPage() {
         </AnimatePresence>
 
         <div className={cn(
-          'flex items-end gap-2 bg-surface-raised rounded-xl px-3 py-2 border border-border',
+          'flex items-end gap-2 bg-[#161020] rounded-[15px] px-3 py-2 border border-[#30233e]',
+          'focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(122,44,255,0.09)] transition-shadow',
           replyTo && 'rounded-t-none border-t-0',
         )}>
           <button className="text-muted hover:text-white p-1 rounded transition-colors">
@@ -442,9 +459,9 @@ export default function ChannelPage() {
               onClick={handleSend}
               disabled={!content.trim()}
               className={cn(
-                'w-8 h-8 rounded-lg flex items-center justify-center transition-all',
+                'w-9 h-9 rounded-[11px] flex items-center justify-center transition-all active:scale-95',
                 content.trim()
-                  ? 'bg-accent text-white hover:bg-accent-hover'
+                  ? 'bg-gradient-to-br from-orange to-accent text-white shadow-[0_5px_18px_rgba(255,90,0,0.2)]'
                   : 'text-muted cursor-not-allowed',
               )}
             >
