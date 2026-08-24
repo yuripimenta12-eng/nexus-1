@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -39,5 +40,10 @@ import { HealthController } from './health.controller';
     DmsModule,
   ],
   controllers: [HealthController],
+  providers: [
+    // Aplica rate limiting a TODAS as rotas HTTP (100 req/min por IP).
+    // Sem este APP_GUARD, o ThrottlerModule fica registrado mas inerte.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

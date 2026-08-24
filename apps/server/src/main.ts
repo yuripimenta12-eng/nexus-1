@@ -44,15 +44,18 @@ async function bootstrap() {
     transformOptions: { enableImplicitConversion: true },
   }));
 
-  // Swagger (documentação — desabilitar em produção se quiser)
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Nexus API')
-    .setDescription('API da plataforma de comunicação Nexus')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  // Swagger — só fora de produção. Em produção, expor /api/docs revela
+  // toda a superfície da API (rotas, DTOs) para qualquer visitante.
+  if (configService.get<string>('NODE_ENV') !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Nexus API')
+      .setDescription('API da plataforma de comunicação Nexus')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = configService.get<number>('PORT', 4000);
   await app.listen(port);

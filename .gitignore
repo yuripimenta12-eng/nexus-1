@@ -45,3 +45,8 @@ public/uploads/
 
 # Build cache
 *.tsbuildinfo
+
+# Segredos — NUNCA versionar
+env-novo.txt
+*.env
+.env*

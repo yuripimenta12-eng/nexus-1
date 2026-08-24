@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: nexus
       POSTGRES_PASSWORD: nexus_secret
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
@@ -46,8 +46,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - minio_data:/data
     healthcheck:
@@ -78,6 +78,10 @@ services:
     container_name: nexus_livekit
     restart: unless-stopped
     command: --config /etc/livekit.yaml
+    # ATENÇÃO: o LiveKit precisa ser alcançável por rede para o WebRTC
+    # funcionar (mídia). Em DEV local isso é aceitável. Se rodar num
+    # servidor PÚBLICO, coloque o LiveKit atrás do proxy reverso com TLS
+    # e troque a devkey/devsecret por chaves fortes (ver infra/livekit).
     ports:
       - '7880:7880'   # HTTP/WS
       - '7881:7881'   # RTC TCP
@@ -106,8 +110,8 @@ services:
     container_name: nexus_mailhog
     restart: unless-stopped
     ports:
-      - '1025:1025'  # SMTP
-      - '8025:8025'  # Web UI
+      - '127.0.0.1:1025:1025'  # SMTP
+      - '127.0.0.1:8025:8025'  # Web UI
 
 volumes:
   postgres_data:
