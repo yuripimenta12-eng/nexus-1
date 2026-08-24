@@ -5,13 +5,17 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PresenceService } from '../presence/presence.service';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
 import { MemberRole } from '@prisma/client';
 
 @Injectable()
 export class ServersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private presence: PresenceService,
+  ) {}
 
   async create(userId: string, dto: CreateServerDto) {
     const server = await this.prisma.server.create({
@@ -99,11 +103,23 @@ export class ServersService {
   async getMembers(serverId: string, userId: string) {
     await this.checkMembership(serverId, userId);
 
-    return this.prisma.serverMember.findMany({
+    const members = await this.prisma.serverMember.findMany({
       where: { serverId, banned: false },
       include: { user: { include: { profile: true } } },
       orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
     });
+
+    // Anexa o status de presença (ONLINE/OFFLINE) de cada membro, lido do Redis.
+    // O front usa isso para separar "Online" de "Offline" na lista lateral e
+    // atualiza em tempo real via eventos user:online / user:offline do socket.
+    const statuses = await this.presence.getBulkStatus(
+      members.map((m) => m.userId),
+    );
+
+    return members.map((m) => ({
+      ...m,
+      status: statuses[m.userId] ?? 'OFFLINE',
+    }));
   }
 
   // ── Helpers ───────────────────────────────────────────────────

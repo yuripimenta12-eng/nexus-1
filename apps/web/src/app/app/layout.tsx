@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
+import { connectSocket } from '@/lib/socket';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, hasHydrated } = useAuthStore();
+  const { isAuthenticated, isLoading, hasHydrated, refreshUser } = useAuthStore();
   const { mobileNavOpen, closeMobileNav, toggleMobileNav } = useUiStore();
 
   useEffect(() => {
@@ -23,6 +24,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.push('/auth/login');
     }
   }, [isAuthenticated, isLoading, hasHydrated, router]);
+
+  // Ao (re)abrir o app já autenticado, reconecta o socket e atualiza o usuário.
+  // O socket tem autoConnect:false e só ligava no login/cadastro — sem isto,
+  // após um reload o usuário ficava "offline" e não recebia eventos em tempo
+  // real (mensagens, presença) até relogar.
+  useEffect(() => {
+    if (hasHydrated && isAuthenticated) {
+      connectSocket('');
+      refreshUser();
+    }
+  }, [hasHydrated, isAuthenticated, refreshUser]);
 
   // Fecha o menu mobile ao navegar para outra tela
   useEffect(() => { closeMobileNav(); }, [pathname, closeMobileNav]);

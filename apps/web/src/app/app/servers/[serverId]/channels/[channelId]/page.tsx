@@ -9,6 +9,7 @@ import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/sock
 import { useAuthStore } from '@/stores/auth.store';
 import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
+import { MemberList } from '@/components/servers/member-list';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -289,7 +290,8 @@ export default function ChannelPage() {
   };
 
   return (
-    <div className="flex flex-col h-full nx-page-bg">
+    <div className="flex h-full nx-page-bg">
+    <div className="flex flex-col flex-1 min-w-0 h-full">
       {/* Header do canal */}
       <div className="h-[70px] flex items-center gap-3 px-5 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur shrink-0">
         <span className="text-[#b05cff] text-2xl font-bold leading-none">#</span>
@@ -504,6 +506,10 @@ export default function ChannelPage() {
           <p className="text-destructive text-xs mt-1.5 px-1">{uploadError}</p>
         )}
       </div>
+    </div>
+
+      {/* Lista de membros (online/offline) — lado direito */}
+      <MemberList serverId={serverId} />
     </div>
   );
 }
