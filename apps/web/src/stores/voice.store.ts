@@ -48,6 +48,7 @@ interface VoiceStore {
   stopScreenShare: () => Promise<void>;
   setParticipantVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
+  updateParticipant: (p: Participant) => void;
 }
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({

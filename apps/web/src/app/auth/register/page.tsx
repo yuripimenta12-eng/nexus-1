@@ -38,7 +38,7 @@ export default function RegisterPage() {
   async function onSubmit(data: FormData) {
     setError('');
     try {
-      await registerUser(data);
+      await registerUser(data as Required<FormData>);
       router.push('/app');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar conta.');
