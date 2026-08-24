@@ -1,8 +1,36 @@
 import { io, Socket } from 'socket.io-client';
+import api from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 let socket: Socket | null = null;
+
+// Auth dinâmico: chamado pelo socket.io a CADA tentativa de conexão, sempre
+// lendo o access token atual do localStorage (o interceptor do axios o
+// mantém renovado). Com auth estático, o socket morria de vez quando o
+// token de 15 min expirava: o servidor rejeitava e derrubava a conexão.
+function dynamicAuth(cb: (data: { token: string | null }) => void) {
+  cb({
+    token: typeof window !== 'undefined'
+      ? localStorage.getItem('nexus_access_token')
+      : null,
+  });
+}
+
+let recovering = false;
+
+// Recuperação: quando o SERVIDOR derruba a conexão (token expirado), o
+// socket.io não religa sozinho ('io server disconnect'). Renovamos o token
+// via axios (o interceptor faz o refresh) e reconectamos manualmente.
+async function recoverFromServerDisconnect(s: Socket) {
+  if (recovering) return;
+  recovering = true;
+  try {
+    await api.get('/auth/me'); // 401 → interceptor renova o access token
+  } catch { /* refresh falhou — sessão realmente acabou */ }
+  recovering = false;
+  if (!s.connected) s.connect(); // dynamicAuth lê o token novo
+}
 
 // Canais que o usuário está atualmente (para re-join após reconexão)
 const activeChannels = new Set<string>();
@@ -60,25 +88,24 @@ function attachReconnectHandlers(s: Socket) {
       (window as any).__NX_SOCK_STATE = { connected: true, sid: s.id, voiceRoom: activeVoiceRoom };
     }
   });
-  s.on('disconnect', () => {
+  s.on('disconnect', (reason) => {
     if (typeof window !== 'undefined') {
-      (window as any).__NX_SOCK_STATE = { connected: false };
+      (window as any).__NX_SOCK_STATE = { connected: false, reason };
+    }
+    if (reason === 'io server disconnect') {
+      recoverFromServerDisconnect(s);
     }
   });
 }
 
 export function getSocket(): Socket {
   if (!socket) {
-    const token = typeof window !== 'undefined'
-      ? localStorage.getItem('nexus_access_token')
-      : null;
-
     socket = io(API_URL, {
-      auth: { token },
+      auth: dynamicAuth,
       transports: ['websocket'],
       autoConnect: false,
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
     });
@@ -88,27 +115,14 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export function connectSocket(token: string): Socket {
+export function connectSocket(_token: string): Socket {
   // Reutiliza a instância existente para não perder listeners já
-  // registrados por componentes (ex.: presença de voz na sidebar)
-  if (socket) {
-    (socket.auth as { token?: string }).token = token;
-    if (!socket.connected) socket.connect();
-    return socket;
-  }
-
-  socket = io(API_URL, {
-    auth: { token },
-    transports: ['websocket'],
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-  });
-
-  attachReconnectHandlers(socket);
-  return socket;
+  // registrados por componentes (ex.: presença de voz na sidebar).
+  // O token vem sempre do dynamicAuth — o parâmetro fica por
+  // compatibilidade com os chamadores.
+  const s = getSocket();
+  if (!s.connected) s.connect();
+  return s;
 }
 
 export function disconnectSocket() {
