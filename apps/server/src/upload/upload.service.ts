@@ -9,12 +9,23 @@ export class UploadService {
   private s3: AWS.S3;
   private bucket: string;
   private publicUrl: string;
+  // Fica true quando S3_ENDPOINT aponta para localhost/127.0.0.1 (MinIO local
+  // de desenvolvimento) ou faltam credenciais — nesse caso não há para onde
+  // enviar o arquivo em produção, então caímos no fallback de data URL.
+  private readonly s3Configured: boolean;
+  private warnedFallback = false;
 
   constructor(private config: ConfigService) {
+    const endpoint = config.get<string>('S3_ENDPOINT', '');
+    const accessKey = config.get<string>('S3_ACCESS_KEY', '');
+    const secretKey = config.get<string>('S3_SECRET_KEY', '');
+    const isLocalEndpoint = /localhost|127\.0\.0\.1/.test(endpoint);
+    this.s3Configured = !!endpoint && !!accessKey && !!secretKey && !isLocalEndpoint;
+
     this.s3 = new AWS.S3({
-      endpoint: config.get<string>('S3_ENDPOINT'),
-      accessKeyId: config.get<string>('S3_ACCESS_KEY'),
-      secretAccessKey: config.get<string>('S3_SECRET_KEY'),
+      endpoint,
+      accessKeyId: accessKey,
+      secretAccessKey: secretKey,
       region: config.get<string>('S3_REGION', 'us-east-1'),
       s3ForcePathStyle: true, // necessário para MinIO
       signatureVersion: 'v4',
@@ -45,8 +56,12 @@ export class UploadService {
         .webp({ quality: 85 })
         .toBuffer();
 
-      // Corrige extensão para webp
       const webpKey = key.replace(`.${ext}`, '.webp');
+
+      if (!this.s3Configured) {
+        return { url: this.toDataUrl(buffer, 'image/webp'), key: webpKey };
+      }
+
       await this.s3.putObject({
         Bucket: this.bucket,
         Key: webpKey,
@@ -59,6 +74,17 @@ export class UploadService {
         url: `${this.publicUrl}/${webpKey}`,
         key: webpKey,
       };
+    }
+
+    if (!this.s3Configured) {
+      // GIFs e não-imagens: só cabem no fallback se forem pequenos o bastante
+      // para virar data URL sem inchar demais o banco.
+      if (buffer.length > 4 * 1024 * 1024) {
+        throw new BadRequestException(
+          'Armazenamento de arquivos não configurado no servidor. Contate o administrador.',
+        );
+      }
+      return { url: this.toDataUrl(buffer, file.mimetype), key };
     }
 
     // Upload direto para não-imagens ou GIFs
@@ -74,7 +100,25 @@ export class UploadService {
     return { url: `${this.publicUrl}/${key}`, key };
   }
 
+  // Fallback sem infraestrutura de armazenamento: embute o arquivo como
+  // data URL, guardado diretamente na coluna do banco (avatarUrl/bannerUrl/
+  // Attachment.url). Funciona sem nenhuma conta externa; basta configurar
+  // S3_ENDPOINT/S3_ACCESS_KEY/S3_SECRET_KEY apontando para um provedor real
+  // (Cloudflare R2, Backblaze B2, AWS S3 etc.) para passar a usar object storage.
+  private toDataUrl(buffer: Buffer, mimeType: string): string {
+    if (!this.warnedFallback) {
+      this.warnedFallback = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[UploadService] S3/MinIO não configurado para produção (S3_ENDPOINT ausente ou apontando ' +
+        'para localhost). Usando fallback de data URL — configure um object storage real para uploads maiores.',
+      );
+    }
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  }
+
   async deleteFile(key: string) {
+    if (!this.s3Configured) return; // arquivo vive como data URL no banco, nada para apagar no storage
     await this.s3.deleteObject({ Bucket: this.bucket, Key: key }).promise();
   }
 
