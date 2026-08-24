@@ -83,6 +83,20 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
       this.logger.log(`Cliente conectado: ${payload.sub} (${client.id})`);
 
+      // Anuncia offline no 'disconnecting' (não no 'disconnect'): neste ponto
+      // as rooms do socket AINDA existem. No 'disconnect' o Socket.IO já as
+      // esvaziou, então o broadcast de presença não alcançava ninguém e o
+      // membro ficava "online" para os outros até um refetch.
+      client.on('disconnecting', () => {
+        const uid = client.data.userId;
+        if (!uid) return;
+        for (const room of client.rooms) {
+          if (room !== client.id) {
+            client.to(room).emit('user:offline', { userId: uid });
+          }
+        }
+      });
+
       // Informa o próprio usuário que está conectado
       client.emit('connected', { userId: payload.sub });
 
@@ -116,11 +130,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       }
     }
 
-    // Notifica rooms que o usuário estava
-    const rooms = Array.from(client.rooms).filter(r => r !== client.id);
-    rooms.forEach(room => {
-      this.server.to(room).emit('user:offline', { userId });
-    });
+    // O broadcast de user:offline acontece no handler de 'disconnecting'
+    // (registrado no handleConnection) — aqui client.rooms já está vazio.
 
     this.logger.log(`Cliente desconectado: ${userId}`);
   }
