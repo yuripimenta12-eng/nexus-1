@@ -38,6 +38,7 @@ export default function VoicePage() {
   const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>('1080p30');
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
@@ -63,7 +64,7 @@ export default function VoicePage() {
     setIsJoining(true);
     try {
       const { data } = await api.post(`/voice/rooms/${roomId}/join`);
-      await connect(data.livekitUrl, data.token, roomId, data.voiceRoom.name);
+      await connect(data.livekitUrl, data.token, roomId, data.voiceRoom.name, serverId);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Erro ao conectar';
       setJoinError(friendlyError(msg));
@@ -247,6 +248,21 @@ export default function VoicePage() {
             </div>
           )}
         </div>
+
+        {/* Painel de áudio dos participantes */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 288, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="border-l border-border bg-background overflow-hidden shrink-0"
+            >
+              <VoiceSettingsPanel onClose={() => setShowSettings(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Barra de controles */}
@@ -309,6 +325,16 @@ export default function VoicePage() {
             </select>
           )}
 
+          <ControlButton
+            active={showSettings}
+            onClick={() => setShowSettings(!showSettings)}
+            activeIcon={<Settings className="w-5 h-5" />}
+            inactiveIcon={<Settings className="w-5 h-5" />}
+            activeTitle="Fechar áudio dos participantes"
+            inactiveTitle="Áudio dos participantes"
+            accent={showSettings}
+          />
+
           {/* Sair */}
           <button
             onClick={handleLeave}
@@ -322,6 +348,70 @@ export default function VoicePage() {
 
         {/* Espaço direito (simetria) */}
         <div className="w-48" />
+      </div>
+    </div>
+  );
+}
+
+// ── Painel de áudio: volume e mute local por participante ────────
+function VoiceSettingsPanel({ onClose }: { onClose: () => void }) {
+  const { participants, room, setParticipantVolume, toggleMuteLocally } = useVoiceStore();
+  const localIdentity = room?.localParticipant.identity;
+  const remotes = Array.from(participants.values()).filter(p => p.identity !== localIdentity);
+
+  return (
+    <div className="w-72 h-full flex flex-col">
+      <div className="h-12 flex items-center justify-between px-4 border-b border-border shrink-0">
+        <span className="text-white font-medium text-sm">Áudio dos participantes</span>
+        <button onClick={onClose} className="text-muted hover:text-white p-1 rounded transition-colors">
+          <Minimize2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {remotes.length === 0 && (
+          <p className="text-muted text-xs text-center py-6">
+            Ninguém mais na chamada ainda.
+          </p>
+        )}
+
+        {remotes.map((p: any) => (
+          <div key={p.identity} className="bg-surface rounded-xl p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Avatar src={null} name={p.participant.name || p.identity} size="sm" />
+              <span className="text-white text-sm font-medium truncate flex-1">
+                {p.participant.name || p.identity}
+              </span>
+              <button
+                onClick={() => toggleMuteLocally(p.identity)}
+                title={p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
+                className={cn(
+                  'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+                  p.isMutedLocally
+                    ? 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white'
+                    : 'text-muted hover:text-white hover:bg-surface-raised',
+                )}
+              >
+                {p.isMutedLocally ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
+                disabled={p.isMutedLocally}
+                onChange={(e) => setParticipantVolume(p.identity, Number(e.target.value))}
+                className="flex-1 accent-[#7c5af0] disabled:opacity-40"
+              />
+              <span className="text-muted text-xs w-10 text-right tabular-nums">
+                {p.isMutedLocally ? '0' : (p.localVolume ?? 100)}%
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

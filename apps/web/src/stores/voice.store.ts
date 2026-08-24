@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getSocket } from '@/lib/socket';
 import {
   Room,
   RoomEvent,
@@ -31,6 +32,7 @@ interface VoiceStore {
   room: Room | null;
   roomName: string | null;
   voiceRoomId: string | null;
+  serverId: string | null;
   participants: Map<string, VoiceParticipant>;
   localMicEnabled: boolean;
   localCamEnabled: boolean;
@@ -40,7 +42,7 @@ interface VoiceStore {
   quality: ConnectionQuality;
   error: string | null;
 
-  connect: (url: string, token: string, voiceRoomId: string, roomName: string) => Promise<void>;
+  connect: (url: string, token: string, voiceRoomId: string, roomName: string, serverId?: string) => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMic: () => Promise<void>;
   toggleCam: () => Promise<void>;
@@ -55,6 +57,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   room: null,
   roomName: null,
   voiceRoomId: null,
+  serverId: null,
   participants: new Map(),
   localMicEnabled: true,
   localCamEnabled: false,
@@ -64,7 +67,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   quality: ConnectionQuality.Unknown,
   error: null,
 
-  connect: async (url, token, voiceRoomId, roomName) => {
+  connect: async (url, token, voiceRoomId, roomName, serverId) => {
     set({ isConnecting: true, error: null });
 
     try {
@@ -164,6 +167,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         room,
         roomName,
         voiceRoomId,
+        serverId: serverId ?? null,
         participants: initParticipants,
         isConnected: true,
         isConnecting: false,
@@ -175,6 +179,12 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       // Ativa microfone automaticamente
       await room.localParticipant.setMicrophoneEnabled(true);
 
+      // Anuncia presença via Socket.IO (sidebar de todos os membros)
+      try {
+        const s = getSocket();
+        if (s.connected) s.emit('voice:join', { voiceRoomId, serverId });
+      } catch { /* socket indisponível não impede a chamada */ }
+
     } catch (err: any) {
       set({ isConnecting: false, error: err.message });
       throw err;
@@ -182,14 +192,21 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   disconnect: async () => {
-    const { room } = get();
+    const { room, voiceRoomId, serverId } = get();
     if (room) {
       await room.disconnect();
+    }
+    if (voiceRoomId) {
+      try {
+        const s = getSocket();
+        if (s.connected) s.emit('voice:leave', { voiceRoomId, serverId });
+      } catch { /* ok */ }
     }
     set({
       room: null,
       roomName: null,
       voiceRoomId: null,
+      serverId: null,
       participants: new Map(),
       isConnected: false,
       localMicEnabled: false,

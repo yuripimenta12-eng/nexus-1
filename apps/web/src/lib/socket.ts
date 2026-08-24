@@ -18,6 +18,13 @@ export function trackServer(serverId: string) {
   activeServers.add(serverId);
 }
 
+// Entra na room do servidor imediatamente (e garante re-join após reconexão)
+export function joinServer(serverId: string) {
+  activeServers.add(serverId);
+  const s = getSocket();
+  if (s.connected) s.emit('server:join', { serverId });
+}
+
 function attachReconnectHandlers(s: Socket) {
   s.on('connect', () => {
     // Re-join canais e servidores após reconexão automática

@@ -101,6 +101,21 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     messageRateMap.delete(client.id);
     await this.redis.setUserOffline(userId);
 
+    // Se caiu no meio de uma chamada, limpa a presença de voz
+    const { voiceRoomId, voiceServerId } = client.data;
+    if (voiceRoomId) {
+      await this.redis.removeFromVoiceRoom(voiceRoomId, userId);
+      this.server.to(`voice:${voiceRoomId}`).emit('voice:user_left', { userId });
+      if (voiceServerId) {
+        this.server.to(`server:${voiceServerId}`).emit('voice:presence', {
+          serverId: voiceServerId,
+          voiceRoomId,
+          userId,
+          action: 'leave',
+        });
+      }
+    }
+
     // Notifica rooms que o usuário estava
     const rooms = Array.from(client.rooms).filter(r => r !== client.id);
     rooms.forEach(room => {
@@ -303,11 +318,15 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   @SubscribeMessage('voice:join')
   async handleVoiceJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { voiceRoomId: string },
+    @MessageBody() data: { voiceRoomId: string; serverId?: string },
   ) {
     const userId = client.data.userId;
     await client.join(`voice:${data.voiceRoomId}`);
     await this.redis.addToVoiceRoom(data.voiceRoomId, userId);
+
+    // Guarda para limpar/anunciar na desconexão abrupta
+    client.data.voiceRoomId = data.voiceRoomId;
+    client.data.voiceServerId = data.serverId;
 
     const members = await this.redis.getVoiceRoomMembers(data.voiceRoomId);
 
@@ -315,19 +334,41 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       userId,
       members,
     });
+
+    // Anuncia presença para a sidebar de todos os membros do servidor
+    if (data.serverId) {
+      this.server.to(`server:${data.serverId}`).emit('voice:presence', {
+        serverId: data.serverId,
+        voiceRoomId: data.voiceRoomId,
+        userId,
+        action: 'join',
+      });
+    }
   }
 
   // ── Voz: sair da sala ─────────────────────────────────────────
   @SubscribeMessage('voice:leave')
   async handleVoiceLeave(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { voiceRoomId: string },
+    @MessageBody() data: { voiceRoomId: string; serverId?: string },
   ) {
     const userId = client.data.userId;
     await client.leave(`voice:${data.voiceRoomId}`);
     await this.redis.removeFromVoiceRoom(data.voiceRoomId, userId);
 
+    client.data.voiceRoomId = undefined;
+    client.data.voiceServerId = undefined;
+
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:user_left', { userId });
+
+    if (data.serverId) {
+      this.server.to(`server:${data.serverId}`).emit('voice:presence', {
+        serverId: data.serverId,
+        voiceRoomId: data.voiceRoomId,
+        userId,
+        action: 'leave',
+      });
+    }
   }
 
   // ── Helper: extrai token do handshake ─────────────────────────

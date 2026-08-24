@@ -8,10 +8,12 @@ import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useVoiceStore } from '@/stores/voice.store';
 import api from '@/lib/api';
+import { getSocket, joinServer } from '@/lib/socket';
 import { Avatar } from '@/components/ui/avatar';
 
 interface Channel { id: string; name: string; type: string; }
 interface VoiceRoom { id: string; name: string; }
+interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; }
 interface Server { id: string; name: string; iconUrl: string | null; channels: Channel[]; voiceRooms: VoiceRoom[]; }
 
 export function AppSidebar() {
@@ -28,10 +30,38 @@ export function AppSidebar() {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [creatingChannel, setCreatingChannel] = useState(false);
+  const [voicePresence, setVoicePresence] = useState<Record<string, PresenceUser[]>>({});
 
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}`).then(({ data }) => setServer(data));
+  }, [serverId]);
+
+  // Presença nas salas de voz: snapshot inicial + atualizações via socket
+  useEffect(() => {
+    if (!serverId) return;
+
+    let cancelled = false;
+    const fetchPresence = () => {
+      api.get(`/voice/servers/${serverId}/presence`)
+        .then(({ data }) => { if (!cancelled) setVoicePresence(data); })
+        .catch(() => {});
+    };
+
+    joinServer(serverId);
+    fetchPresence();
+
+    const socket = getSocket();
+    const onPresence = (evt: { serverId: string }) => {
+      // LiveKit é a fonte da verdade — o evento só sinaliza que mudou
+      if (evt.serverId === serverId) fetchPresence();
+    };
+    socket.on('voice:presence', onPresence);
+
+    return () => {
+      cancelled = true;
+      socket.off('voice:presence', onPresence);
+    };
   }, [serverId]);
 
   const handleCreateChannel = async () => {
@@ -101,23 +131,49 @@ export function AppSidebar() {
 
           <AnimatePresence>
             {voiceOpen && server.voiceRooms.map((room) => (
-              <motion.button
+              <motion.div
                 key={room.id}
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                onClick={() => router.push(`/app/servers/${serverId}/voice/${room.id}`)}
-                className={cn(
-                  'sidebar-item w-full',
-                  (activeRoomId === room.id || voiceRoomId === room.id) && 'active',
-                )}
               >
-                <Volume2 className="w-4 h-4 shrink-0 text-muted" />
-                <span className="truncate">{room.name}</span>
-                {voiceRoomId === room.id && (
-                  <span className="ml-auto w-2 h-2 rounded-full bg-success shrink-0 animate-pulse" />
+                <button
+                  onClick={() => router.push(`/app/servers/${serverId}/voice/${room.id}`)}
+                  className={cn(
+                    'sidebar-item w-full',
+                    (activeRoomId === room.id || voiceRoomId === room.id) && 'active',
+                  )}
+                >
+                  <Volume2 className="w-4 h-4 shrink-0 text-muted" />
+                  <span className="truncate">{room.name}</span>
+                  {(voicePresence[room.id]?.length ?? 0) > 0 && (
+                    <span className="ml-auto text-[10px] text-muted bg-surface-raised rounded-full px-1.5 py-0.5 shrink-0">
+                      {voicePresence[room.id].length}
+                    </span>
+                  )}
+                  {voiceRoomId === room.id && (
+                    <span className={cn('w-2 h-2 rounded-full bg-success shrink-0 animate-pulse',
+                      (voicePresence[room.id]?.length ?? 0) === 0 && 'ml-auto')} />
+                  )}
+                </button>
+
+                {/* Quem está na sala */}
+                {(voicePresence[room.id]?.length ?? 0) > 0 && (
+                  <div className="pl-7 pr-1 pb-1 space-y-0.5">
+                    {voicePresence[room.id].map((u) => (
+                      <div key={u.id} className="flex items-center gap-1.5 py-0.5">
+                        <Avatar src={u.avatarUrl} name={u.displayName} size="xs" />
+                        <span className={cn(
+                          'text-xs truncate',
+                          u.id === user?.id ? 'text-white font-medium' : 'text-muted',
+                        )}>
+                          {u.displayName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </motion.button>
+              </motion.div>
             ))}
           </AnimatePresence>
         </div>

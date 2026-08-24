@@ -147,6 +147,48 @@ export class VoiceService {
     }
   }
 
+  // ── Presença: quem está em cada sala do servidor ──────────────
+  async getServerVoicePresence(serverId: string, userId: string) {
+    const member = await this.serversService.checkMembership(serverId, userId);
+    if (!member || member.banned) throw new ForbiddenException('Sem acesso ao servidor');
+
+    const rooms = await this.prisma.voiceRoom.findMany({ where: { serverId } });
+
+    const roomParticipants = await Promise.all(
+      rooms.map(async (room) => {
+        try {
+          const participants = await this.roomService.listParticipants(room.livekitRoom);
+          return { roomId: room.id, identities: participants.map(p => p.identity) };
+        } catch {
+          return { roomId: room.id, identities: [] as string[] };
+        }
+      }),
+    );
+
+    const allIds = [...new Set(roomParticipants.flatMap(r => r.identities))];
+    const users = allIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: allIds } },
+          include: { profile: true },
+        })
+      : [];
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null }[]> = {};
+    for (const { roomId, identities } of roomParticipants) {
+      presence[roomId] = identities
+        .map(id => userMap.get(id))
+        .filter((u): u is NonNullable<typeof u> => u != null)
+        .map(u => ({
+          id: u.id,
+          username: u.username,
+          displayName: u.profile?.displayName || u.username,
+          avatarUrl: u.profile?.avatarUrl ?? null,
+        }));
+    }
+    return presence;
+  }
+
   // ── Kick de participante (admin) ──────────────────────────────
   async kickParticipant(voiceRoomId: string, targetUserId: string, requesterId: string) {
     const voiceRoom = await this.prisma.voiceRoom.findUnique({

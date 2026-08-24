@@ -26,6 +26,12 @@ export class VoiceController {
     return this.voiceService.getRoomParticipants(roomId);
   }
 
+  // Presença: quem está em cada sala de voz do servidor
+  @Get('servers/:serverId/presence')
+  presence(@Param('serverId') serverId: string, @CurrentUser('id') userId: string) {
+    return this.voiceService.getServerVoicePresence(serverId, userId);
+  }
+
   // Criar nova sala de voz (admin)
   @Post('servers/:serverId/rooms')
   createRoom(
