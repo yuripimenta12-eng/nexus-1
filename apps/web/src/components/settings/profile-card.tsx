@@ -83,8 +83,15 @@ export function ProfileCard() {
   const removeBanner = async () => {
     setShowPalette(false);
     try {
-      const { data } = await api.delete('/users/@me/banner');
+      await api.delete('/users/@me/banner');
       setUser({ ...user!, profile: { ...user!.profile!, bannerUrl: null, bannerColor: null } });
+    } catch { /* ok */ }
+  };
+
+  const removeAvatar = async () => {
+    try {
+      await api.delete('/users/@me/avatar');
+      setUser({ ...user!, profile: { ...user!.profile!, avatarUrl: null } });
     } catch { /* ok */ }
   };
 
@@ -176,10 +183,20 @@ export function ProfileCard() {
               disabled={uploadingAvatar}
               title="Alterar foto de perfil"
               className="absolute inset-0 rounded-full bg-black/0 group-hover/avatar:bg-black/55
-                         flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all"
+                         flex items-center justify-center gap-1 opacity-0 group-hover/avatar:opacity-100 transition-all"
             >
               {uploadingAvatar ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
             </button>
+            {profile?.avatarUrl && !uploadingAvatar && (
+              <button
+                onClick={(e) => { e.stopPropagation(); removeAvatar(); }}
+                title="Remover foto de perfil"
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-white
+                           flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all shadow-lg"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ''; }} />
           </div>

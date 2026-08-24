@@ -68,6 +68,13 @@ export class UsersService {
     });
   }
 
+  async removeAvatar(userId: string) {
+    return this.prisma.profile.update({
+      where: { userId },
+      data: { avatarUrl: null },
+    });
+  }
+
   async updateAvatar(userId: string, avatarUrl: string) {
     return this.prisma.profile.update({
       where: { userId },

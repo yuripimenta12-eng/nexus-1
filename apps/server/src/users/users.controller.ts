@@ -51,4 +51,9 @@ export class UsersController {
   removeBanner(@CurrentUser('id') userId: string) {
     return this.usersService.removeBanner(userId);
   }
+
+  @Delete('@me/avatar')
+  removeAvatar(@CurrentUser('id') userId: string) {
+    return this.usersService.removeAvatar(userId);
+  }
 }
