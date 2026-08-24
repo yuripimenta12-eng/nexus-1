@@ -176,8 +176,12 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         localScreenSharing: room.localParticipant.isScreenShareEnabled,
       });
 
-      // Ativa microfone automaticamente
-      await room.localParticipant.setMicrophoneEnabled(true);
+      // Ativa microfone automaticamente; sem permissão, entra como ouvinte
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+      } catch {
+        set({ localMicEnabled: false });
+      }
 
       // Anuncia presença via Socket.IO (sidebar de todos os membros)
       try {
@@ -219,16 +223,25 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     const { room } = get();
     if (!room) return;
     const newState = !room.localParticipant.isMicrophoneEnabled;
-    await room.localParticipant.setMicrophoneEnabled(newState);
-    set({ localMicEnabled: newState });
+    try {
+      await room.localParticipant.setMicrophoneEnabled(newState);
+      set({ localMicEnabled: newState });
+    } catch {
+      // Permissão negada ou dispositivo indisponível — mantém estado real
+      set({ localMicEnabled: room.localParticipant.isMicrophoneEnabled });
+    }
   },
 
   toggleCam: async () => {
     const { room } = get();
     if (!room) return;
     const newState = !room.localParticipant.isCameraEnabled;
-    await room.localParticipant.setCameraEnabled(newState);
-    set({ localCamEnabled: newState });
+    try {
+      await room.localParticipant.setCameraEnabled(newState);
+      set({ localCamEnabled: newState });
+    } catch {
+      set({ localCamEnabled: room.localParticipant.isCameraEnabled });
+    }
   },
 
   startScreenShare: async (quality = '1080p30') => {
