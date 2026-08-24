@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,9 +17,16 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, isAuthenticated, hasHydrated } = useAuthStore();
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
+
+  // Quem já tem sessão válida volta direto para o app
+  useEffect(() => {
+    if (hasHydrated && isAuthenticated) {
+      router.replace('/app');
+    }
+  }, [hasHydrated, isAuthenticated, router]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),

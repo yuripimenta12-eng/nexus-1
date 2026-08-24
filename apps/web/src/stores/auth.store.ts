@@ -22,6 +22,9 @@ interface AuthState {
   accessToken: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  // true depois que o estado persistido foi restaurado do localStorage;
+  // guards de rota devem esperar por isso antes de redirecionar
+  hasHydrated: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
@@ -43,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isLoading: false,
       isAuthenticated: false,
+      hasHydrated: false,
 
       login: async (email, password) => {
         set({ isLoading: true });
@@ -107,6 +111,9 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ hasHydrated: true });
+      },
     },
   ),
 );

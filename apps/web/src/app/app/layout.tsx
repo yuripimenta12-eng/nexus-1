@@ -9,13 +9,15 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // Espera o estado persistido carregar antes de decidir redirecionar,
+    // senão todo reload cai no login mesmo com sessão válida
+    if (hasHydrated && !isLoading && !isAuthenticated) {
       router.push('/auth/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, hasHydrated, router]);
 
   if (!isAuthenticated) return null;
 
