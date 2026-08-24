@@ -25,11 +25,31 @@ export function joinServer(serverId: string) {
   if (s.connected) s.emit('server:join', { serverId });
 }
 
+// Sala de voz ativa (para presença e chat da chamada). Guardar aqui garante
+// que o voice:join seja emitido mesmo se o socket ainda estiver conectando
+// no momento em que a chamada abre — e re-emitido após reconexões.
+let activeVoiceRoom: { voiceRoomId: string; serverId?: string | null } | null = null;
+
+export function joinVoiceRoom(voiceRoomId: string, serverId?: string | null) {
+  activeVoiceRoom = { voiceRoomId, serverId };
+  const s = getSocket();
+  if (s.connected) s.emit('voice:join', { voiceRoomId, serverId });
+}
+
+export function leaveVoiceRoom() {
+  const s = getSocket();
+  if (activeVoiceRoom && s.connected) {
+    s.emit('voice:leave', activeVoiceRoom);
+  }
+  activeVoiceRoom = null;
+}
+
 function attachReconnectHandlers(s: Socket) {
   s.on('connect', () => {
-    // Re-join canais e servidores após reconexão automática
+    // Re-join canais, servidores e sala de voz após (re)conexão
     activeServers.forEach(id => s.emit('server:join', { serverId: id }));
     activeChannels.forEach(id => s.emit('channel:join', { channelId: id }));
+    if (activeVoiceRoom) s.emit('voice:join', activeVoiceRoom);
   });
 }
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getSocket } from '@/lib/socket';
+import { getSocket, joinVoiceRoom, leaveVoiceRoom } from '@/lib/socket';
 import { useMediaStore } from '@/stores/media.store';
 import {
   Room,
@@ -252,10 +252,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         set({ localMicEnabled: false });
       }
 
-      // Anuncia presença via Socket.IO (sidebar de todos os membros)
+      // Anuncia presença via Socket.IO (sidebar de todos os membros).
+      // joinVoiceRoom emite agora OU quando o socket conectar — sem corrida.
       try {
-        const s = getSocket();
-        if (s.connected) s.emit('voice:join', { voiceRoomId, serverId });
+        joinVoiceRoom(voiceRoomId, serverId);
       } catch { /* socket indisponível não impede a chamada */ }
 
     } catch (err: any) {
@@ -272,8 +272,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     }
     if (voiceRoomId) {
       try {
-        const s = getSocket();
-        if (s.connected) s.emit('voice:leave', { voiceRoomId, serverId });
+        leaveVoiceRoom();
       } catch { /* ok */ }
     }
     set({
