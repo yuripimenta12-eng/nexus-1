@@ -65,6 +65,11 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   afterInit(server: Server) {
     this.logger.log('WebSocket Gateway inicializado');
+    // Remove presenças órfãs de antes do restart (ninguém está conectado
+    // neste momento; quem estiver reconecta e marca online de novo).
+    this.redis.clearAllPresence().catch(err =>
+      this.logger.warn(`Falha ao limpar presença no boot: ${err.message}`),
+    );
   }
 
   // ── Conexão ───────────────────────────────────────────────────

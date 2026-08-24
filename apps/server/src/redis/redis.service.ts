@@ -33,6 +33,19 @@ export class RedisService implements OnModuleDestroy {
     await this.client.del(`presence:${userId}`);
   }
 
+  // Limpa TODA a presença. Chamado no boot do gateway: após um restart
+  // (deploy), nenhum socket antigo existe mais, mas as chaves ficariam
+  // "online fantasma" no Redis até o TTL de 1h. SCAN em lotes para não
+  // bloquear o Redis (KEYS é O(N) de uma vez só).
+  async clearAllPresence() {
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.client.scan(cursor, 'MATCH', 'presence:*', 'COUNT', 200);
+      cursor = next;
+      if (keys.length) await this.client.del(...keys);
+    } while (cursor !== '0');
+  }
+
   async getUserPresence(userId: string): Promise<{ socketId: string; status: string } | null> {
     const data = await this.client.hgetall(`presence:${userId}`);
     if (!data.socketId) return null;
