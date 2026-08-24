@@ -52,9 +52,20 @@ export class UsersService {
         displayName: dto.displayName,
         bio: dto.bio,
         customStatus: dto.customStatus,
+        // Escolher uma cor de banner substitui a imagem enviada
+        ...(dto.bannerColor !== undefined
+          ? { bannerColor: dto.bannerColor, bannerUrl: null }
+          : {}),
       },
     });
     return profile;
+  }
+
+  async removeBanner(userId: string) {
+    return this.prisma.profile.update({
+      where: { userId },
+      data: { bannerUrl: null, bannerColor: null },
+    });
   }
 
   async updateAvatar(userId: string, avatarUrl: string) {

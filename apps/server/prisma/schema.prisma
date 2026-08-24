@@ -49,6 +49,8 @@ model Profile {
   userId      String      @unique
   displayName String
   avatarUrl   String?
+  bannerUrl   String?
+  bannerColor String?     // gradiente hex "de,para" usado quando não há imagem de banner
   bio         String?     @db.VarChar(300)
   status      UserStatus  @default(ONLINE)
   customStatus String?    @db.VarChar(128)

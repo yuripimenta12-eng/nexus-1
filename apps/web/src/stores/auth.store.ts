@@ -11,6 +11,8 @@ export interface User {
   profile: {
     displayName: string;
     avatarUrl: string | null;
+    bannerUrl: string | null;
+    bannerColor: string | null;
     bio: string | null;
     status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
     customStatus: string | null;

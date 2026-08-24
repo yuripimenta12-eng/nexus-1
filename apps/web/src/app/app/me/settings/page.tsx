@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { VoiceVideoSettings } from '@/components/settings/voice-video-settings';
 import { AppearanceSettings, NotificationSettings, PrivacySettings } from '@/components/settings/prefs-settings';
+import { ProfileCard } from '@/components/settings/profile-card';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
@@ -124,9 +125,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-full nx-page-bg">
       {/* Sidebar de configurações */}
-      <div className="w-60 bg-surface border-r border-border flex flex-col p-3 gap-1 shrink-0">
+      <div className="w-60 bg-[var(--th-side)] border-r border-[var(--th-line)] flex flex-col p-3 gap-1 shrink-0">
         <p className="text-xs font-semibold text-muted uppercase tracking-wider px-2 py-1 mt-2">
           Configurações de Usuário
         </p>
@@ -157,27 +158,19 @@ export default function SettingsPage() {
 
         {activeSection === 'profile' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white">Minha Conta</h2>
-
-            {/* Avatar + info */}
-            <div className="bg-surface rounded-lg p-6 border border-border space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-2xl font-bold text-white">
-                    {user?.profile?.displayName?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-white font-semibold">{user?.profile?.displayName || user?.username || 'Usuário'}</p>
-                  <p className="text-muted text-sm">@{user?.username}</p>
-                  <p className="text-muted text-xs">{user?.email}</p>
-                </div>
-              </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Minha Conta</h2>
+              <p className="text-[#92879f] text-sm mt-1">
+                Assim é como as outras pessoas veem seu perfil no Nexus.
+              </p>
             </div>
 
+            {/* Prévia do perfil (banner + avatar), editável */}
+            <ProfileCard />
+
             {/* Campos editáveis */}
-            <div className="bg-surface rounded-lg p-6 border border-border space-y-4">
-              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Informações da Conta</h3>
+            <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Informações da conta</h3>
               <div className="space-y-4">
                 <EditableField
                   label="Nome de Exibição"
@@ -186,14 +179,14 @@ export default function SettingsPage() {
                 />
                 <div>
                   <label className="text-xs text-muted uppercase tracking-wider">Nome de Usuário</label>
-                  <div className="flex items-center justify-between mt-1 bg-surface-raised rounded px-3 py-2">
+                  <div className="flex items-center justify-between mt-1 bg-[var(--th-panel-2)] rounded px-3 py-2">
                     <span className="text-white text-sm">@{user?.username}</span>
                     <span className="text-muted text-xs">Não editável</span>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs text-muted uppercase tracking-wider">E-mail</label>
-                  <div className="flex items-center justify-between mt-1 bg-surface-raised rounded px-3 py-2">
+                  <div className="flex items-center justify-between mt-1 bg-[var(--th-panel-2)] rounded px-3 py-2">
                     <span className="text-white text-sm">{user?.email}</span>
                     <span className="text-muted text-xs">Não editável</span>
                   </div>
@@ -202,8 +195,8 @@ export default function SettingsPage() {
             </div>
 
             {/* Perfil adicional */}
-            <div className="bg-surface rounded-lg p-6 border border-border space-y-4">
-              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Perfil</h3>
+            <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Sobre você</h3>
               <div className="space-y-4">
                 <EditableField
                   label="Bio"

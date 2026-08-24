@@ -31,6 +31,22 @@ export class UploadController {
     return { avatarUrl: url };
   }
 
+  @Post('banner')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadBanner(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: string,
+  ) {
+    const { url } = await this.uploadService.uploadFile(file, 'banners');
+
+    await this.prisma.profile.update({
+      where: { userId },
+      data: { bannerUrl: url, bannerColor: null },
+    });
+
+    return { bannerUrl: url };
+  }
+
   @Post('attachment/:channelId')
   @UseInterceptors(FileInterceptor('file'))
   async uploadAttachment(

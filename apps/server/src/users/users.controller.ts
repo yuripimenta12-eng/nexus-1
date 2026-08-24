@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -44,5 +45,10 @@ export class UsersController {
   @Patch('@me/profile')
   updateProfile(@CurrentUser('id') userId: string, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(userId, dto);
+  }
+
+  @Delete('@me/banner')
+  removeBanner(@CurrentUser('id') userId: string) {
+    return this.usersService.removeBanner(userId);
   }
 }
