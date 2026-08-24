@@ -15,6 +15,7 @@ import {
   LocalParticipant,
 } from 'livekit-client';
 import { useVoiceStore } from '@/stores/voice.store';
+import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn, getInitials } from '@/lib/utils';
 import api from '@/lib/api';
@@ -59,7 +60,10 @@ export default function VoicePage() {
     participants, quality, voiceRoomId, roomName,
   } = useVoiceStore();
 
-  const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>('1080p30');
+  const askScreenQuality = useMediaStore(s => s.askScreenQuality);
+  const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>(
+    () => useMediaStore.getState().screenQuality,
+  );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -117,7 +121,8 @@ export default function VoicePage() {
     if (localScreenSharing) {
       await stopScreenShare();
     } else {
-      await startScreenShare(screenQuality);
+      // Sem "perguntar antes", usa a qualidade padrão das configurações
+      await startScreenShare(askScreenQuality ? screenQuality : undefined);
     }
   };
 
@@ -320,7 +325,7 @@ export default function VoicePage() {
               <span className="hidden md:inline">{localScreenSharing ? 'Parar tela' : 'Compartilhar tela'}</span>
             </button>
 
-            {!localScreenSharing && (
+            {!localScreenSharing && askScreenQuality && (
               <select
                 value={screenQuality}
                 onChange={(e) => setScreenQuality(e.target.value as any)}
@@ -585,6 +590,10 @@ function AudioRenderer() {
             const el = document.createElement('audio');
             el.autoplay = true;
             el.dataset.lkIdentity = identity;
+            // Aplica volume global e dispositivo de saída das configurações
+            const ms = useMediaStore.getState();
+            el.volume = Math.min(1, ((vp.localVolume ?? 100) / 100) * (ms.outputVolume / 100));
+            if (ms.audioOutputId) (el as any).setSinkId?.(ms.audioOutputId)?.catch?.(() => {});
             container.appendChild(el);
             pub.track.attach(el);
             attachedRef.current.set(key, el);

@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { User, Bell, Shield, Palette, LogOut, Check, X, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Mic, LogOut, Check, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { VoiceVideoSettings } from '@/components/settings/voice-video-settings';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
+  { id: 'voice', label: 'Voz e vídeo', icon: Mic },
   { id: 'notifications', label: 'Notificações', icon: Bell },
   { id: 'privacy', label: 'Privacidade & Segurança', icon: Shield },
   { id: 'appearance', label: 'Aparência', icon: Palette },
@@ -217,7 +219,19 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {activeSection !== 'profile' && (
+        {activeSection === 'voice' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Voz e vídeo</h2>
+              <p className="text-[#92879f] text-sm mt-1">
+                Dispositivos, volumes e processamento usados nas chamadas. As mudanças valem na hora, até em chamada ativa.
+              </p>
+            </div>
+            <VoiceVideoSettings />
+          </div>
+        )}
+
+        {activeSection !== 'profile' && activeSection !== 'voice' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-white">
               {sections.find(s => s.id === activeSection)?.label}

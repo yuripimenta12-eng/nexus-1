@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getSocket } from '@/lib/socket';
+import { useMediaStore } from '@/stores/media.store';
 import {
   Room,
   RoomEvent,
@@ -51,6 +52,69 @@ interface VoiceStore {
   setParticipantVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
   updateParticipant: (p: Participant) => void;
+
+  // ── Configurações de mídia aplicadas ao vivo ──
+  setInputVolume: (volume: number) => void;
+  applyOutputVolume: () => void;
+  switchAudioInput: (deviceId: string) => Promise<void>;
+  switchAudioOutput: (deviceId: string) => Promise<void>;
+  switchVideoInput: (deviceId: string) => Promise<void>;
+}
+
+// Pipeline WebAudio do microfone: getUserMedia → GainNode → track publicado.
+// Permite controlar o ganho de entrada (0–200%) em tempo real.
+interface MicPipeline {
+  ctx: AudioContext;
+  raw: MediaStream;
+  gain: GainNode;
+  processed: MediaStreamTrack;
+}
+
+let micPipeline: MicPipeline | null = null;
+
+async function buildAndPublishMic(room: Room): Promise<void> {
+  const ms = useMediaStore.getState();
+  const raw = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      deviceId: ms.audioInputId ? { exact: ms.audioInputId } : undefined,
+      echoCancellation: ms.echoCancellation,
+      noiseSuppression: ms.noiseSuppression,
+      autoGainControl: ms.autoGainControl,
+    },
+  });
+  const ctx = new AudioContext();
+  const src = ctx.createMediaStreamSource(raw);
+  const gain = ctx.createGain();
+  gain.gain.value = ms.inputVolume / 100;
+  const dst = ctx.createMediaStreamDestination();
+  src.connect(gain);
+  gain.connect(dst);
+  const processed = dst.stream.getAudioTracks()[0];
+
+  await room.localParticipant.publishTrack(processed, {
+    source: Track.Source.Microphone,
+  });
+  micPipeline = { ctx, raw, gain, processed };
+}
+
+async function teardownMic(room: Room | null): Promise<void> {
+  if (room && micPipeline) {
+    const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    if (pub?.track) {
+      try { room.localParticipant.unpublishTrack(pub.track as any, true); } catch { /* ok */ }
+    }
+  }
+  micPipeline?.raw.getTracks().forEach(t => t.stop());
+  micPipeline?.processed.stop();
+  micPipeline?.ctx.close().catch(() => {});
+  micPipeline = null;
+}
+
+// Aplica volume final (individual × global) em um elemento <audio>
+function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
+  if (mutedLocally) return 0;
+  const out = useMediaStore.getState().outputVolume;
+  return Math.min(1, (localVolume / 100) * (out / 100));
 }
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({
@@ -71,16 +135,19 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     set({ isConnecting: true, error: null });
 
     try {
+      const ms = useMediaStore.getState();
       const room = new Room({
         adaptiveStream: true,       // qualidade adaptativa
         dynacast: true,             // simulcast dinâmico
         videoCaptureDefaults: {
+          deviceId: ms.videoInputId || undefined,
           resolution: { width: 1280, height: 720, frameRate: 30 },
         },
         audioCaptureDefaults: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          deviceId: ms.audioInputId || undefined,
+          echoCancellation: ms.echoCancellation,
+          noiseSuppression: ms.noiseSuppression,
+          autoGainControl: ms.autoGainControl,
         },
       });
 
@@ -139,6 +206,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       });
 
       room.on(RoomEvent.Disconnected, () => {
+        teardownMic(null);
         set({
           isConnected: false,
           room: null,
@@ -178,7 +246,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
       // Ativa microfone automaticamente; sem permissão, entra como ouvinte
       try {
-        await room.localParticipant.setMicrophoneEnabled(true);
+        await buildAndPublishMic(room);
+        set({ localMicEnabled: true });
       } catch {
         set({ localMicEnabled: false });
       }
@@ -197,6 +266,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
   disconnect: async () => {
     const { room, voiceRoomId, serverId } = get();
+    await teardownMic(room);
     if (room) {
       await room.disconnect();
     }
@@ -220,15 +290,19 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   toggleMic: async () => {
-    const { room } = get();
+    const { room, localMicEnabled } = get();
     if (!room) return;
-    const newState = !room.localParticipant.isMicrophoneEnabled;
     try {
-      await room.localParticipant.setMicrophoneEnabled(newState);
-      set({ localMicEnabled: newState });
+      if (localMicEnabled) {
+        await teardownMic(room);
+        set({ localMicEnabled: false });
+      } else {
+        await buildAndPublishMic(room);
+        set({ localMicEnabled: true });
+      }
     } catch {
       // Permissão negada ou dispositivo indisponível — mantém estado real
-      set({ localMicEnabled: room.localParticipant.isMicrophoneEnabled });
+      set({ localMicEnabled: !!micPipeline });
     }
   },
 
@@ -244,9 +318,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     }
   },
 
-  startScreenShare: async (quality = '1080p30') => {
+  startScreenShare: async (quality) => {
     const { room } = get();
     if (!room) return;
+    if (!quality) quality = useMediaStore.getState().screenQuality;
 
     // Configurações de qualidade para screen share
     const qualityMap = {
@@ -278,14 +353,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const next = new Map(state.participants);
       const p = next.get(identity);
       if (p) {
-        // Aplica volume nos elementos <audio> renderizados pelo LiveKit
-        // usando a API pública RemoteTrackPublication.setSubscribed / AudioTrack.
-        // O LiveKit expõe o HTMLAudioElement via track.attach(); aqui ajustamos
-        // diretamente todos os elementos já attachados ao DOM.
+        // O volume final é o individual × o volume global de saída
         const audioEls = document.querySelectorAll<HTMLAudioElement>(
           `audio[data-lk-identity="${identity}"]`,
         );
-        audioEls.forEach((el) => { el.volume = volume / 100; });
+        audioEls.forEach((el) => { el.volume = effectiveVolume(volume, !!p.isMutedLocally); });
         next.set(identity, { ...p, localVolume: volume });
       }
       return { participants: next };
@@ -298,15 +370,65 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const p = next.get(identity);
       if (p) {
         const muted = !p.isMutedLocally;
-        const targetVolume = muted ? 0 : (p.localVolume || 100) / 100;
         const audioEls = document.querySelectorAll<HTMLAudioElement>(
           `audio[data-lk-identity="${identity}"]`,
         );
-        audioEls.forEach((el) => { el.volume = targetVolume; });
+        audioEls.forEach((el) => { el.volume = effectiveVolume(p.localVolume || 100, muted); });
         next.set(identity, { ...p, isMutedLocally: muted });
       }
       return { participants: next };
     });
+  },
+
+  // ── Configurações de mídia aplicadas ao vivo ─────────────────
+  setInputVolume: (volume) => {
+    useMediaStore.getState().setInputVolume(volume);
+    if (micPipeline) micPipeline.gain.gain.value = volume / 100;
+  },
+
+  applyOutputVolume: () => {
+    const { participants } = get();
+    participants.forEach((p, identity) => {
+      const els = document.querySelectorAll<HTMLAudioElement>(
+        `audio[data-lk-identity="${identity}"]`,
+      );
+      els.forEach((el) => { el.volume = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally); });
+    });
+  },
+
+  switchAudioInput: async (deviceId) => {
+    useMediaStore.getState().setAudioInputId(deviceId);
+    const { room, localMicEnabled } = get();
+    if (room && localMicEnabled) {
+      // Reconstrói o pipeline do microfone com o novo dispositivo
+      await teardownMic(room);
+      try {
+        await buildAndPublishMic(room);
+        set({ localMicEnabled: true });
+      } catch {
+        set({ localMicEnabled: false });
+      }
+    }
+  },
+
+  switchAudioOutput: async (deviceId) => {
+    useMediaStore.getState().setAudioOutputId(deviceId);
+    const els = document.querySelectorAll<HTMLAudioElement>('audio[data-lk-identity]');
+    for (const el of Array.from(els)) {
+      try {
+        await (el as any).setSinkId(deviceId || '');
+      } catch { /* navegador sem suporte a setSinkId */ }
+    }
+  },
+
+  switchVideoInput: async (deviceId) => {
+    useMediaStore.getState().setVideoInputId(deviceId);
+    const { room } = get();
+    if (room && room.localParticipant.isCameraEnabled && deviceId) {
+      try {
+        await room.switchActiveDevice('videoinput', deviceId);
+      } catch { /* dispositivo indisponível */ }
+    }
   },
 
   // Helper interno (não exposto pelo tipo mas usado pelos callbacks)
