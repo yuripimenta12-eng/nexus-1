@@ -119,7 +119,23 @@ let deafened = false;
 function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
   if (mutedLocally || deafened) return 0;
   const out = useMediaStore.getState().outputVolume;
-  return Math.min(1, (localVolume / 100) * (out / 100));
+  // Teto de 2.0 (200%): com webAudioMix o ganho pode amplificar acima do
+  // volume original — deixa o usuário reforçar quem fala baixo.
+  return Math.min(2, (localVolume / 100) * (out / 100));
+}
+
+// Aplica o volume nas tracks de áudio do participante via API do LiveKit.
+// Com webAudioMix o <audio> fica mutado e o som sai pelo AudioContext:
+// mexer em el.volume não tem efeito — só track.setVolume (gainNode) vale.
+function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; isMutedLocally?: boolean }) {
+  if (!p.participant) return;
+  const vol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  p.participant.trackPublications.forEach((pub) => {
+    const track: any = pub.track;
+    if (pub.kind === Track.Kind.Audio && track?.setVolume) {
+      try { track.setVolume(vol); } catch { /* track ainda não pronta */ }
+    }
+  });
 }
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({
@@ -144,6 +160,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const room = new Room({
         adaptiveStream: true,       // qualidade adaptativa
         dynacast: true,             // simulcast dinâmico
+        // Mixagem via WebAudio: o volume por participante passa a usar o
+        // gainNode do LiveKit (track.setVolume), que aceita ganho > 1.0 —
+        // necessário para o volume individual de 0 a 200%. Sem isto, o som
+        // sai direto pelo <audio> e el.volume trava em 100% (limite do DOM).
+        webAudioMix: true,
         videoCaptureDefaults: {
           deviceId: ms.videoInputId || undefined,
           resolution: { width: 1280, height: 720, frameRate: 30 },
@@ -360,12 +381,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const next = new Map(state.participants);
       const p = next.get(identity);
       if (p) {
-        // O volume final é o individual × o volume global de saída
-        const audioEls = document.querySelectorAll<HTMLAudioElement>(
-          `audio[data-lk-identity="${identity}"]`,
-        );
-        audioEls.forEach((el) => { el.volume = effectiveVolume(volume, !!p.isMutedLocally); });
-        next.set(identity, { ...p, localVolume: volume });
+        const updated = { ...p, localVolume: volume };
+        applyVolumeToTracks(updated); // individual × saída global, via gainNode
+        next.set(identity, updated);
       }
       return { participants: next };
     });
@@ -376,12 +394,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const next = new Map(state.participants);
       const p = next.get(identity);
       if (p) {
-        const muted = !p.isMutedLocally;
-        const audioEls = document.querySelectorAll<HTMLAudioElement>(
-          `audio[data-lk-identity="${identity}"]`,
-        );
-        audioEls.forEach((el) => { el.volume = effectiveVolume(p.localVolume || 100, muted); });
-        next.set(identity, { ...p, isMutedLocally: muted });
+        const updated = { ...p, isMutedLocally: !p.isMutedLocally };
+        applyVolumeToTracks(updated);
+        next.set(identity, updated);
       }
       return { participants: next };
     });
@@ -403,12 +418,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
   applyOutputVolume: () => {
     const { participants } = get();
-    participants.forEach((p, identity) => {
-      const els = document.querySelectorAll<HTMLAudioElement>(
-        `audio[data-lk-identity="${identity}"]`,
-      );
-      els.forEach((el) => { el.volume = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally); });
-    });
+    participants.forEach((p) => applyVolumeToTracks(p));
   },
 
   switchAudioInput: async (deviceId) => {
@@ -428,6 +438,15 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
   switchAudioOutput: async (deviceId) => {
     useMediaStore.getState().setAudioOutputId(deviceId);
+    const { room } = get();
+    // Com webAudioMix o som sai pelo AudioContext — o switchActiveDevice do
+    // LiveKit troca o sinkId do contexto E dos elementos (workaround Chrome).
+    if (room && deviceId) {
+      try {
+        await room.switchActiveDevice('audiooutput', deviceId);
+        return;
+      } catch { /* cai no fallback abaixo */ }
+    }
     const els = document.querySelectorAll<HTMLAudioElement>('audio[data-lk-identity]');
     for (const el of Array.from(els)) {
       try {

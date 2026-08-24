@@ -601,12 +601,12 @@ export default function VoicePage() {
                                     </span>
                                   </div>
                                   <input
-                                    type="range" min={0} max={100}
+                                    type="range" min={0} max={200} step={5}
                                     value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
                                     disabled={p.isMutedLocally}
                                     onChange={(e) => useVoiceStore.getState().setParticipantVolume(p.identity, Number(e.target.value))}
                                     className="nx-range"
-                                    style={{ ['--fill' as any]: `${p.isMutedLocally ? 0 : (p.localVolume ?? 100)}%` }}
+                                    style={{ ['--fill' as any]: `${(p.isMutedLocally ? 0 : (p.localVolume ?? 100)) / 2}%` }}
                                   />
                                 </div>
                                 <MenuAction
