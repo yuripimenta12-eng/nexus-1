@@ -4,13 +4,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2 } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { getSocket } from '@/lib/socket';
+import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import Image from 'next/image';
+
+/** Gera um ID único de cliente para deduplicação de mensagens */
+function genClientMsgId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
 interface Message {
   id: string;
@@ -19,6 +23,8 @@ interface Message {
   edited: boolean;
   deleted: boolean;
   authorId: string;
+  clientMsgId?: string; // ID de cliente para deduplicação (mensagens otimistas)
+  pending?: boolean;    // mensagem ainda não confirmada pelo servidor
   author: {
     id: string;
     username: string;
@@ -61,14 +67,30 @@ export default function ChannelPage() {
   useEffect(() => {
     if (!channelId) return;
     setIsLoading(true);
+
+    // Carrega nome do canal
     api.get(`/servers/${serverId}/channels/${channelId}`)
-      .then(({ data }) => setChannelName(data.name))
-      .catch(() => {});
+      .then(({ data }) => {
+        if (data?.name) setChannelName(data.name);
+      })
+      .catch(() => {
+        // Tenta via rota alternativa se a acima não existir
+        api.get(`/channels/${channelId}`)
+          .then(({ data }) => { if (data?.name) setChannelName(data.name); })
+          .catch(() => {});
+      });
+
+    // Carrega mensagens — sempre encerra o loading (sucesso ou erro)
     api.get(`/channels/${channelId}/messages`)
       .then(({ data }) => {
-        setMessages(data.messages);
-        setIsLoading(false);
+        setMessages(data.messages ?? []);
         scrollToBottom();
+      })
+      .catch(() => {
+        setMessages([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, [channelId]);
 
@@ -77,9 +99,24 @@ export default function ChannelPage() {
     if (!channelId || !socket) return;
 
     socket.emit('channel:join', { channelId });
+    trackChannel(channelId);
+    if (serverId) trackServer(serverId);
 
-    socket.on('message:new', (msg: Message) => {
-      setMessages(prev => [...prev, msg]);
+    socket.on('message:new', (msg: Message & { clientMsgId?: string }) => {
+      setMessages(prev => {
+        // Deduplicação: substitui mensagem otimista pelo id do servidor
+        if (msg.clientMsgId) {
+          const idx = prev.findIndex(m => m.clientMsgId === msg.clientMsgId && m.pending);
+          if (idx !== -1) {
+            const next = [...prev];
+            next[idx] = { ...msg, pending: false };
+            return next;
+          }
+        }
+        // Previne duplicata caso o evento chegue duas vezes
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       scrollToBottom();
     });
 
@@ -119,6 +156,7 @@ export default function ChannelPage() {
 
     return () => {
       socket.emit('channel:leave', { channelId });
+      untrackChannel(channelId);
       socket.off('message:new');
       socket.off('message:updated');
       socket.off('message:deleted');
@@ -134,18 +172,50 @@ export default function ChannelPage() {
 
   // ── Enviar mensagem ───────────────────────────────────────────
   const handleSend = useCallback(() => {
-    if (!content.trim()) return;
+    if (!content.trim() || !user) return;
+
+    const clientMsgId = genClientMsgId();
+    const trimmed = content.trim();
+
+    // Mensagem otimista: exibe imediatamente sem aguardar o servidor
+    const optimistic: Message = {
+      id: clientMsgId,       // ID temporário; será substituído pelo id real do servidor
+      clientMsgId,
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+      edited: false,
+      deleted: false,
+      pending: true,
+      authorId: user.id,
+      author: {
+        id: user.id,
+        username: user.username,
+        profile: {
+          displayName: user.profile?.displayName || user.username,
+          avatarUrl: user.profile?.avatarUrl || null,
+        },
+      },
+      reactions: [],
+      attachments: [],
+      replyTo: replyTo
+        ? { id: replyTo.id, content: replyTo.content, author: replyTo.author }
+        : null,
+    };
+
+    setMessages(prev => [...prev, optimistic]);
+    scrollToBottom();
 
     socket.emit('message:send', {
       channelId,
-      content: content.trim(),
+      content: trimmed,
       replyToId: replyTo?.id,
+      clientMsgId,
     });
 
     setContent('');
     setReplyTo(null);
     textareaRef.current?.focus();
-  }, [content, channelId, replyTo, socket]);
+  }, [content, channelId, replyTo, socket, user]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -448,10 +518,17 @@ function MessageRow({
             </div>
           </div>
         ) : (
-          <p className={cn('text-sm leading-relaxed break-words', msg.deleted && 'text-muted italic')}>
+          <p className={cn(
+            'text-sm leading-relaxed break-words',
+            msg.deleted && 'text-muted italic',
+            msg.pending && 'opacity-60',
+          )}>
             {msg.content}
             {msg.edited && !msg.deleted && (
               <span className="text-muted text-[10px] ml-1">(editado)</span>
+            )}
+            {msg.pending && (
+              <span className="text-muted text-[10px] ml-1">enviando…</span>
             )}
           </p>
         )}

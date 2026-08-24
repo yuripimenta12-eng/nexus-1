@@ -39,15 +39,26 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await api.post('/auth/refresh');
+        // Envia o refresh token via Authorization header como fallback cross-origin
+        // (o cookie sameSite:none cobre o mesmo caminho; o header cobre casos em que
+        //  o cookie ainda não foi propagado ou o navegador bloqueou third-party cookies)
+        const storedRefresh = localStorage.getItem('nexus_refresh_token');
+        const refreshConfig = storedRefresh
+          ? { headers: { Authorization: `Bearer ${storedRefresh}` } }
+          : {};
+        const res = await api.post('/auth/refresh', undefined, refreshConfig);
         const newToken = res.data.accessToken;
         localStorage.setItem('nexus_access_token', newToken);
+        if (res.data.refreshToken) {
+          localStorage.setItem('nexus_refresh_token', res.data.refreshToken);
+        }
         refreshQueue.forEach((cb) => cb(newToken));
         refreshQueue = [];
         original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);
       } catch {
         localStorage.removeItem('nexus_access_token');
+        localStorage.removeItem('nexus_refresh_token');
         window.location.href = '/auth/login';
       } finally {
         isRefreshing = false;

@@ -29,7 +29,8 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(dto);
     this.setRefreshCookie(res, result.refreshToken);
-    return { user: result.user, accessToken: result.accessToken };
+    // Também retorna o refreshToken no body para clientes cross-origin
+    return { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken };
   }
 
   @Post('login')
@@ -38,7 +39,8 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
     this.setRefreshCookie(res, result.refreshToken);
-    return { user: result.user, accessToken: result.accessToken };
+    // Também retorna o refreshToken no body para clientes cross-origin
+    return { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken };
   }
 
   @Post('refresh')
@@ -49,7 +51,7 @@ export class AuthController {
     const refreshToken = req.cookies['nexus_refresh'] || (req.user as any).refreshToken;
     const tokens = await this.authService.refreshTokens(userId, refreshToken);
     this.setRefreshCookie(res, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
   }
 
   @Post('logout')
@@ -85,8 +87,8 @@ export class AuthController {
   private setRefreshCookie(res: Response, refreshToken: string) {
     res.cookie('nexus_refresh', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,           // sempre secure para suportar sameSite: 'none'
+      sameSite: 'none',       // permite cross-origin (Vercel ↔ Railway)
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 dias
       path: '/api/auth',
     });

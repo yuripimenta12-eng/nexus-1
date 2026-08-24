@@ -19,7 +19,11 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: { sub: string; email: string }) {
-    const refreshToken = req?.cookies?.['nexus_refresh'];
+    // Cookie (mesma origem) ou Authorization header (cross-origin, ex: Vercel → Railway)
+    const refreshToken =
+      req?.cookies?.['nexus_refresh'] ??
+      req?.headers?.authorization?.replace(/^Bearer\s+/i, '') ??
+      null;
     return { ...payload, refreshToken };
   }
 }

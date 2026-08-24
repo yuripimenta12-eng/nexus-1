@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Erros de TypeScript e ESLint devem ser visíveis durante o build
+  // typescript.ignoreBuildErrors e eslint.ignoreDuringBuilds foram removidos
+  // para garantir que erros reais sejam detectados antes do deploy.
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },

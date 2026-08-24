@@ -42,3 +42,6 @@ apps/server/node_modules/
 # ── Uploads locais ───────────────────────────────────────────────
 uploads/
 public/uploads/
+
+# Build cache
+*.tsbuildinfo

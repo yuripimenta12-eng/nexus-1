@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
-import { useSocketStore } from '@/stores/socket.store';
+import { connectSocket, disconnectSocket } from '@/lib/socket';
 
 export interface User {
   id: string;
@@ -49,9 +49,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data } = await api.post('/auth/login', { email, password });
           localStorage.setItem('nexus_access_token', data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem('nexus_refresh_token', data.refreshToken);
+          }
           set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
-          // Use socket store so DM handlers are registered immediately
-          useSocketStore.getState().init(data.accessToken);
+          connectSocket(data.accessToken);
         } finally {
           set({ isLoading: false });
         }
@@ -62,9 +64,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data } = await api.post('/auth/register', formData);
           localStorage.setItem('nexus_access_token', data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem('nexus_refresh_token', data.refreshToken);
+          }
           set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
-          // Use socket store so DM handlers are registered immediately
-          useSocketStore.getState().init(data.accessToken);
+          connectSocket(data.accessToken);
         } finally {
           set({ isLoading: false });
         }
@@ -75,7 +79,8 @@ export const useAuthStore = create<AuthState>()(
           await api.post('/auth/logout');
         } finally {
           localStorage.removeItem('nexus_access_token');
-          useSocketStore.getState().disconnect();
+          localStorage.removeItem('nexus_refresh_token');
+          disconnectSocket();
           set({ user: null, accessToken: null, isAuthenticated: false });
         }
       },

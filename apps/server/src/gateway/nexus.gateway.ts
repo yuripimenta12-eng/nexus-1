@@ -10,7 +10,7 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MessagesService } from '../messages/messages.service';
@@ -18,12 +18,33 @@ import { PresenceService } from '../presence/presence.service';
 import { RedisService } from '../redis/redis.service';
 import { CreateMessageDto } from '../messages/dto/create-message.dto';
 
-// Mapa: userId → socketId
+// Mapa em memória: userId → socketId
+// NOTA: funciona apenas com instância única. Para escalar horizontalmente,
+// substitua por Redis pub/sub (redis.adapter da socket.io).
 const userSocketMap = new Map<string, string>();
+
+// Rate limiting simples por socket (em memória)
+const messageRateMap = new Map<string, { count: number; resetAt: number }>();
+const MAX_MESSAGES_PER_WINDOW = 20;
+const RATE_WINDOW_MS = 5000;
+
+function checkRateLimit(socketId: string): boolean {
+  const now = Date.now();
+  const entry = messageRateMap.get(socketId);
+  if (!entry || now > entry.resetAt) {
+    messageRateMap.set(socketId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_MESSAGES_PER_WINDOW) return false;
+  entry.count++;
+  return true;
+}
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    // Lê das variáveis de ambiente; fallback para localhost em dev.
+    // Em produção defina CORS_ORIGIN=https://nexus-eight-kohl.vercel.app no Railway.
+    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(','),
     credentials: true,
   },
   transports: ['websocket', 'polling'],
@@ -77,6 +98,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     if (!userId) return;
 
     userSocketMap.delete(userId);
+    messageRateMap.delete(client.id);
     await this.redis.setUserOffline(userId);
 
     // Notifica rooms que o usuário estava
@@ -124,10 +146,16 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   @SubscribeMessage('message:send')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { channelId: string; content: string; replyToId?: string },
+    @MessageBody() data: { channelId: string; content: string; replyToId?: string; clientMsgId?: string },
   ) {
     const userId = client.data.userId;
     if (!userId) throw new WsException('Não autenticado');
+
+    // Rate limiting: máx 20 mensagens por 5 s por socket
+    if (!checkRateLimit(client.id)) {
+      client.emit('error', { message: 'Muitas mensagens. Aguarde alguns segundos.' });
+      return;
+    }
 
     const dto: CreateMessageDto = {
       content: data.content,
@@ -136,8 +164,11 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
     const message = await this.messagesService.create(data.channelId, userId, dto);
 
-    // Envia para todos no canal (incluindo o remetente)
-    this.server.to(`channel:${data.channelId}`).emit('message:new', message);
+    // Envia para todos no canal (incluindo o remetente), com clientMsgId para deduplicação
+    this.server.to(`channel:${data.channelId}`).emit('message:new', {
+      ...message,
+      clientMsgId: data.clientMsgId,
+    });
 
     return message;
   }

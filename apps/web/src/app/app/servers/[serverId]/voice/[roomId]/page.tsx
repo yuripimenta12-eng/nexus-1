@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
+  Mic, MicOff, Video, VideoOff, Monitor,
   PhoneOff, Settings, Volume2, VolumeX, Maximize2, Minimize2,
-  Wifi, WifiOff, Users, ChevronDown,
+  Wifi, WifiOff,
 } from 'lucide-react';
 import {
   Track,
@@ -14,10 +14,7 @@ import {
   Participant,
   RemoteParticipant,
   LocalParticipant,
-  TrackPublication,
-  VideoTrack,
 } from 'livekit-client';
-import { VideoTrack as LKVideoTrack, useParticipants, useLocalParticipant } from '@livekit/components-react';
 import { useVoiceStore } from '@/stores/voice.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn } from '@/lib/utils';
@@ -41,11 +38,9 @@ export default function VoicePage() {
   const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>('1080p30');
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
-  // Traduz erros técnicos do LiveKit para mensagens amigáveis
   function friendlyError(msg: string): string {
     if (msg?.includes('invalid api key') || msg?.includes('invalid API key')) {
       return 'Credenciais de voz inválidas. Contate o administrador do servidor.';
@@ -62,7 +57,6 @@ export default function VoicePage() {
     return msg || 'Erro desconhecido ao conectar.';
   }
 
-  // Conecta ao entrar na página
   const joinRoom = async () => {
     if (isConnected && voiceRoomId === roomId) return;
     setJoinError(null);
@@ -151,6 +145,9 @@ export default function VoicePage() {
 
   return (
     <div className={cn('flex flex-col bg-background-secondary', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
+      {/* Renderizador de áudio remoto (oculto) */}
+      <AudioRenderer />
+
       {/* Header */}
       <div className="h-12 flex items-center justify-between px-4 bg-background-secondary border-b border-border shrink-0">
         <div className="flex items-center gap-2">
@@ -161,7 +158,9 @@ export default function VoicePage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-muted text-xs">{participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}</span>
+          <span className="text-muted text-xs">
+            {participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}
+          </span>
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
             className="text-muted hover:text-white p-1 rounded transition-colors"
@@ -173,14 +172,14 @@ export default function VoicePage() {
 
       {/* Área principal */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Conteúdo (vídeos/tela) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Screen share principal */}
           {primaryScreenSharer ? (
             <div className="flex-1 relative bg-black overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
-                <ParticipantScreenShare
+                <VideoTrackRenderer
                   participant={primaryScreenSharer.participant}
+                  source={Track.Source.ScreenShare}
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
@@ -191,29 +190,42 @@ export default function VoicePage() {
               {/* Outros screen shares */}
               {screenSharers.length > 1 && (
                 <div className="absolute bottom-3 right-3 flex gap-2">
-                  {screenSharers.filter(p => p.identity !== primaryScreenSharer?.identity).map(p => (
-                    <button
-                      key={p.identity}
-                      onClick={() => setFocusedParticipant(p.identity)}
-                      className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-border hover:border-accent transition-colors"
-                    >
-                      <ParticipantScreenShare participant={p.participant} className="w-full h-full object-cover" />
-                      <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
-                        {p.participant.name || p.identity}
-                      </div>
-                    </button>
-                  ))}
+                  {screenSharers
+                    .filter(p => p.identity !== primaryScreenSharer?.identity)
+                    .map(p => (
+                      <button
+                        key={p.identity}
+                        onClick={() => setFocusedParticipant(p.identity)}
+                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-border hover:border-accent transition-colors"
+                      >
+                        <VideoTrackRenderer
+                          participant={p.participant}
+                          source={Track.Source.ScreenShare}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
+                          {p.participant.name || p.identity}
+                        </div>
+                      </button>
+                    ))}
                 </div>
               )}
 
               {/* Mini câmeras */}
               <div className="absolute top-3 right-3 flex flex-col gap-2">
                 {participantsList.filter(p => p.camEnabled).slice(0, 4).map(p => (
-                  <div key={p.identity} className={cn(
-                    'w-28 h-20 rounded-lg overflow-hidden bg-surface-overlay border-2 border-border',
-                    p.isSpeaking && 'border-accent speaking-ring',
-                  )}>
-                    <ParticipantCamera participant={p.participant} />
+                  <div
+                    key={p.identity}
+                    className={cn(
+                      'w-28 h-20 rounded-lg overflow-hidden bg-surface-overlay border-2 border-border',
+                      p.isSpeaking && 'border-accent',
+                    )}
+                  >
+                    <VideoTrackRenderer
+                      participant={p.participant}
+                      source={Track.Source.Camera}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ))}
               </div>
@@ -308,22 +320,114 @@ export default function VoicePage() {
           </button>
         </div>
 
-        {/* Configurações */}
-        <div className="w-48 flex justify-end">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="btn-ghost"
-          >
-            <Settings className="w-4 h-4 mr-1" />
-            Configurações
-          </button>
-        </div>
+        {/* Espaço direito (simetria) */}
+        <div className="w-48" />
       </div>
     </div>
   );
 }
 
-// ── Tile de participante ──────────────────────────────────────
+// ── Renderizador de vídeo bruto (sem @livekit/components-react) ──
+function VideoTrackRenderer({
+  participant,
+  source,
+  className,
+}: {
+  participant: Participant;
+  source: Track.Source;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Pega a publicação de track atual
+  const pub = Array.from(participant.trackPublications.values()).find(
+    p => p.source === source && p.track,
+  );
+  const track = pub?.track ?? null;
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!track || !el) return;
+
+    track.attach(el);
+    return () => {
+      track.detach(el);
+    };
+  }, [track]);
+
+  if (!track) return null;
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted // vídeo é sempre mudo; áudio é tratado pelo AudioRenderer
+      className={className}
+    />
+  );
+}
+
+// ── Renderizador de áudio para participantes remotos ─────────────
+// Cria elementos <audio> fora do React DOM para não depender de
+// rerender; usa data-lk-identity para que setParticipantVolume funcione.
+function AudioRenderer() {
+  const { participants, room } = useVoiceStore() as any;
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Rastreia quais tracks já têm elementos de áudio
+  const attachedRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+
+    participants.forEach((vp: any) => {
+      const { participant, identity } = vp;
+
+      // Não renderiza áudio local
+      if (participant instanceof LocalParticipant) return;
+
+      Array.from(participant.trackPublications.values()).forEach((pub: any) => {
+        if (
+          pub.kind === Track.Kind.Audio &&
+          pub.track &&
+          pub.isSubscribed
+        ) {
+          const key = `${identity}:${pub.trackSid}`;
+          if (!attachedRef.current.has(key)) {
+            const el = document.createElement('audio');
+            el.autoplay = true;
+            el.dataset.lkIdentity = identity;
+            container.appendChild(el);
+            pub.track.attach(el);
+            attachedRef.current.set(key, el);
+          }
+        }
+      });
+    });
+
+    // Remove áudio de participantes que saíram
+    attachedRef.current.forEach((el, key) => {
+      const identity = key.split(':')[0];
+      if (!participants.has(identity)) {
+        el.remove();
+        attachedRef.current.delete(key);
+      }
+    });
+  }, [participants]);
+
+  // Cleanup ao desmontar a página
+  useEffect(() => {
+    return () => {
+      attachedRef.current.forEach(el => el.remove());
+      attachedRef.current.clear();
+    };
+  }, []);
+
+  return <div ref={containerRef} aria-hidden className="hidden" />;
+}
+
+// ── Tile de participante ──────────────────────────────────────────
 function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
   const { setParticipantVolume, toggleMuteLocally } = useVoiceStore();
   const hasCam = voiceParticipant.camEnabled;
@@ -338,9 +442,12 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
         voiceParticipant.isSpeaking ? 'border-accent' : 'border-border',
       )}
     >
-      {/* Vídeo da câmera */}
       {hasCam ? (
-        <ParticipantCamera participant={voiceParticipant.participant} className="absolute inset-0 w-full h-full object-cover" />
+        <VideoTrackRenderer
+          participant={voiceParticipant.participant}
+          source={Track.Source.Camera}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
       ) : (
         <div className="flex flex-col items-center gap-2">
           <Avatar
@@ -351,8 +458,11 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
           {voiceParticipant.isSpeaking && (
             <div className="flex gap-1">
               {[0, 1, 2].map(i => (
-                <div key={i} className="w-1 bg-accent rounded-full animate-bounce"
-                  style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                <div
+                  key={i}
+                  className="w-1 bg-accent rounded-full animate-bounce"
+                  style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }}
+                />
               ))}
             </div>
           )}
@@ -397,7 +507,10 @@ function ConnectionQualityDot({ quality }: { quality: ConnectionQuality }) {
   return <div className={cn('w-2 h-2 rounded-full', color)} />;
 }
 
-function ControlButton({ active, onClick, activeIcon, inactiveIcon, activeTitle, inactiveTitle, danger, accent }: any) {
+function ControlButton({
+  active, onClick, activeIcon, inactiveIcon,
+  activeTitle, inactiveTitle, danger, accent,
+}: any) {
   return (
     <button
       onClick={onClick}
@@ -415,36 +528,5 @@ function ControlButton({ active, onClick, activeIcon, inactiveIcon, activeTitle,
     >
       {active ? activeIcon : inactiveIcon}
     </button>
-  );
-}
-
-// ── Wrappers para tracks LiveKit ───────────────────────────────
-function ParticipantCamera({ participant, className }: { participant: Participant; className?: string }) {
-  const camPub = Array.from(participant.trackPublications.values()).find(
-    p => p.source === Track.Source.Camera && p.track,
-  );
-
-  if (!camPub?.track) return null;
-
-  return (
-    <LKVideoTrack
-      trackRef={{ participant, source: Track.Source.Camera }}
-      className={className}
-    />
-  );
-}
-
-function ParticipantScreenShare({ participant, className }: { participant: Participant; className?: string }) {
-  const screenPub = Array.from(participant.trackPublications.values()).find(
-    p => p.source === Track.Source.ScreenShare && p.track,
-  );
-
-  if (!screenPub?.track) return null;
-
-  return (
-    <LKVideoTrack
-      trackRef={{ participant, source: Track.Source.ScreenShare }}
-      className={className}
-    />
   );
 }

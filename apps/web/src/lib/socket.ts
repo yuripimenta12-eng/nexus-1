@@ -4,6 +4,28 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 let socket: Socket | null = null;
 
+// Canais que o usuário está atualmente (para re-join após reconexão)
+const activeChannels = new Set<string>();
+const activeServers = new Set<string>();
+
+export function trackChannel(channelId: string) {
+  activeChannels.add(channelId);
+}
+export function untrackChannel(channelId: string) {
+  activeChannels.delete(channelId);
+}
+export function trackServer(serverId: string) {
+  activeServers.add(serverId);
+}
+
+function attachReconnectHandlers(s: Socket) {
+  s.on('connect', () => {
+    // Re-join canais e servidores após reconexão automática
+    activeServers.forEach(id => s.emit('server:join', { serverId: id }));
+    activeChannels.forEach(id => s.emit('channel:join', { channelId: id }));
+  });
+}
+
 export function getSocket(): Socket {
   if (!socket) {
     const token = typeof window !== 'undefined'
@@ -19,6 +41,8 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
     });
+
+    attachReconnectHandlers(socket);
   }
   return socket;
 }
@@ -39,6 +63,7 @@ export function connectSocket(token: string): Socket {
     reconnectionDelayMax: 5000,
   });
 
+  attachReconnectHandlers(socket);
   return socket;
 }
 
@@ -47,4 +72,6 @@ export function disconnectSocket() {
     socket.disconnect();
     socket = null;
   }
+  activeChannels.clear();
+  activeServers.clear();
 }
