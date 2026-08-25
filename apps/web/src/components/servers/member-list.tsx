@@ -10,16 +10,31 @@ import { cn } from '@/lib/utils';
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
 type Status = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
 
+interface CustomRole {
+  id: string;
+  name: string;
+  color: string;
+  hoist: boolean;
+  position: number;
+}
+
 interface Member {
   id: string;
   userId: string;
   role: Role;
   status: Status;
+  roles?: CustomRole[]; // cargos personalizados (mais alto primeiro)
   user: {
     id: string;
     username: string;
     profile: { displayName: string; avatarUrl: string | null; customStatus?: string | null } | null;
   };
+}
+
+// Cor do nome = cor do cargo mais alto (como no Discord)
+function nameColorOf(m: Member): string | undefined {
+  const top = m.roles?.[0];
+  return top && top.color !== '#99aab5' ? top.color : undefined;
 }
 
 const STATUS_COLOR: Record<Status, string> = {
@@ -76,7 +91,7 @@ export function MemberList({ serverId }: { serverId: string }) {
     };
   }, [serverId]);
 
-  const { online, offline } = useMemo(() => {
+  const { hoistedGroups, online, offline } = useMemo(() => {
     const on: Member[] = [];
     const off: Member[] = [];
     // Ordena: cargo (OWNER→MEMBER) e depois nome
@@ -88,7 +103,22 @@ export function MemberList({ serverId }: { serverId: string }) {
       return an.localeCompare(bn);
     });
     for (const m of sorted) (m.status !== 'OFFLINE' ? on : off).push(m);
-    return { online: on, offline: off };
+
+    // Estilo Discord: membros ONLINE com um cargo "hoist" aparecem numa
+    // seção própria do cargo mais alto; o resto fica em "Online".
+    const byRole = new Map<string, { role: CustomRole; members: Member[] }>();
+    const rest: Member[] = [];
+    for (const m of on) {
+      const hoisted = m.roles?.find(r => r.hoist);
+      if (hoisted) {
+        if (!byRole.has(hoisted.id)) byRole.set(hoisted.id, { role: hoisted, members: [] });
+        byRole.get(hoisted.id)!.members.push(m);
+      } else {
+        rest.push(m);
+      }
+    }
+    const groups = Array.from(byRole.values()).sort((a, b) => b.role.position - a.role.position);
+    return { hoistedGroups: groups, online: rest, offline: off };
   }, [members]);
 
   return (
@@ -105,6 +135,15 @@ export function MemberList({ serverId }: { serverId: string }) {
           </div>
         ) : (
           <>
+            {hoistedGroups.map(g => (
+              <MemberGroup
+                key={g.role.id}
+                title={g.role.name}
+                count={g.members.length}
+                members={g.members}
+                muted={false}
+              />
+            ))}
             <MemberGroup title="Online" count={online.length} members={online} muted={false} />
             <MemberGroup title="Offline" count={offline.length} members={offline} muted />
           </>
@@ -141,7 +180,12 @@ function MemberGroup({ title, count, members, muted }: { title: string; count: n
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[14px] text-[#d7cfe0] truncate group-hover:text-white">{name}</span>
+                  <span
+                    className="text-[14px] truncate"
+                    style={{ color: nameColorOf(m) || '#d7cfe0' }}
+                  >
+                    {name}
+                  </span>
                   <RoleIcon role={m.role} />
                 </div>
                 {m.user.profile?.customStatus && (

@@ -133,7 +133,17 @@ export class ServersService {
 
     const members = await this.prisma.serverMember.findMany({
       where: { serverId, banned: false },
-      include: { user: { include: { profile: true } } },
+      include: {
+        user: { include: { profile: true } },
+        // Cargos personalizados: o front agrupa por cargo com hoist
+        // ("exibir separadamente") e pinta o nome com a cor do cargo
+        // mais alto — comportamento igual ao Discord.
+        roleAssignments: {
+          include: {
+            role: { select: { id: true, name: true, color: true, hoist: true, position: true } },
+          },
+        },
+      },
       orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
     });
 
@@ -144,9 +154,12 @@ export class ServersService {
       members.map((m) => m.userId),
     );
 
-    return members.map((m) => ({
+    return members.map(({ roleAssignments, ...m }) => ({
       ...m,
       status: statuses[m.userId] ?? 'OFFLINE',
+      roles: roleAssignments
+        .map((a) => a.role)
+        .sort((a, b) => b.position - a.position), // mais alto primeiro
     }));
   }
 

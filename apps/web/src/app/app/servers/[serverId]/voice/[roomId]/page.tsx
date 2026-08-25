@@ -161,16 +161,17 @@ export default function VoicePage() {
   };
   const [toast, setToast] = useState<string | null>(null);
 
-  // Cargos dos membros (para o menu de moderação por participante)
-  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean }>>({});
+  // Cargos dos membros (moderação + agrupamento por cargo no painel Pessoas)
+  interface CustomRole { id: string; name: string; color: string; hoist: boolean; position: number; }
+  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean; roles: CustomRole[] }>>({});
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
 
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}/members`)
       .then(({ data }) => {
-        const map: Record<string, { role: string; mutedBy: boolean }> = {};
-        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy }; });
+        const map: Record<string, { role: string; mutedBy: boolean; roles: CustomRole[] }> = {};
+        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [] }; });
         setMembersMeta(map);
       })
       .catch(() => {});
@@ -827,12 +828,14 @@ export default function VoicePage() {
               <h3 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mb-3">
                 Na chamada agora
               </h3>
-              {participantsList.map((p: any) => {
+              {(() => {
+              const renderRow = (p: any) => {
                 const [c1, c2] = gradientFor(p.identity);
                 const isMe = p.participant instanceof LocalParticipant;
                 const expanded = expandedMember === p.identity;
                 const role = membersMeta[p.identity]?.role;
                 const serverMuted = membersMeta[p.identity]?.mutedBy;
+                const topRole = (membersMeta[p.identity]?.roles || [])[0];
                 return (
                   <div key={p.identity} className={cn('rounded-xl transition-colors', expanded && 'bg-[var(--th-panel-2)] border border-[var(--th-line-2)]')}>
                     <button
@@ -846,7 +849,10 @@ export default function VoicePage() {
                         {getInitials(p.participant.name || p.identity)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <b className="block text-white text-xs truncate">
+                        <b
+                          className="block text-xs truncate"
+                          style={{ color: topRole && topRole.color !== '#99aab5' ? topRole.color : '#fff' }}
+                        >
                           {p.participant.name || p.identity}{isMe ? ' (você)' : ''}
                           {role && role !== 'MEMBER' && (
                             <span className="ml-1.5 text-[9px] font-extrabold text-[#d3a8ef]">
@@ -965,7 +971,47 @@ export default function VoicePage() {
                     </AnimatePresence>
                   </div>
                 );
-              })}
+              };
+
+              // ── Agrupamento por cargo (estilo Discord) ──────────
+              // Quem tem um cargo com "Exibir separadamente" (hoist)
+              // aparece na seção do cargo mais alto; o resto fica junto.
+              const byRole = new Map<string, { role: CustomRole; list: any[] }>();
+              const rest: any[] = [];
+              participantsList.forEach((p: any) => {
+                const hoisted = (membersMeta[p.identity]?.roles || []).find(r => r.hoist);
+                if (hoisted) {
+                  if (!byRole.has(hoisted.id)) byRole.set(hoisted.id, { role: hoisted, list: [] });
+                  byRole.get(hoisted.id)!.list.push(p);
+                } else {
+                  rest.push(p);
+                }
+              });
+              const groups = Array.from(byRole.values()).sort((a, b) => b.role.position - a.role.position);
+
+              return (
+                <>
+                  {groups.map(g => (
+                    <div key={g.role.id} className="mb-3">
+                      <p
+                        className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[1.2px] mb-1.5 px-1"
+                        style={{ color: g.role.color !== '#99aab5' ? g.role.color : '#786e83' }}
+                      >
+                        <span className="w-2 h-2 rounded-full" style={{ background: g.role.color }} />
+                        {g.role.name} — {g.list.length}
+                      </p>
+                      {g.list.map(renderRow)}
+                    </div>
+                  ))}
+                  {rest.length > 0 && groups.length > 0 && (
+                    <p className="text-[10px] text-[#786e83] font-extrabold uppercase tracking-[1.2px] mb-1.5 px-1">
+                      Conectados — {rest.length}
+                    </p>
+                  )}
+                  {rest.map(renderRow)}
+                </>
+              );
+              })()}
 
               <button
                 onClick={handleInvite}
