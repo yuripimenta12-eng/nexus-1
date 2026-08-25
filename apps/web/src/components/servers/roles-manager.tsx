@@ -73,6 +73,12 @@ const PERM_GROUPS: PermGroup[] = [
       { key: 'set_voice_status', label: 'Definir status do canal de voz', desc: 'Permite criar e editar o status do canal de voz.' },
     ],
   },
+  {
+    title: 'Restrições (bloqueiam o membro)',
+    perms: [
+      { key: 'block_watch_streams', label: 'Bloqueio de Live stream', desc: 'IMPEDE o membro de assistir ou ouvir as transmissões de tela de outras pessoas. Use como punição.' },
+    ],
+  },
 ];
 
 const ADMIN_PERM: PermDef = {

@@ -140,7 +140,9 @@ export class ServersService {
         // mais alto — comportamento igual ao Discord.
         roleAssignments: {
           include: {
-            role: { select: { id: true, name: true, color: true, hoist: true, position: true } },
+            // permissions incluído para o cliente avaliar RESTRIÇÕES
+            // (ex.: block_watch_streams) do próprio usuário
+            role: { select: { id: true, name: true, color: true, hoist: true, position: true, permissions: true } },
           },
         },
       },

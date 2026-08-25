@@ -46,6 +46,8 @@ export const ALL_PERMISSIONS = [
   'deafen_members',
   'move_members',
   'set_voice_status',
+  // Restrições (permissões NEGATIVAS: ter a chave num cargo BLOQUEIA a ação)
+  'block_watch_streams',
   // Avançado
   'administrator',
 ] as const;

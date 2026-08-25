@@ -128,6 +128,10 @@ export default function VoicePage() {
   // Começa/para de assistir uma transmissão (e avisa a sala)
   const toggleWatch = (identity: string) => {
     const now = !watching.has(identity);
+    if (now && liveBlocked) {
+      notify('Seu cargo bloqueia assistir transmissões neste servidor');
+      return;
+    }
     setWatching(prev => {
       const next = new Set(prev);
       if (now) next.add(identity); else next.delete(identity);
@@ -179,6 +183,20 @@ export default function VoicePage() {
 
   const ROLE_RANK: Record<string, number> = { OWNER: 0, ADMIN: 1, MODERATOR: 2, MEMBER: 3 };
   const myRole = membersMeta[user?.id || '']?.role || 'MEMBER';
+  // Restrição: algum cargo meu carrega "Bloqueio de Live stream"?
+  const liveBlocked = (membersMeta[user?.id || '']?.roles || [])
+    .some((r: any) => typeof r.permissions === 'string' && r.permissions.includes('block_watch_streams'));
+
+  // Se o bloqueio chegar com uma live aberta, fecha tudo na hora
+  useEffect(() => {
+    if (liveBlocked && watching.size > 0) {
+      watching.forEach(id =>
+        getSocket().emit('voice:watch', { voiceRoomId: roomId, targetUserId: id, watching: false }));
+      setWatching(new Set());
+      setFocusedParticipant(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveBlocked]);
   const canModerate = myRole === 'OWNER' || myRole === 'ADMIN' || myRole === 'MODERATOR';
   const canModerateTarget = (identity: string) =>
     canModerate && identity !== user?.id &&
@@ -572,14 +590,28 @@ export default function VoicePage() {
                             <p className="text-white text-sm font-semibold">
                               {p.participant.name || p.identity} está transmitindo
                             </p>
-                            <span className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wide
-                                             bg-[#ed4245] group-hover:bg-[#c73438] rounded-xl px-4 py-2.5 transition-colors
-                                             shadow-[0_8px_24px_#ed424544]">
-                              <Play className="w-4 h-4 fill-current" /> Assistir transmissão
-                            </span>
-                            <span className="text-[#8a8095] text-[11px]">
-                              O vídeo e o áudio só carregam se você assistir
-                            </span>
+                            {liveBlocked ? (
+                              <>
+                                <span className="flex items-center gap-2 text-[#c9c2d2] text-xs font-black uppercase tracking-wide
+                                                 bg-[#3a3344] rounded-xl px-4 py-2.5 cursor-not-allowed">
+                                  🔒 Transmissão bloqueada
+                                </span>
+                                <span className="text-[#8a8095] text-[11px]">
+                                  Seu cargo impede assistir ou ouvir lives neste servidor
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wide
+                                                 bg-[#ed4245] group-hover:bg-[#c73438] rounded-xl px-4 py-2.5 transition-colors
+                                                 shadow-[0_8px_24px_#ed424544]">
+                                  <Play className="w-4 h-4 fill-current" /> Assistir transmissão
+                                </span>
+                                <span className="text-[#8a8095] text-[11px]">
+                                  O vídeo e o áudio só carregam se você assistir
+                                </span>
+                              </>
+                            )}
                           </div>
                         </button>
                       );
