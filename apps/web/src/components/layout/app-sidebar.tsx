@@ -23,7 +23,7 @@ export function AppSidebar() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthStore();
-  const { isConnected, roomName, localMicEnabled, toggleMic, disconnect, voiceRoomId } = useVoiceStore();
+  const { isConnected, roomName, localMicEnabled, toggleMic, disconnect, voiceRoomId, isDeafened, toggleDeafen } = useVoiceStore();
   const serverId = params?.serverId as string;
   const activeChannelId = params?.channelId as string;
   const activeRoomId = params?.roomId as string;
@@ -441,6 +441,18 @@ export function AppSidebar() {
               title={localMicEnabled ? 'Silenciar' : 'Ativar microfone'}
             >
               {localMicEnabled ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={toggleDeafen}
+              className={cn(
+                'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+                isDeafened
+                  ? 'text-destructive bg-destructive/10 hover:bg-destructive hover:text-white'
+                  : 'text-muted hover:text-white hover:bg-surface-raised',
+              )}
+              title={isDeafened ? 'Reativar áudio da chamada' : 'Silenciar tudo (não ouvir ninguém)'}
+            >
+              <Headphones className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => router.push('/app/me/settings')}
