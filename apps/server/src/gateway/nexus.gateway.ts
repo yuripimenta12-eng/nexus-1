@@ -362,6 +362,24 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     }
   }
 
+  // ── Voz: começou/parou de transmitir a tela ───────────────────
+  // Sinaliza a mudança para as sidebars (que refazem o fetch da presença,
+  // onde o backend lê do LiveKit quem está com SCREEN_SHARE publicado).
+  @SubscribeMessage('voice:live')
+  async handleVoiceLive(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { voiceRoomId: string; serverId?: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data.serverId) return;
+    this.server.to(`server:${data.serverId}`).emit('voice:presence', {
+      serverId: data.serverId,
+      voiceRoomId: data.voiceRoomId,
+      userId,
+      action: 'live',
+    });
+  }
+
   // ── Voz: chat efêmero da sala (não persiste no banco) ─────────
   @SubscribeMessage('voice:chat')
   async handleVoiceChat(

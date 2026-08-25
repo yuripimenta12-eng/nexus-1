@@ -13,7 +13,7 @@ import { Avatar } from '@/components/ui/avatar';
 
 interface Channel { id: string; name: string; type: string; }
 interface VoiceRoom { id: string; name: string; }
-interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; }
+interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; live?: boolean; }
 interface Server { id: string; name: string; iconUrl: string | null; channels: Channel[]; voiceRooms: VoiceRoom[]; }
 
 export function AppSidebar() {
@@ -183,6 +183,12 @@ export function AppSidebar() {
                         )}>
                           {u.displayName}
                         </span>
+                        {u.live && (
+                          <span className="ml-auto shrink-0 text-[8px] font-black uppercase tracking-wide
+                                           text-white bg-[#ed4245] rounded px-1 py-[1px] shadow-[0_0_8px_#ed424566]">
+                            Live
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -158,9 +158,15 @@ export class VoiceService {
       rooms.map(async (room) => {
         try {
           const participants = await this.roomService.listParticipants(room.livekitRoom);
-          return { roomId: room.id, identities: participants.map(p => p.identity) };
+          // "live" = está transmitindo a tela (track SCREEN_SHARE publicada)
+          const sharing = new Set(
+            participants
+              .filter(p => p.tracks?.some(t => t.source === TrackSource.SCREEN_SHARE))
+              .map(p => p.identity),
+          );
+          return { roomId: room.id, identities: participants.map(p => p.identity), sharing };
         } catch {
-          return { roomId: room.id, identities: [] as string[] };
+          return { roomId: room.id, identities: [] as string[], sharing: new Set<string>() };
         }
       }),
     );
@@ -174,8 +180,8 @@ export class VoiceService {
       : [];
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null }[]> = {};
-    for (const { roomId, identities } of roomParticipants) {
+    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null; live: boolean }[]> = {};
+    for (const { roomId, identities, sharing } of roomParticipants) {
       presence[roomId] = identities
         .map(id => userMap.get(id))
         .filter((u): u is NonNullable<typeof u> => u != null)
@@ -184,6 +190,7 @@ export class VoiceService {
           username: u.username,
           displayName: u.profile?.displayName || u.username,
           avatarUrl: u.profile?.avatarUrl ?? null,
+          live: sharing.has(u.id),
         }));
     }
     return presence;

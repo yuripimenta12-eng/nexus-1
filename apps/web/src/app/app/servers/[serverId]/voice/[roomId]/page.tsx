@@ -184,6 +184,8 @@ export default function VoicePage() {
       // Sem "perguntar antes", usa a qualidade padrão das configurações
       await startScreenShare(askScreenQuality ? screenQuality : undefined);
     }
+    // Avisa as sidebars do servidor para atualizarem o selo LIVE na hora
+    getSocket().emit('voice:live', { voiceRoomId: roomId, serverId });
   };
 
   const handleInvite = async () => {
@@ -237,9 +239,12 @@ export default function VoicePage() {
 
   const participantsList = Array.from(participants.values());
   const screenSharers = participantsList.filter(p => p.screenSharing);
+  // A live só vira tela cheia quando o usuário CLICA nela (estilo Discord).
+  // Sem foco, todas as lives aparecem juntas numa grade — visíveis e
+  // audíveis para todo mundo, sem precisar clicar em nada.
   const primaryScreenSharer = focusedParticipant
     ? participantsList.find(p => p.identity === focusedParticipant && p.screenSharing)
-    : screenSharers[0];
+    : undefined;
 
   if (isConnecting || isJoining) {
     return (
@@ -328,20 +333,34 @@ export default function VoicePage() {
 
           {/* Área principal */}
           {primaryScreenSharer ? (
+            /* ── Live em tela cheia (o usuário clicou para expandir) ── */
             <div className="flex-1 relative bg-black overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="absolute inset-0 flex items-center justify-center cursor-zoom-out"
+                onClick={() => setFocusedParticipant(null)}
+                title="Clique para voltar à grade"
+              >
                 <VideoTrackRenderer
                   participant={primaryScreenSharer.participant}
                   source={Track.Source.ScreenShare}
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
-              <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white text-xs bg-[#09070d]/75 backdrop-blur px-2.5 py-1.5 rounded-lg font-semibold">
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white text-xs bg-[#09070d]/75 backdrop-blur px-2.5 py-1.5 rounded-lg font-semibold pointer-events-none">
+                <LiveBadge />
                 <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                 {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
               </div>
+              <button
+                onClick={() => setFocusedParticipant(null)}
+                className="absolute top-3 left-3 flex items-center gap-1.5 text-white text-xs font-bold
+                           bg-[#09070d]/75 backdrop-blur px-3 py-1.5 rounded-lg hover:bg-[#1c1128] transition-colors"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+                {screenSharers.length > 1 ? `Todas as lives (${screenSharers.length})` : 'Voltar à grade'}
+              </button>
 
-              {/* Outros screen shares */}
+              {/* Outras lives */}
               {screenSharers.length > 1 && (
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   {screenSharers
@@ -357,6 +376,7 @@ export default function VoicePage() {
                           source={Track.Source.ScreenShare}
                           className="w-full h-full object-cover"
                         />
+                        <span className="absolute top-1 right-1"><LiveBadge small /></span>
                         <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
                           {p.participant.name || p.identity}
                         </div>
@@ -380,6 +400,83 @@ export default function VoicePage() {
                       source={Track.Source.Camera}
                       className="w-full h-full object-cover"
                     />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : screenSharers.length > 0 ? (
+            /* ── Grade de lives: todas visíveis ao mesmo tempo ── */
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-auto p-[14px]">
+                <div className={cn(
+                  'grid gap-3 h-full content-stretch',
+                  screenSharers.length === 1 && 'grid-cols-1',
+                  screenSharers.length === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  screenSharers.length >= 3 && screenSharers.length <= 4 && 'grid-cols-1 sm:grid-cols-2',
+                  screenSharers.length > 4 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+                )}>
+                  {screenSharers.map(p => (
+                    <button
+                      key={p.identity}
+                      onClick={() => setFocusedParticipant(p.identity)}
+                      title="Clique para expandir"
+                      className={cn(
+                        'group relative rounded-2xl overflow-hidden bg-black border-2 text-left min-h-[180px]',
+                        'border-[var(--th-line-2)] hover:border-[#ed4245] transition-colors',
+                        p.isSpeaking && 'border-[#8f42ff]',
+                      )}
+                    >
+                      <VideoTrackRenderer
+                        participant={p.participant}
+                        source={Track.Source.ScreenShare}
+                        className="absolute inset-0 w-full h-full object-contain"
+                      />
+                      <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
+                      <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 text-white text-xs
+                                      bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
+                        <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
+                        {p.participant.name || p.identity}
+                      </div>
+                      <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">
+                          <Maximize2 className="w-3.5 h-3.5" /> Expandir
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Faixa de participantes (câmeras/avatares) */}
+              <div className="shrink-0 flex gap-2 px-[14px] pb-3 overflow-x-auto">
+                {participantsList.map(p => (
+                  <div
+                    key={p.identity}
+                    className={cn(
+                      'relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2',
+                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
+                    )}
+                  >
+                    {p.camEnabled ? (
+                      <VideoTrackRenderer
+                        participant={p.participant}
+                        source={Track.Source.Camera}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center">
+                        <div
+                          className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white"
+                          style={{ background: `linear-gradient(145deg, ${gradientFor(p.identity)[0]}, ${gradientFor(p.identity)[1]})` }}
+                        >
+                          {getInitials(p.participant.name || p.identity)}
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute bottom-1 left-1 flex items-center gap-1 text-white text-[9px] bg-black/60 px-1 rounded max-w-[90%]">
+                      <span className="truncate">{p.participant.name || p.identity}</span>
+                      {p.screenSharing && <LiveBadge tiny />}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -561,6 +658,7 @@ export default function VoicePage() {
                               {role === 'OWNER' ? '👑' : role === 'ADMIN' ? '🛡️' : '⚖️'}
                             </span>
                           )}
+                          {p.screenSharing && <span className="ml-1.5 align-middle"><LiveBadge small /></span>}
                         </b>
                         <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
                           {serverMuted ? 'Silenciado no servidor'
@@ -970,7 +1068,8 @@ function VoiceAudioPanel() {
               <input
                 type="range"
                 min={0}
-                max={100}
+                max={200}
+                step={5}
                 value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
                 disabled={p.isMutedLocally}
                 onChange={(e) => setParticipantVolume(p.identity, Number(e.target.value))}
@@ -984,6 +1083,19 @@ function VoiceAudioPanel() {
         );
       })}
     </div>
+  );
+}
+
+// ── Selo LIVE (transmitindo a tela) ──────────────────────────────
+function LiveBadge({ small, tiny }: { small?: boolean; tiny?: boolean }) {
+  return (
+    <span className={cn(
+      'inline-flex items-center font-black uppercase tracking-wide text-white bg-[#ed4245] rounded',
+      'shadow-[0_0_10px_#ed424588]',
+      tiny ? 'text-[7px] px-1 py-0' : small ? 'text-[8px] px-1 py-[1px]' : 'text-[10px] px-1.5 py-0.5',
+    )}>
+      Live
+    </span>
   );
 }
 
@@ -1161,7 +1273,12 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
         ) : (
           <MicOff className="w-3 h-3 text-[#ff6b7f]" />
         )}
-        {voiceParticipant.screenSharing && <Monitor className="w-3 h-3 text-[#c887ff]" />}
+        {voiceParticipant.screenSharing && (
+          <span className="flex items-center gap-1">
+            <Monitor className="w-3 h-3 text-[#c887ff]" />
+            <LiveBadge tiny />
+          </span>
+        )}
       </div>
 
       {/* Qualidade de rede */}
