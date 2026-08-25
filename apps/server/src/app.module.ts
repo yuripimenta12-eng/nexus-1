@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
 import { PresenceModule } from './presence/presence.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { RolesModule } from './roles/roles.module';
 import { DmsModule } from './dms/dms.module';
 import { HealthController } from './health.controller';
 
@@ -38,6 +39,7 @@ import { HealthController } from './health.controller';
     PresenceModule,
     GatewayModule,
     DmsModule,
+    RolesModule,
   ],
   controllers: [HealthController],
   providers: [

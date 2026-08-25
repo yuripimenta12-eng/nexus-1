@@ -10,6 +10,52 @@ import {
 import { cn, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
+import { RolesManager } from '@/components/servers/roles-manager';
+
+/* ── Seções das configurações (referência Discord, sem os itens
+      marcados em vermelho pelo usuário) ─────────────────────── */
+const SECTION_GROUPS: { title?: string; items: { key: string; label: string; danger?: boolean }[] }[] = [
+  {
+    items: [
+      { key: 'profile', label: 'Perfil do servidor' },
+    ],
+  },
+  {
+    title: 'Expressões',
+    items: [
+      { key: 'emoji', label: 'Emoji' },
+      { key: 'stickers', label: 'Figurinhas' },
+    ],
+  },
+  {
+    title: 'Pessoas',
+    items: [
+      { key: 'members', label: 'Membros' },
+      { key: 'roles', label: 'Cargos' },
+      { key: 'invites', label: 'Convites' },
+      { key: 'access', label: 'Acesso' },
+    ],
+  },
+  {
+    title: 'Apps',
+    items: [
+      { key: 'integrations', label: 'Integrações' },
+    ],
+  },
+  {
+    title: 'Moderação',
+    items: [
+      { key: 'security', label: 'Configurações de Segurança' },
+      { key: 'bans', label: 'Banimentos' },
+    ],
+  },
+  {
+    items: [
+      { key: 'template', label: 'Modelo do servidor' },
+      { key: 'danger', label: 'Excluir servidor', danger: true },
+    ],
+  },
+];
 
 /* ── Tipos ─────────────────────────────────────── */
 type MemberRole = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
@@ -68,6 +114,7 @@ export default function ServerSettingsPage() {
   const serverId = params.serverId as string;
   const { user } = useAuthStore();
 
+  const [section, setSection] = useState('members');
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -173,7 +220,7 @@ export default function ServerSettingsPage() {
         <div className="flex items-center gap-3">
           <div>
             <p className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Administração</p>
-            <h1 className="text-xl font-bold mt-0.5">Membros e cargos</h1>
+            <h1 className="text-xl font-bold mt-0.5">Configurações do servidor</h1>
             <p className="text-[#92879f] text-xs mt-1">
               Controle quem participa e o que cada pessoa pode fazer na sua comunidade.
             </p>
@@ -201,39 +248,49 @@ export default function ServerSettingsPage() {
         </div>
       </div>
 
-      <div className="p-7 max-w-4xl space-y-8">
-        {/* ── Cargos do Nexus ───────────────────────────────── */}
-        <section>
-          <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px] mb-3">
-            Cargos do servidor
-          </p>
-          <div className="grid sm:grid-cols-2 gap-2.5">
-            {ROLE_ORDER.map(r => {
-              const meta = ROLE_META[r];
-              const Icon = meta.icon;
-              const count = members.filter(m => m.role === r).length;
-              return (
-                <div key={r} className="flex items-start gap-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
-                  <span className={cn(
-                    'w-10 h-10 rounded-xl grid place-items-center shrink-0',
-                    r === 'OWNER' ? 'bg-gradient-to-br from-orange to-accent text-white' : 'bg-[var(--th-panel-2)] text-[#8c5dcc]',
-                  )}>
-                    <Icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <b className="text-sm">{meta.label}</b>
-                      <span className="text-[10px] text-[#92879f]">{count} membro{count !== 1 ? 's' : ''}</span>
-                    </div>
-                    <p className="text-xs text-[#92879f] mt-0.5 leading-relaxed">{meta.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+      <div className="p-7 flex gap-8 max-w-6xl">
+        {/* ── Navegação das seções ─────────────────────────── */}
+        <nav className="w-52 shrink-0 space-y-4 sticky top-28 self-start">
+          {SECTION_GROUPS.map(g => (
+            <div key={g.title || 'root'}>
+              {g.title && (
+                <p className="px-2 mb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#786e83]">{g.title}</p>
+              )}
+              <div className="space-y-0.5">
+                {g.items.map(it => (
+                  <button
+                    key={it.key}
+                    onClick={() => setSection(it.key)}
+                    className={cn(
+                      'w-full text-left px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                      it.danger
+                        ? 'text-[#ff5872] hover:bg-[#ff587215]'
+                        : section === it.key
+                          ? 'bg-white/10 text-white'
+                          : 'text-[#a99cb8] hover:bg-white/5 hover:text-white',
+                    )}
+                  >
+                    {it.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
 
-        {/* ── Membros ───────────────────────────────────────── */}
+        {/* ── Conteúdo da seção ─────────────────────────────── */}
+        <div className="flex-1 min-w-0">
+        {section === 'profile' && <ProfileSection serverId={serverId} notify={notify} />}
+        {section === 'roles' && <RolesManager serverId={serverId} notify={notify} />}
+        {section === 'invites' && <InvitesSection serverId={serverId} notify={notify} />}
+        {section === 'access' && <AccessSection serverId={serverId} notify={notify} />}
+        {section === 'bans' && <BansSection serverId={serverId} notify={notify} />}
+        {section === 'danger' && <DangerSection serverId={serverId} notify={notify} />}
+        {['emoji', 'stickers', 'integrations', 'security', 'template'].includes(section) && (
+          <ComingSoon section={section} />
+        )}
+
+        {section === 'members' && (
         <section>
           <div className="flex items-center gap-3 mb-3">
             <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px]">
@@ -369,6 +426,8 @@ export default function ServerSettingsPage() {
             </p>
           )}
         </section>
+        )}
+        </div>
       </div>
 
       {/* Modal de confirmação */}
@@ -424,6 +483,330 @@ export default function ServerSettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══ Seções ══════════════════════════════════════════════════════ */
+
+function ProfileSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [tag, setTag] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get(`/servers/${serverId}`).then(({ data }) => {
+      setName(data.name || '');
+      setDescription(data.description || '');
+      setTag(data.tag || '');
+    }).catch(() => notify('Erro ao carregar o servidor')).finally(() => setLoading(false));
+  }, [serverId, notify]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/servers/${serverId}`, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        tag: tag.trim() || undefined,
+      });
+      notify('Perfil do servidor salvo!');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-accent animate-spin" /></div>;
+
+  return (
+    <div className="space-y-5 max-w-xl">
+      <div>
+        <h2 className="text-xl font-bold text-white">Perfil do servidor</h2>
+        <p className="text-[#92879f] text-sm mt-1">Nome, descrição e tag que aparecem para os membros.</p>
+      </div>
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Nome do servidor</label>
+        <input value={name} onChange={e => setName(e.target.value)} maxLength={100} className="nexus-input w-full" />
+      </div>
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Descrição</label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)} maxLength={500} rows={3}
+          className="nexus-input w-full resize-none" placeholder="Sobre o que é a sua comunidade?" />
+      </div>
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Tag do servidor</label>
+        <input value={tag} onChange={e => setTag(e.target.value)} maxLength={32} className="nexus-input w-full"
+          placeholder="Ex.: NEXUS" />
+        <p className="text-[#92879f] text-xs mt-1.5">Uma etiqueta curta que identifica o servidor.</p>
+      </div>
+      <button onClick={save} disabled={saving || name.trim().length < 2}
+        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white
+                   bg-accent hover:bg-accent-hover disabled:opacity-50 active:scale-95 transition-all">
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />} Salvar
+      </button>
+    </div>
+  );
+}
+
+function InvitesSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [invites, setInvites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    api.get(`/invites/servers/${serverId}`)
+      .then(({ data }) => setInvites(data))
+      .catch(() => notify('Sem permissão para ver convites'))
+      .finally(() => setLoading(false));
+  }, [serverId, notify]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    try {
+      const { data } = await api.post(`/invites/servers/${serverId}`, { expiresInHours: 168 });
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/${data.code}`);
+      notify('Convite criado e copiado!');
+      load();
+    } catch {
+      notify('Sem permissão para criar convites');
+    }
+  };
+
+  const revoke = async (code: string) => {
+    try {
+      await api.delete(`/invites/${code}`);
+      notify('Convite revogado');
+      load();
+    } catch {
+      notify('Sem permissão');
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="flex items-center gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-white">Convites</h2>
+          <p className="text-[#92879f] text-sm mt-1">Links ativos para entrar no servidor.</p>
+        </div>
+        <button onClick={create}
+          className="ml-auto flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-extrabold text-white
+                     bg-accent hover:bg-accent-hover active:scale-95 transition-all">
+          <UserPlus className="w-4 h-4" /> Criar convite
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)] overflow-hidden">
+        {loading && <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-accent animate-spin" /></div>}
+        {!loading && invites.length === 0 && (
+          <p className="text-[#92879f] text-sm text-center py-8">Nenhum convite ativo.</p>
+        )}
+        {invites.map(inv => (
+          <div key={inv.code} className="flex items-center gap-3 px-4 py-3">
+            <code className="text-accent text-sm font-bold">{inv.code}</code>
+            <span className="text-[#92879f] text-xs">
+              {inv.uses ?? 0} uso{(inv.uses ?? 0) !== 1 ? 's' : ''}
+              {inv.expiresAt ? ` · expira ${new Date(inv.expiresAt).toLocaleDateString('pt-BR')}` : ' · permanente'}
+            </span>
+            <button
+              onClick={async () => { await navigator.clipboard.writeText(`${window.location.origin}/invite/${inv.code}`); notify('Link copiado!'); }}
+              className="ml-auto w-8 h-8 rounded-lg grid place-items-center text-[#92879f] hover:text-white hover:bg-white/5 transition-colors"
+              title="Copiar link"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => revoke(inv.code)}
+              className="w-8 h-8 rounded-lg grid place-items-center text-[#92879f] hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Revogar convite"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AccessSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [isPublic, setIsPublic] = useState(false);
+  const [maxMembers, setMaxMembers] = useState(100);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get(`/servers/${serverId}`).then(({ data }) => {
+      setIsPublic(!!data.isPublic);
+      setMaxMembers(data.maxMembers ?? 100);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [serverId]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/servers/${serverId}`, { isPublic, maxMembers });
+      notify('Acesso atualizado!');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-accent animate-spin" /></div>;
+
+  return (
+    <div className="space-y-5 max-w-xl">
+      <div>
+        <h2 className="text-xl font-bold text-white">Acesso</h2>
+        <p className="text-[#92879f] text-sm mt-1">Quem pode encontrar e entrar no servidor.</p>
+      </div>
+      <div className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
+        <div>
+          <p className="text-white text-sm font-medium">Servidor público</p>
+          <p className="text-[#92879f] text-xs mt-0.5">Público: qualquer pessoa pode encontrar. Privado: entra só com convite.</p>
+        </div>
+        <button role="switch" aria-checked={isPublic} onClick={() => setIsPublic(v => !v)}
+          className={cn('relative w-10 h-6 rounded-full transition-colors shrink-0', isPublic ? 'bg-success' : 'bg-[#4a4356]')}>
+          <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', isPublic ? 'left-[18px]' : 'left-0.5')} />
+        </button>
+      </div>
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Máximo de membros</label>
+        <input type="number" min={2} max={500} value={maxMembers}
+          onChange={e => setMaxMembers(Number(e.target.value))} className="nexus-input w-40" />
+      </div>
+      <button onClick={save} disabled={saving}
+        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white
+                   bg-accent hover:bg-accent-hover disabled:opacity-50 active:scale-95 transition-all">
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />} Salvar
+      </button>
+    </div>
+  );
+}
+
+function BansSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [bans, setBans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    api.get(`/servers/${serverId}/bans`)
+      .then(({ data }) => setBans(data))
+      .catch(() => notify('Sem permissão para ver banimentos'))
+      .finally(() => setLoading(false));
+  }, [serverId, notify]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const unban = async (userId: string) => {
+    try {
+      await api.delete(`/moderation/servers/${serverId}/ban/${userId}`);
+      notify('Banimento removido');
+      load();
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div>
+        <h2 className="text-xl font-bold text-white">Banimentos</h2>
+        <p className="text-[#92879f] text-sm mt-1">Pessoas banidas não conseguem entrar, mesmo com convite.</p>
+      </div>
+      <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)] overflow-hidden">
+        {loading && <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-accent animate-spin" /></div>}
+        {!loading && bans.length === 0 && (
+          <p className="text-[#92879f] text-sm text-center py-8">Nenhum banimento.</p>
+        )}
+        {bans.map(b => {
+          const [c1, c2] = gradientFor(b.userId);
+          const name = b.user?.profile?.displayName || b.user?.username || b.userId;
+          return (
+            <div key={b.userId} className="flex items-center gap-3 px-4 py-3">
+              <span className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
+                style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}>
+                {getInitials(name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <b className="text-white text-sm block truncate">{name}</b>
+                <small className="text-[#92879f] text-xs">
+                  {b.bannedAt ? `banido em ${new Date(b.bannedAt).toLocaleDateString('pt-BR')}` : ''}
+                  {b.bannedReason ? ` · ${b.bannedReason}` : ''}
+                </small>
+              </div>
+              <button onClick={() => unban(b.userId)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-[#a99cb8] hover:text-white
+                           bg-[var(--th-panel-2)] border border-[var(--th-line-2)] hover:border-accent transition-colors">
+                Remover banimento
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DangerSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const router = useRouter();
+  const [confirmText, setConfirmText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const destroy = async () => {
+    setBusy(true);
+    try {
+      await api.delete(`/servers/${serverId}`);
+      router.push('/app');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Só o dono pode excluir o servidor');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <div>
+        <h2 className="text-xl font-bold text-white">Excluir servidor</h2>
+        <p className="text-[#92879f] text-sm mt-1">
+          Isto apaga canais, mensagens, cargos e membros. <b className="text-destructive">Não tem volta.</b>
+        </p>
+      </div>
+      <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+        <p className="text-[#cfc5d8] text-sm">Digite <b className="text-white">EXCLUIR</b> para confirmar:</p>
+        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} className="nexus-input w-48" placeholder="EXCLUIR" />
+        <div>
+          <button
+            onClick={destroy}
+            disabled={confirmText !== 'EXCLUIR' || busy}
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white
+                       bg-destructive hover:bg-red-600 disabled:opacity-40 active:scale-95 transition-all"
+          >
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />} Excluir servidor permanentemente
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComingSoon({ section }: { section: string }) {
+  const titles: Record<string, string> = {
+    emoji: 'Emoji', stickers: 'Figurinhas', integrations: 'Integrações',
+    security: 'Configurações de Segurança', template: 'Modelo do servidor',
+  };
+  return (
+    <div className="max-w-xl">
+      <h2 className="text-xl font-bold text-white">{titles[section] || section}</h2>
+      <div className="mt-4 rounded-2xl border border-dashed border-[var(--th-line-2)] bg-[var(--th-panel)] p-10 text-center">
+        <p className="text-[#a99cb8] text-sm font-medium">Em breve ✨</p>
+        <p className="text-[#5c5468] text-xs mt-1">Esta seção está em desenvolvimento.</p>
+      </div>
     </div>
   );
 }

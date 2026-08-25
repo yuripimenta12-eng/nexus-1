@@ -106,6 +106,7 @@ model Server {
   id          String   @id @default(cuid())
   name        String
   description String?  @db.VarChar(500)
+  tag         String?  @db.VarChar(32)
   iconUrl     String?
   bannerUrl   String?
   isPublic    Boolean  @default(false)
@@ -120,9 +121,44 @@ model Server {
   invites    Invite[]
   reports    Report[]       @relation("ServerReports")
   auditLogs  AuditLog[]
+  roles      Role[]
 
   @@index([ownerId])
   @@map("servers")
+}
+
+// ── Cargos personalizados (estilo Discord) ──────────────────────
+// isDefault = cargo @everyone: permissões base de todos os membros.
+// permissions = JSON array de chaves (ver PERMISSIONS no código).
+model Role {
+  id          String   @id @default(cuid())
+  serverId    String
+  name        String   @db.VarChar(64)
+  color       String   @default("#99aab5") @db.VarChar(16)
+  hoist       Boolean  @default(false) // exibir membros separadamente
+  mentionable Boolean  @default(false) // qualquer um pode @mencionar
+  permissions String   @default("[]")  @db.VarChar(4000)
+  position    Int      @default(0)     // maior = mais alto na hierarquia
+  isDefault   Boolean  @default(false) // cargo @everyone (não deletável)
+  createdAt   DateTime @default(now())
+
+  server      Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  assignments RoleAssignment[]
+
+  @@index([serverId])
+  @@map("roles")
+}
+
+model RoleAssignment {
+  roleId   String
+  memberId String
+
+  role   Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  member ServerMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, memberId])
+  @@index([memberId])
+  @@map("role_assignments")
 }
 
 model ServerMember {
@@ -139,6 +175,7 @@ model ServerMember {
 
   server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleAssignments RoleAssignment[]
 
   @@unique([serverId, userId])
   @@index([serverId])

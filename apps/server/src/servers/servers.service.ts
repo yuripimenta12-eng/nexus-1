@@ -77,8 +77,36 @@ export class ServersService {
       data: {
         name: dto.name,
         description: dto.description,
+        tag: dto.tag,
+        isPublic: dto.isPublic,
         maxMembers: dto.maxMembers,
       },
+    });
+  }
+
+  // ── Apelido próprio no servidor ("Editar perfil por servidor") ─
+  async setMyNickname(serverId: string, userId: string, nickname: string | null) {
+    const member = await this.checkMembership(serverId, userId);
+    if (!member) throw new ForbiddenException('Você não é membro deste servidor');
+    return this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId } },
+      data: { nickname: nickname ? nickname.slice(0, 64) : null },
+      select: { nickname: true },
+    });
+  }
+
+  // ── Lista de banidos (para o painel Banimentos) ───────────────
+  async getBans(serverId: string, userId: string) {
+    await this.requireRole(serverId, userId, [MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR]);
+    return this.prisma.serverMember.findMany({
+      where: { serverId, banned: true },
+      select: {
+        userId: true,
+        bannedAt: true,
+        bannedReason: true,
+        user: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } } },
+      },
+      orderBy: { bannedAt: 'desc' },
     });
   }
 

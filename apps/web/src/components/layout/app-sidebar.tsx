@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2 } from 'lucide-react';
+import {
+  Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
+  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -31,6 +34,10 @@ export function AppSidebar() {
   const [newChannelName, setNewChannelName] = useState('');
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [voicePresence, setVoicePresence] = useState<Record<string, PresenceUser[]>>({});
+  const [serverMenuOpen, setServerMenuOpen] = useState(false);
+  const [menuToast, setMenuToast] = useState<string | null>(null);
+  const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState('');
 
   useEffect(() => {
     if (!serverId) return;
@@ -98,18 +105,145 @@ export function AppSidebar() {
 
   return (
     <div className="w-60 flex flex-col bg-[var(--th-side)] border-r border-[var(--th-line)] h-full shrink-0 relative">
-      {/* Header do servidor */}
+      {/* Header do servidor (abre o menu) */}
       <button
-        onClick={() => router.push(`/app/servers/${serverId}/settings`)}
-        title="Membros e cargos"
+        onClick={() => setServerMenuOpen(v => !v)}
+        title="Opções do servidor"
         className="flex flex-col items-start gap-0.5 px-4 py-4 border-b border-[var(--th-line)]
                          hover:bg-surface-raised transition-colors text-left">
         <span className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Espaço conectado</span>
         <span className="flex items-center gap-1 w-full text-white font-bold text-base">
           <span className="truncate">{server.name}</span>
-          <ChevronDown className="w-4 h-4 shrink-0 text-muted" />
+          <ChevronDown className={cn('w-4 h-4 shrink-0 text-muted transition-transform', serverMenuOpen && 'rotate-180')} />
         </span>
       </button>
+
+      {/* Menu do servidor */}
+      <AnimatePresence>
+        {serverMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setServerMenuOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="absolute left-2 right-2 top-[68px] z-50 rounded-xl border border-[var(--th-line-2)]
+                         bg-[var(--th-panel)] shadow-2xl p-1.5 space-y-0.5"
+            >
+              <ServerMenuItem
+                icon={<UserPlus className="w-4 h-4" />}
+                label="Convidar para o servidor"
+                onClick={async () => {
+                  setServerMenuOpen(false);
+                  try {
+                    const { data } = await api.post(`/invites/servers/${serverId}`, { expiresInHours: 168 });
+                    await navigator.clipboard.writeText(`${window.location.origin}/invite/${data.code}`);
+                    setMenuToast('Link de convite copiado!');
+                  } catch {
+                    setMenuToast('Sem permissão para criar convites');
+                  }
+                  setTimeout(() => setMenuToast(null), 2500);
+                }}
+              />
+              <ServerMenuItem
+                icon={<Settings className="w-4 h-4" />}
+                label="Config. do servidor"
+                onClick={() => { setServerMenuOpen(false); router.push(`/app/servers/${serverId}/settings`); }}
+              />
+              <div className="h-px bg-[var(--th-line)] mx-2 my-1" />
+              <ServerMenuItem
+                icon={<Bell className="w-4 h-4" />}
+                label="Config. de notificação"
+                onClick={() => { setServerMenuOpen(false); router.push('/app/me/settings?tab=notifications'); }}
+              />
+              <ServerMenuItem
+                icon={<ShieldCheck className="w-4 h-4" />}
+                label="Config. de privacidade"
+                onClick={() => { setServerMenuOpen(false); router.push('/app/me/settings?tab=privacy'); }}
+              />
+              <div className="h-px bg-[var(--th-line)] mx-2 my-1" />
+              <ServerMenuItem
+                icon={<Pencil className="w-4 h-4" />}
+                label="Editar perfil por servidor"
+                onClick={() => { setServerMenuOpen(false); setNicknameOpen(true); }}
+              />
+              <div className="h-px bg-[var(--th-line)] mx-2 my-1" />
+              <ServerMenuItem
+                icon={<LogOut className="w-4 h-4" />}
+                label="Sair do servidor"
+                danger
+                onClick={async () => {
+                  setServerMenuOpen(false);
+                  if (!window.confirm(`Sair do servidor "${server.name}"?`)) return;
+                  try {
+                    await api.delete(`/servers/${serverId}/leave`);
+                    router.push('/app');
+                  } catch (e: any) {
+                    setMenuToast(e?.response?.data?.message || 'Não foi possível sair');
+                    setTimeout(() => setMenuToast(null), 3000);
+                  }
+                }}
+              />
+              <ServerMenuItem
+                icon={<Copy className="w-4 h-4" />}
+                label="Copiar ID do servidor"
+                onClick={async () => {
+                  setServerMenuOpen(false);
+                  await navigator.clipboard.writeText(serverId).catch(() => {});
+                  setMenuToast('ID copiado!');
+                  setTimeout(() => setMenuToast(null), 2000);
+                }}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Toast do menu */}
+      {menuToast && (
+        <div className="absolute top-[74px] left-2 right-2 z-50 rounded-lg bg-[var(--th-panel-2)] border border-[var(--th-line-2)]
+                        text-white text-xs px-3 py-2 text-center shadow-xl">
+          {menuToast}
+        </div>
+      )}
+
+      {/* Modal: apelido neste servidor */}
+      {nicknameOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center" onClick={() => setNicknameOpen(false)}>
+          <div className="bg-surface border border-border rounded-xl p-5 w-72 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold text-sm mb-1">Perfil neste servidor</h3>
+            <p className="text-muted text-xs mb-3">Como você aparece em "{server.name}".</p>
+            <input
+              value={nicknameDraft}
+              onChange={e => setNicknameDraft(e.target.value)}
+              maxLength={64}
+              placeholder={user?.profile?.displayName || user?.username || 'Apelido'}
+              className="nexus-input w-full mb-3"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setNicknameOpen(false)} className="px-3 py-1.5 rounded-lg text-muted hover:text-white text-xs">
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api.patch(`/servers/${serverId}/members/me`, { nickname: nicknameDraft.trim() || null });
+                    setMenuToast('Apelido atualizado!');
+                  } catch {
+                    setMenuToast('Erro ao salvar apelido');
+                  }
+                  setNicknameOpen(false);
+                  setTimeout(() => setMenuToast(null), 2500);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Canais */}
       <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
@@ -298,6 +432,25 @@ export function AppSidebar() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ServerMenuItem({ icon, label, onClick, danger }: {
+  icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors text-left',
+        danger
+          ? 'text-[#ff5872] hover:bg-[#ff587218]'
+          : 'text-[#cfc5d8] hover:bg-white/5 hover:text-white',
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

@@ -43,4 +43,18 @@ export class ServersController {
   getMembers(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.serversService.getMembers(id, userId);
   }
+
+  @Patch(':id/members/me')
+  setMyNickname(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { nickname?: string | null },
+  ) {
+    return this.serversService.setMyNickname(id, userId, body?.nickname ?? null);
+  }
+
+  @Get(':id/bans')
+  getBans(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.serversService.getBans(id, userId);
+  }
 }

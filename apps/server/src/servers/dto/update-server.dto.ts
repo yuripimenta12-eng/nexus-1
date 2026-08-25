@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max, IsBoolean } from 'class-validator';
 
 export class UpdateServerDto {
   @IsOptional()
@@ -11,6 +11,15 @@ export class UpdateServerDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  tag?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 
   @IsOptional()
   @IsInt()
