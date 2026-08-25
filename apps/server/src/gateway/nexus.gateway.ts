@@ -380,6 +380,23 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     });
   }
 
+  // ── Voz: começar/parar de ASSISTIR a transmissão de alguém ────
+  // Relay simples para a sala: cada cliente agrega quem assiste o quê,
+  // e o transmissor exibe a própria audiência.
+  @SubscribeMessage('voice:watch')
+  async handleVoiceWatch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { voiceRoomId: string; targetUserId: string; watching: boolean },
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data.voiceRoomId || !data.targetUserId) return;
+    this.server.to(`voice:${data.voiceRoomId}`).emit('voice:watch', {
+      userId,                       // quem está assistindo (ou parou)
+      targetUserId: data.targetUserId, // de quem é a transmissão
+      watching: !!data.watching,
+    });
+  }
+
   // ── Voz: chat efêmero da sala (não persiste no banco) ─────────
   @SubscribeMessage('voice:chat')
   async handleVoiceChat(

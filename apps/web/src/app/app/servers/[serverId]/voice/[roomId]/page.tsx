@@ -9,6 +9,7 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
+  Eye, EyeOff, Play,
 } from 'lucide-react';
 import {
   Track,
@@ -70,6 +71,10 @@ export default function VoicePage() {
     () => useMediaStore.getState().screenQuality,
   );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
+  // Assistir é opt-in: transmissões que EU escolhi assistir
+  const [watching, setWatching] = useState<Set<string>>(new Set());
+  // Audiência de cada transmissor: streamerId -> ids de quem assiste
+  const [watchers, setWatchers] = useState<Record<string, string[]>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
@@ -94,8 +99,54 @@ export default function VoicePage() {
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     };
     socket.on('voice:chat', onChat);
-    return () => { socket.off('voice:chat', onChat); };
+
+    // Audiência das transmissões: quem começou/parou de assistir quem
+    const onWatch = ({ userId, targetUserId, watching: w }: { userId: string; targetUserId: string; watching: boolean }) => {
+      setWatchers(prev => {
+        const cur = new Set(prev[targetUserId] || []);
+        if (w) cur.add(userId); else cur.delete(userId);
+        return { ...prev, [targetUserId]: Array.from(cur) };
+      });
+    };
+    // Quem sai da sala deixa de contar como espectador
+    const onLeft = ({ userId }: { userId: string }) => {
+      setWatchers(prev => {
+        const next: Record<string, string[]> = {};
+        for (const k of Object.keys(prev)) next[k] = prev[k].filter(id => id !== userId);
+        return next;
+      });
+    };
+    socket.on('voice:watch', onWatch);
+    socket.on('voice:user_left', onLeft);
+    return () => {
+      socket.off('voice:chat', onChat);
+      socket.off('voice:watch', onWatch);
+      socket.off('voice:user_left', onLeft);
+    };
   }, [roomId]);
+
+  // Começa/para de assistir uma transmissão (e avisa a sala)
+  const toggleWatch = (identity: string) => {
+    const now = !watching.has(identity);
+    setWatching(prev => {
+      const next = new Set(prev);
+      if (now) next.add(identity); else next.delete(identity);
+      return next;
+    });
+    getSocket().emit('voice:watch', { voiceRoomId: roomId, targetUserId: identity, watching: now });
+    if (!now && focusedParticipant === identity) setFocusedParticipant(null);
+  };
+
+  // Se o transmissor parar a live, limpa o estado de "assistindo" dela
+  useEffect(() => {
+    const sharing = new Set(
+      Array.from(participants.values()).filter(p => p.screenSharing).map(p => p.identity),
+    );
+    setWatching(prev => {
+      const next = new Set(Array.from(prev).filter(id => sharing.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [participants]);
 
   const sendChat = () => {
     const content = chatInput.trim();
@@ -248,11 +299,13 @@ export default function VoicePage() {
 
   const participantsList = Array.from(participants.values());
   const screenSharers = participantsList.filter(p => p.screenSharing);
-  // A live só vira tela cheia quando o usuário CLICA nela (estilo Discord).
-  // Sem foco, todas as lives aparecem juntas numa grade — visíveis e
-  // audíveis para todo mundo, sem precisar clicar em nada.
+  // A live só vira tela cheia quando o usuário CLICA nela (estilo Discord),
+  // e só depois de escolher assistir (a própria prévia é sempre liberada).
   const primaryScreenSharer = focusedParticipant
-    ? participantsList.find(p => p.identity === focusedParticipant && p.screenSharing)
+    ? participantsList.find(p =>
+        p.identity === focusedParticipant &&
+        p.screenSharing &&
+        (p.participant instanceof LocalParticipant || watching.has(p.identity)))
     : undefined;
 
   if (isConnecting || isJoining) {
@@ -297,7 +350,7 @@ export default function VoicePage() {
   return (
     <div className={cn('flex flex-col nx-stage-bg', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
       {/* Renderizador de áudio remoto (oculto) */}
-      <AudioRenderer />
+      <AudioRenderer watching={watching} />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
@@ -315,10 +368,19 @@ export default function VoicePage() {
             </div>
             {/* Retorno claro para quem está transmitindo */}
             {localScreenSharing && (
-              <span className="ml-auto flex items-center gap-1.5 text-white text-[11px] font-black uppercase tracking-wide
-                               bg-[#ed4245] rounded-full px-3 py-1.5 shadow-[0_0_14px_#ed424577]">
+              <span
+                title={(watchers[user?.id || ''] || []).filter(id => participants.has(id)).length
+                  ? `Assistindo: ${(watchers[user?.id || ''] || []).filter(id => participants.has(id)).map(id => participants.get(id)?.participant.name || id.slice(0, 8)).join(', ')}`
+                  : 'Ninguém assistindo ainda'}
+                className="ml-auto flex items-center gap-1.5 text-white text-[11px] font-black uppercase tracking-wide
+                               bg-[#ed4245] rounded-full px-3 py-1.5 shadow-[0_0_14px_#ed424577]"
+              >
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                 Você está ao vivo
+                <span className="flex items-center gap-1 normal-case font-bold bg-black/25 rounded-full px-2 py-0.5">
+                  <Eye className="w-3 h-3" />
+                  {(watchers[user?.id || ''] || []).filter(id => participants.has(id)).length}
+                </span>
               </span>
             )}
             <span className={cn(
@@ -371,37 +433,80 @@ export default function VoicePage() {
                 <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                 {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
               </div>
-              <button
-                onClick={() => setFocusedParticipant(null)}
-                className="absolute top-3 left-3 flex items-center gap-1.5 text-white text-xs font-bold
-                           bg-[#09070d]/75 backdrop-blur px-3 py-1.5 rounded-lg hover:bg-[#1c1128] transition-colors"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-                {screenSharers.length > 1 ? `Todas as lives (${screenSharers.length})` : 'Voltar à grade'}
-              </button>
+              <div className="absolute top-3 left-3 flex items-center gap-2">
+                <button
+                  onClick={() => setFocusedParticipant(null)}
+                  className="flex items-center gap-1.5 text-white text-xs font-bold
+                             bg-[#09070d]/75 backdrop-blur px-3 py-1.5 rounded-lg hover:bg-[#1c1128] transition-colors"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  {screenSharers.length > 1 ? `Todas as lives (${screenSharers.length})` : 'Voltar à grade'}
+                </button>
+                {primaryScreenSharer.participant instanceof LocalParticipant ? (
+                  (() => {
+                    const audience = (watchers[primaryScreenSharer.identity] || []).filter(id => participants.has(id));
+                    return (
+                      <span
+                        title={audience.length
+                          ? `Assistindo: ${audience.map(id => participants.get(id)?.participant.name || id.slice(0, 8)).join(', ')}`
+                          : 'Ninguém assistindo ainda'}
+                        className="flex items-center gap-1.5 text-white text-xs font-bold bg-[#09070d]/75 backdrop-blur px-3 py-1.5 rounded-lg"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-[#8bdcb9]" /> {audience.length} assistindo
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <button
+                    onClick={() => toggleWatch(primaryScreenSharer.identity)}
+                    className="flex items-center gap-1.5 text-white text-xs font-bold
+                               bg-[#09070d]/75 hover:bg-[#3a1216] backdrop-blur px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
+                  </button>
+                )}
+              </div>
 
               {/* Outras lives */}
               {screenSharers.length > 1 && (
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   {screenSharers
                     .filter(p => p.identity !== primaryScreenSharer?.identity)
-                    .map(p => (
-                      <button
-                        key={p.identity}
-                        onClick={() => setFocusedParticipant(p.identity)}
-                        className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-[var(--th-line-2)] hover:border-accent transition-colors"
-                      >
-                        <VideoTrackRenderer
-                          participant={p.participant}
-                          source={Track.Source.ScreenShare}
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute top-1 right-1"><LiveBadge small /></span>
-                        <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
-                          {p.participant.name || p.identity}
-                        </div>
-                      </button>
-                    ))}
+                    .map(p => {
+                      const thumbLocal = p.participant instanceof LocalParticipant;
+                      const thumbWatching = thumbLocal || watching.has(p.identity);
+                      const [t1, t2] = gradientFor(p.identity);
+                      return (
+                        <button
+                          key={p.identity}
+                          onClick={() => {
+                            if (!thumbWatching) toggleWatch(p.identity);
+                            setFocusedParticipant(p.identity);
+                          }}
+                          title={thumbWatching ? 'Focar esta live' : 'Assistir esta live'}
+                          className="relative w-32 h-20 rounded-lg overflow-hidden bg-black border-2 border-[var(--th-line-2)] hover:border-accent transition-colors"
+                        >
+                          {thumbWatching ? (
+                            <VideoTrackRenderer
+                              participant={p.participant}
+                              source={Track.Source.ScreenShare}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full grid place-items-center"
+                              style={{ background: `linear-gradient(145deg, ${t1}44, #0d0912)` }}
+                            >
+                              <Play className="w-5 h-5 text-white fill-current" />
+                            </div>
+                          )}
+                          <span className="absolute top-1 right-1"><LiveBadge small /></span>
+                          <div className="absolute bottom-1 left-1 text-white text-[10px] bg-black/60 px-1 rounded">
+                            {p.participant.name || p.identity}
+                          </div>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
 
@@ -435,37 +540,105 @@ export default function VoicePage() {
                   screenSharers.length >= 3 && screenSharers.length <= 4 && 'grid-cols-1 sm:grid-cols-2',
                   screenSharers.length > 4 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
                 )}>
-                  {screenSharers.map(p => (
-                    <button
-                      key={p.identity}
-                      onClick={() => setFocusedParticipant(p.identity)}
-                      title="Clique para expandir"
-                      className={cn(
-                        'group relative rounded-2xl overflow-hidden bg-black border-2 text-left min-h-[180px]',
-                        'border-[var(--th-line-2)] hover:border-[#ed4245] transition-colors',
-                        p.isSpeaking && 'border-[#8f42ff]',
-                      )}
-                    >
-                      <VideoTrackRenderer
-                        participant={p.participant}
-                        source={Track.Source.ScreenShare}
-                        className="absolute inset-0 w-full h-full object-contain"
-                      />
-                      <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
-                      <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 text-white text-xs
-                                      bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
-                        <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
-                        {p.participant instanceof LocalParticipant
-                          ? 'Sua tela (prévia)'
-                          : (p.participant.name || p.identity)}
-                      </div>
-                      <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">
-                          <Maximize2 className="w-3.5 h-3.5" /> Expandir
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                  {screenSharers.map(p => {
+                    const isLocal = p.participant instanceof LocalParticipant;
+                    const isWatching = isLocal || watching.has(p.identity);
+                    const [g1, g2] = gradientFor(p.identity);
+                    // Audiência desta transmissão (só quem ainda está na sala)
+                    const audience = (watchers[p.identity] || []).filter(id => participants.has(id));
+                    const audienceNames = audience
+                      .map(id => participants.get(id)?.participant.name || id.slice(0, 8))
+                      .join(', ');
+
+                    if (!isWatching) {
+                      /* Capa: o vídeo/áudio NÃO carrega até você aceitar */
+                      return (
+                        <button
+                          key={p.identity}
+                          onClick={() => toggleWatch(p.identity)}
+                          className="group relative rounded-2xl overflow-hidden border-2 text-left min-h-[180px]
+                                     border-[var(--th-line-2)] hover:border-[#ed4245] transition-colors"
+                          style={{ background: `radial-gradient(circle at 30% 20%, ${g1}33, transparent 60%), #0d0912` }}
+                        >
+                          <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                            <div
+                              className="w-16 h-16 rounded-2xl grid place-items-center font-black text-xl text-white"
+                              style={{ background: `linear-gradient(145deg, ${g1}, ${g2})` }}
+                            >
+                              {getInitials(p.participant.name || p.identity)}
+                            </div>
+                            <p className="text-white text-sm font-semibold">
+                              {p.participant.name || p.identity} está transmitindo
+                            </p>
+                            <span className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wide
+                                             bg-[#ed4245] group-hover:bg-[#c73438] rounded-xl px-4 py-2.5 transition-colors
+                                             shadow-[0_8px_24px_#ed424544]">
+                              <Play className="w-4 h-4 fill-current" /> Assistir transmissão
+                            </span>
+                            <span className="text-[#8a8095] text-[11px]">
+                              O vídeo e o áudio só carregam se você assistir
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={p.identity}
+                        onClick={() => setFocusedParticipant(p.identity)}
+                        title="Clique para expandir"
+                        className={cn(
+                          'group relative rounded-2xl overflow-hidden bg-black border-2 text-left min-h-[180px]',
+                          'border-[var(--th-line-2)] hover:border-[#ed4245] transition-colors',
+                          p.isSpeaking && 'border-[#8f42ff]',
+                        )}
+                      >
+                        <VideoTrackRenderer
+                          participant={p.participant}
+                          source={Track.Source.ScreenShare}
+                          className="absolute inset-0 w-full h-full object-contain"
+                        />
+                        <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
+
+                        {/* Transmissor vê a audiência; espectador pode sair da live */}
+                        {isLocal ? (
+                          <span
+                            title={audience.length ? `Assistindo: ${audienceNames}` : 'Ninguém assistindo ainda'}
+                            className="absolute top-2.5 left-2.5 flex items-center gap-1.5 text-white text-[11px] font-bold
+                                       bg-[#09070d]/80 backdrop-blur px-2.5 py-1.5 rounded-lg"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-[#8bdcb9]" />
+                            {audience.length} assistindo
+                          </span>
+                        ) : (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); toggleWatch(p.identity); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggleWatch(p.identity); } }}
+                            title="Parar de assistir"
+                            className="absolute top-2.5 left-2.5 flex items-center gap-1.5 text-white text-[11px] font-bold
+                                       bg-[#09070d]/80 hover:bg-[#3a1216] backdrop-blur px-2.5 py-1.5 rounded-lg transition-colors"
+                          >
+                            <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
+                          </span>
+                        )}
+
+                        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 text-white text-xs
+                                        bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
+                          <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
+                          {isLocal ? 'Sua tela (prévia)' : (p.participant.name || p.identity)}
+                        </div>
+                        <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">
+                            <Maximize2 className="w-3.5 h-3.5" /> Expandir
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1162,7 +1335,9 @@ function VideoTrackRenderer({
 }
 
 // ── Renderizador de áudio para participantes remotos ─────────────
-function AudioRenderer() {
+// `watching`: o som da TELA compartilhada só toca para quem escolheu
+// assistir aquela transmissão (a voz do microfone toca sempre).
+function AudioRenderer({ watching }: { watching: Set<string> }) {
   const { participants } = useVoiceStore() as any;
   const containerRef = useRef<HTMLDivElement>(null);
   const attachedRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -1170,6 +1345,8 @@ function AudioRenderer() {
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
+    // Chaves que DEVEM estar tocando neste momento
+    const wanted = new Set<string>();
 
     participants.forEach((vp: any) => {
       const { participant, identity } = vp;
@@ -1182,7 +1359,10 @@ function AudioRenderer() {
           pub.track &&
           pub.isSubscribed
         ) {
+          const isScreenAudio = pub.source === Track.Source.ScreenShareAudio;
+          if (isScreenAudio && !watching.has(identity)) return; // opt-in
           const key = `${identity}:${pub.trackSid}`;
+          wanted.add(key);
           if (!attachedRef.current.has(key)) {
             const el = document.createElement('audio');
             el.autoplay = true;
@@ -1201,12 +1381,21 @@ function AudioRenderer() {
 
     attachedRef.current.forEach((el, key) => {
       const identity = key.split(':')[0];
-      if (!participants.has(identity)) {
+      // Remove o que saiu da sala OU deixou de ser desejado (parou de assistir)
+      if (!participants.has(identity) || !wanted.has(key)) {
+        const vp = participants.get(identity);
+        if (vp) {
+          Array.from(vp.participant.trackPublications.values()).forEach((pub: any) => {
+            if (`${identity}:${pub.trackSid}` === key && pub.track) {
+              try { pub.track.detach(el); } catch { /* ok */ }
+            }
+          });
+        }
         el.remove();
         attachedRef.current.delete(key);
       }
     });
-  }, [participants]);
+  }, [participants, watching]);
 
   useEffect(() => {
     return () => {
