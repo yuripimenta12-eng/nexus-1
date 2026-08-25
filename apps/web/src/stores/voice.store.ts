@@ -11,6 +11,7 @@ import {
   TrackPublication,
   VideoQuality,
   ConnectionQuality,
+  DisconnectReason,
 } from 'livekit-client';
 
 export interface VoiceParticipant {
@@ -42,6 +43,10 @@ interface VoiceStore {
   isConnecting: boolean;
   quality: ConnectionQuality;
   error: string | null;
+  // Preenchido quando a transmissão de tela termina SEM o usuário clicar em
+  // "Parar tela" — a página observa isto e mostra o motivo num toast.
+  liveEndedNotice: string | null;
+  clearLiveEndedNotice: () => void;
 
   connect: (url: string, token: string, voiceRoomId: string, roomName: string, serverId?: string) => Promise<void>;
   disconnect: () => Promise<void>;
@@ -116,6 +121,27 @@ async function teardownMic(room: Room | null): Promise<void> {
 // Silenciar tudo (deafen): zera a saída da chamada sem perder os volumes
 let deafened = false;
 
+// true enquanto o PRÓPRIO usuário clica em "Parar tela" — diferencia o
+// encerramento intencional de quedas externas (barrinha do Chrome, janela
+// fechada, desconexão), que merecem um aviso com o motivo.
+let stoppingShareByUser = false;
+
+// Traduz o motivo de desconexão do LiveKit para o usuário
+function disconnectReasonText(reason?: DisconnectReason): string {
+  switch (reason) {
+    case DisconnectReason.DUPLICATE_IDENTITY:
+      return 'Você entrou nesta sala em outra aba ou dispositivo — esta conexão foi encerrada.';
+    case DisconnectReason.PARTICIPANT_REMOVED:
+      return 'Você foi removido da sala por um moderador.';
+    case DisconnectReason.ROOM_DELETED:
+      return 'A sala foi encerrada.';
+    case DisconnectReason.SERVER_SHUTDOWN:
+      return 'O servidor de voz reiniciou. Entre novamente.';
+    default:
+      return 'A conexão com a sala caiu. Entre novamente.';
+  }
+}
+
 function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
   if (mutedLocally || deafened) return 0;
   const out = useMediaStore.getState().outputVolume;
@@ -151,6 +177,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   isConnecting: false,
   quality: ConnectionQuality.Unknown,
   error: null,
+  liveEndedNotice: null,
+  clearLiveEndedNotice: () => set({ liveEndedNotice: null }),
 
   connect: async (url, token, voiceRoomId, roomName, serverId) => {
     set({ isConnecting: true, error: null });
@@ -225,8 +253,18 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         get().updateParticipant(lp);
       });
 
-      room.on(RoomEvent.LocalTrackUnpublished, () => {
+      room.on(RoomEvent.LocalTrackUnpublished, (pub) => {
         const lp = room.localParticipant;
+        // Live caiu sem o usuário clicar em "Parar tela"? Avisa o motivo.
+        if (pub?.source === Track.Source.ScreenShare && !stoppingShareByUser) {
+          const ended = pub.track?.mediaStreamTrack?.readyState === 'ended';
+          console.warn('[nexus-live] screen share unpublicada sem ação do usuário; track ended =', ended);
+          set({
+            liveEndedNotice: ended
+              ? 'Sua transmissão foi encerrada pelo navegador — a janela compartilhada foi fechada ou você clicou em "Parar compartilhamento" na barra do Chrome.'
+              : 'Sua transmissão de tela foi interrompida (queda de conexão de voz). Clique em "Compartilhar tela" para retomar.',
+          });
+        }
         set({
           localMicEnabled: lp.isMicrophoneEnabled,
           localCamEnabled: lp.isCameraEnabled,
@@ -235,13 +273,18 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         get().updateParticipant(lp);
       });
 
-      room.on(RoomEvent.Disconnected, () => {
+      room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+        console.warn('[nexus-live] Room desconectada, reason =', reason);
         teardownMic(null);
+        // Saída intencional (botão sair / troca de sala) não é erro
+        const intentional = reason === DisconnectReason.CLIENT_INITIATED;
         set({
           isConnected: false,
           room: null,
           participants: new Map(),
           localScreenSharing: false,
+          // Mostra o motivo real na tela de erro (com botão "Tentar novamente")
+          error: intentional ? null : disconnectReasonText(reason),
         });
       });
 
@@ -369,14 +412,19 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       audio: true, // captura áudio do sistema quando suportado
     });
 
-    set({ localScreenSharing: true });
+    set({ localScreenSharing: true, liveEndedNotice: null });
   },
 
   stopScreenShare: async () => {
     const { room } = get();
     if (!room) return;
 
-    await room.localParticipant.setScreenShareEnabled(false);
+    stoppingShareByUser = true;
+    try {
+      await room.localParticipant.setScreenShareEnabled(false);
+    } finally {
+      stoppingShareByUser = false;
+    }
     set({ localScreenSharing: false });
   },
 

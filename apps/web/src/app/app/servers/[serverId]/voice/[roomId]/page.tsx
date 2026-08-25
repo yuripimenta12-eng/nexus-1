@@ -62,6 +62,7 @@ export default function VoicePage() {
     toggleMic, toggleCam, startScreenShare, stopScreenShare,
     participants, quality, voiceRoomId, roomName,
     isDeafened, toggleDeafen,
+    liveEndedNotice, clearLiveEndedNotice,
   } = useVoiceStore();
 
   const askScreenQuality = useMediaStore(s => s.askScreenQuality);
@@ -135,6 +136,14 @@ export default function VoicePage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   }
+
+  // Live caiu sem o usuário pedir → mostra o motivo por mais tempo
+  useEffect(() => {
+    if (!liveEndedNotice) return;
+    setToast(liveEndedNotice);
+    const t = setTimeout(() => { setToast(null); clearLiveEndedNotice(); }, 8000);
+    return () => clearTimeout(t);
+  }, [liveEndedNotice, clearLiveEndedNotice]);
 
   function friendlyError(msg: string): string {
     if (msg?.includes('invalid api key') || msg?.includes('invalid API key')) {
