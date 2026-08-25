@@ -304,7 +304,18 @@ export default function VoicePage() {
                 {participantsList.length} participante{participantsList.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <span className="ml-auto hidden sm:flex items-center gap-1.5 text-[#8bdcb9] text-[11px] border border-[#26523f] rounded-full px-2.5 py-1.5">
+            {/* Retorno claro para quem está transmitindo */}
+            {localScreenSharing && (
+              <span className="ml-auto flex items-center gap-1.5 text-white text-[11px] font-black uppercase tracking-wide
+                               bg-[#ed4245] rounded-full px-3 py-1.5 shadow-[0_0_14px_#ed424577]">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                Você está ao vivo
+              </span>
+            )}
+            <span className={cn(
+              'hidden sm:flex items-center gap-1.5 text-[#8bdcb9] text-[11px] border border-[#26523f] rounded-full px-2.5 py-1.5',
+              localScreenSharing ? 'ml-2' : 'ml-auto',
+            )}>
               <ShieldCheck className="w-3 h-3" /> Conexão protegida
             </span>
             <CallTimer connected={isConnected} />
@@ -435,7 +446,9 @@ export default function VoicePage() {
                       <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 text-white text-xs
                                       bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
                         <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
-                        {p.participant.name || p.identity}
+                        {p.participant instanceof LocalParticipant
+                          ? 'Sua tela (prévia)'
+                          : (p.participant.name || p.identity)}
                       </div>
                       <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">

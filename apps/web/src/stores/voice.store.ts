@@ -220,6 +220,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
           localCamEnabled: lp.isCameraEnabled,
           localScreenSharing: lp.isScreenShareEnabled,
         });
+        // Atualiza também o participante local no map — sem isto a própria
+        // live não aparecia na grade (quem transmitia não via a prévia).
+        get().updateParticipant(lp);
       });
 
       room.on(RoomEvent.LocalTrackUnpublished, () => {
@@ -229,6 +232,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
           localCamEnabled: lp.isCameraEnabled,
           localScreenSharing: lp.isScreenShareEnabled,
         });
+        get().updateParticipant(lp);
       });
 
       room.on(RoomEvent.Disconnected, () => {
