@@ -6,15 +6,18 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from '../presence/presence.service';
+import { RolesService } from '../roles/roles.service';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
 import { MemberRole } from '@prisma/client';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class ServersService {
   constructor(
     private prisma: PrismaService,
     private presence: PresenceService,
+    private rolesService: RolesService,
   ) {}
 
   async create(userId: string, dto: CreateServerDto) {
@@ -163,6 +166,116 @@ export class ServersService {
         .map((a) => a.role)
         .sort((a, b) => b.position - a.position), // mais alto primeiro
     }));
+  }
+
+  // ── Emojis customizados ───────────────────────────────────────
+  async listEmojis(serverId: string, userId: string) {
+    const member = await this.checkMembership(serverId, userId);
+    if (!member || member.banned) throw new ForbiddenException('Sem acesso ao servidor');
+    return this.prisma.customEmoji.findMany({
+      where: { serverId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async deleteEmoji(serverId: string, emojiId: string, userId: string) {
+    await this.rolesService.requirePermission(serverId, userId, 'manage_expressions');
+    const emoji = await this.prisma.customEmoji.findUnique({ where: { id: emojiId } });
+    if (!emoji || emoji.serverId !== serverId) throw new NotFoundException('Emoji não encontrado');
+    await this.prisma.customEmoji.delete({ where: { id: emojiId } });
+  }
+
+  // ── Modelo do servidor (snapshot de canais/cargos/config) ─────
+  async createTemplate(serverId: string, userId: string, title: string, description?: string) {
+    await this.rolesService.requirePermission(serverId, userId, 'manage_server');
+
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      include: {
+        channels: { orderBy: { position: 'asc' } },
+        voiceRooms: { orderBy: { position: 'asc' } },
+        roles: true,
+      },
+    });
+    if (!server) throw new NotFoundException();
+
+    const snapshot = JSON.stringify({
+      description: server.description,
+      tag: server.tag,
+      isPublic: server.isPublic,
+      maxMembers: server.maxMembers,
+      channels: server.channels.map(c => ({ name: c.name, type: c.type, position: c.position })),
+      voiceRooms: server.voiceRooms.map(v => ({ name: v.name, position: v.position })),
+      roles: server.roles.map(r => ({
+        name: r.name, color: r.color, hoist: r.hoist, mentionable: r.mentionable,
+        permissions: r.permissions, position: r.position, isDefault: r.isDefault,
+      })),
+    });
+
+    const code = randomBytes(8).toString('base64url').slice(0, 10);
+    return this.prisma.serverTemplate.create({
+      data: { code, serverId, title: title.slice(0, 100), description: description?.slice(0, 300), snapshot },
+    });
+  }
+
+  async getTemplate(code: string) {
+    const tpl = await this.prisma.serverTemplate.findUnique({ where: { code } });
+    if (!tpl) throw new NotFoundException('Modelo não encontrado');
+    const snap = JSON.parse(tpl.snapshot);
+    return {
+      code: tpl.code,
+      title: tpl.title,
+      description: tpl.description,
+      uses: tpl.uses,
+      channels: snap.channels?.length ?? 0,
+      voiceRooms: snap.voiceRooms?.length ?? 0,
+      roles: snap.roles?.filter((r: any) => !r.isDefault).length ?? 0,
+    };
+  }
+
+  async useTemplate(code: string, userId: string, name?: string) {
+    const tpl = await this.prisma.serverTemplate.findUnique({ where: { code } });
+    if (!tpl) throw new NotFoundException('Modelo não encontrado');
+    const snap = JSON.parse(tpl.snapshot);
+
+    const server = await this.prisma.server.create({
+      data: {
+        name: (name || tpl.title).slice(0, 100),
+        description: snap.description ?? null,
+        tag: snap.tag ?? null,
+        isPublic: !!snap.isPublic,
+        maxMembers: snap.maxMembers ?? 100,
+        ownerId: userId,
+        members: { create: { userId, role: MemberRole.OWNER } },
+        channels: {
+          create: (snap.channels?.length ? snap.channels : [{ name: 'geral', type: 'TEXT', position: 0 }])
+            .map((c: any) => ({ name: c.name, type: c.type, position: c.position })),
+        },
+        voiceRooms: {
+          create: (snap.voiceRooms?.length ? snap.voiceRooms : [{ name: 'Geral', position: 0 }])
+            .map((v: any, i: number) => ({
+              name: v.name,
+              position: v.position ?? i,
+              livekitRoom: `tpl-${Date.now()}-${i}`,
+            })),
+        },
+        roles: {
+          create: (snap.roles || []).map((r: any) => ({
+            name: r.name, color: r.color, hoist: !!r.hoist, mentionable: !!r.mentionable,
+            permissions: typeof r.permissions === 'string' ? r.permissions : '[]',
+            position: r.position ?? 0, isDefault: !!r.isDefault,
+          })),
+        },
+      },
+      include: { channels: true, voiceRooms: true },
+    });
+
+    await this.prisma.serverTemplate.update({
+      where: { code },
+      data: { uses: { increment: 1 } },
+    });
+
+    return server;
   }
 
   // ── Helpers ───────────────────────────────────────────────────

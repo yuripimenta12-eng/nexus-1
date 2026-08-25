@@ -117,6 +117,10 @@ export default function ServerSettingsPage() {
   const [section, setSection] = useState('members');
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [membersInChannels, setMembersInChannels] = useState(false);
+  useEffect(() => {
+    setMembersInChannels(localStorage.getItem(`nexus_members_in_channels:${serverId}`) === '1');
+  }, [serverId]);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
   const [confirm, setConfirm] = useState<{ action: 'kick' | 'ban'; member: ServerMember } | null>(null);
@@ -286,12 +290,39 @@ export default function ServerSettingsPage() {
         {section === 'access' && <AccessSection serverId={serverId} notify={notify} />}
         {section === 'bans' && <BansSection serverId={serverId} notify={notify} />}
         {section === 'danger' && <DangerSection serverId={serverId} notify={notify} />}
-        {['emoji', 'stickers', 'integrations', 'security', 'template'].includes(section) && (
+        {section === 'emoji' && <EmojiSection serverId={serverId} notify={notify} />}
+        {section === 'template' && <TemplateSection serverId={serverId} notify={notify} />}
+        {['stickers', 'integrations', 'security'].includes(section) && (
           <ComingSoon section={section} />
         )}
 
         {section === 'members' && (
         <section>
+          <div className="mb-5">
+            <h2 className="text-xl font-bold text-white">Membros do servidor</h2>
+            <div className="mt-4 flex items-start justify-between gap-4 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
+              <div>
+                <p className="text-white text-sm font-medium">Mostrar membros na lista de canais</p>
+                <p className="text-[#92879f] text-xs mt-0.5">
+                  Ativar isso mostrará um atalho "Membros" na lista de canais, permitindo ver rapidamente
+                  quem entrou recentemente no seu servidor.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={membersInChannels}
+                onClick={() => {
+                  const v = !membersInChannels;
+                  setMembersInChannels(v);
+                  localStorage.setItem(`nexus_members_in_channels:${serverId}`, v ? '1' : '0');
+                  window.dispatchEvent(new Event('nexus:members-page-toggle'));
+                }}
+                className={cn('relative w-10 h-6 rounded-full transition-colors shrink-0', membersInChannels ? 'bg-success' : 'bg-[#4a4356]')}
+              >
+                <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', membersInChannels ? 'left-[18px]' : 'left-0.5')} />
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-3 mb-3">
             <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px]">
               Membros — {members.length}
@@ -493,6 +524,8 @@ function ProfileSection({ serverId, notify }: { serverId: string; notify: (m: st
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [tag, setTag] = useState('');
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -501,8 +534,24 @@ function ProfileSection({ serverId, notify }: { serverId: string; notify: (m: st
       setName(data.name || '');
       setDescription(data.description || '');
       setTag(data.tag || '');
+      setIconUrl(data.iconUrl || null);
     }).catch(() => notify('Erro ao carregar o servidor')).finally(() => setLoading(false));
   }, [serverId, notify]);
+
+  const uploadIcon = async (file: File) => {
+    setUploadingIcon(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post(`/upload/server-icon/${serverId}`, form);
+      setIconUrl(data.iconUrl);
+      notify('Ícone do servidor atualizado!');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão para mudar o ícone');
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -526,8 +575,38 @@ function ProfileSection({ serverId, notify }: { serverId: string; notify: (m: st
     <div className="space-y-5 max-w-xl">
       <div>
         <h2 className="text-xl font-bold text-white">Perfil do servidor</h2>
-        <p className="text-[#92879f] text-sm mt-1">Nome, descrição e tag que aparecem para os membros.</p>
+        <p className="text-[#92879f] text-sm mt-1">Nome, descrição, tag e ícone que aparecem para os membros.</p>
       </div>
+
+      {/* Ícone do servidor */}
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Ícone do servidor</label>
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-[var(--th-panel-2)] border border-[var(--th-line-2)] grid place-items-center shrink-0">
+            {iconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={iconUrl} alt="Ícone do servidor" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white font-black text-2xl">{getInitials(name || 'S')}</span>
+            )}
+          </div>
+          <div>
+            <label className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-extrabold text-white
+                              bg-accent hover:bg-accent-hover active:scale-95 transition-all cursor-pointer">
+              {uploadingIcon && <Loader2 className="w-4 h-4 animate-spin" />}
+              Adicionar ícone
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="sr-only"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadIcon(f); }}
+              />
+            </label>
+            <p className="text-[#92879f] text-xs mt-2">Recomendado: imagem quadrada de 512x512 (PNG, JPG ou GIF).</p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Nome do servidor</label>
         <input value={name} onChange={e => setName(e.target.value)} maxLength={100} className="nexus-input w-full" />
@@ -693,6 +772,7 @@ function AccessSection({ serverId, notify }: { serverId: string; notify: (m: str
 function BansSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
   const [bans, setBans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banSearch, setBanSearch] = useState('');
 
   const load = useCallback(() => {
     api.get(`/servers/${serverId}/bans`)
@@ -713,18 +793,51 @@ function BansSection({ serverId, notify }: { serverId: string; notify: (m: strin
     }
   };
 
+  const shownBans = bans.filter(b => {
+    const q = banSearch.toLowerCase().trim();
+    if (!q) return true;
+    return b.userId.toLowerCase().includes(q) ||
+      (b.user?.username || '').toLowerCase().includes(q) ||
+      (b.user?.profile?.displayName || '').toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-4 max-w-2xl">
       <div>
-        <h2 className="text-xl font-bold text-white">Banimentos</h2>
-        <p className="text-[#92879f] text-sm mt-1">Pessoas banidas não conseguem entrar, mesmo com convite.</p>
+        <h2 className="text-xl font-bold text-white">Lista de banimentos do servidor</h2>
+        <p className="text-[#92879f] text-sm mt-1">
+          Pessoas banidas são removidas e não conseguem entrar de novo, mesmo com convite.
+        </p>
       </div>
+
+      {/* Busca */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 text-[#92879f] absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={banSearch}
+            onChange={e => setBanSearch(e.target.value)}
+            placeholder="Procurar banimentos por ID ou nome de usuário"
+            className="w-full bg-[var(--th-rail)] border border-[var(--th-line)] rounded-xl pl-9 pr-3 py-2.5 text-sm text-white
+                       placeholder:text-[#5c5468] focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)] overflow-hidden">
         {loading && <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-accent animate-spin" /></div>}
-        {!loading && bans.length === 0 && (
-          <p className="text-[#92879f] text-sm text-center py-8">Nenhum banimento.</p>
+        {!loading && shownBans.length === 0 && (
+          <div className="text-center py-14">
+            <p className="text-4xl mb-3">🔨</p>
+            <p className="text-[#a99cb8] text-sm font-black uppercase tracking-wider">Sem banimentos</p>
+            <p className="text-[#5c5468] text-xs mt-1">
+              {banSearch
+                ? 'Nenhum banimento corresponde à busca.'
+                : 'Você ainda não baniu ninguém... mas se e quando precisar, não hesite!'}
+            </p>
+          </div>
         )}
-        {bans.map(b => {
+        {shownBans.map(b => {
           const [c1, c2] = gradientFor(b.userId);
           const name = b.user?.profile?.displayName || b.user?.username || b.userId;
           return (
@@ -791,6 +904,211 @@ function DangerSection({ serverId, notify }: { serverId: string; notify: (m: str
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmojiSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [emojis, setEmojis] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const load = useCallback(() => {
+    api.get(`/servers/${serverId}/emojis`)
+      .then(({ data }) => setEmojis(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [serverId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const upload = async (files: FileList | File[]) => {
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        await api.post(`/upload/emoji/${serverId}`, (() => { const f = new FormData(); f.append('file', file); return f; })());
+      } catch (e: any) {
+        notify(e?.response?.data?.message || `Erro ao enviar ${file.name}`);
+      }
+    }
+    setUploading(false);
+    load();
+  };
+
+  const remove = async (id: string, name: string) => {
+    try {
+      await api.delete(`/servers/${serverId}/emojis/${id}`);
+      notify(`Emoji :${name}: removido`);
+      load();
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    }
+  };
+
+  return (
+    <div
+      className="space-y-4 max-w-2xl"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) upload(e.dataTransfer.files); }}
+    >
+      <div>
+        <h2 className="text-xl font-bold text-white">Emoji</h2>
+        <p className="text-[#92879f] text-sm mt-1">
+          Adicione até 50 emojis customizados que todos podem usar neste servidor.
+          Use-os no chat digitando <code className="text-accent">:nome:</code>.
+        </p>
+      </div>
+
+      <label className={cn(
+        'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-extrabold text-white cursor-pointer',
+        'bg-accent hover:bg-accent-hover active:scale-95 transition-all',
+      )}>
+        {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
+        Enviar emoji
+        <input
+          type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only"
+          onChange={(e) => { const fs = e.target.files; if (fs?.length) upload(fs); e.target.value = ''; }}
+        />
+      </label>
+
+      <p className="text-[#92879f] text-xs">
+        Se você quiser enviar vários emojis ou pular o editor, arraste e solte o(s) arquivo(s) nesta página.
+        Os emojis serão nomeados usando o nome do arquivo.
+      </p>
+
+      <div className={cn(
+        'rounded-2xl border bg-[var(--th-panel)] overflow-hidden transition-colors',
+        dragOver ? 'border-accent border-dashed' : 'border-[var(--th-line)]',
+      )}>
+        <div className="flex items-center px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#786e83]">
+          Emojis — {emojis.length}/50
+        </div>
+        {loading && <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-accent animate-spin" /></div>}
+        {!loading && emojis.length === 0 && (
+          <p className="text-[#92879f] text-sm text-center py-8">
+            {dragOver ? 'Solte aqui para enviar!' : 'Nenhum emoji ainda. Envie o primeiro!'}
+          </p>
+        )}
+        <div className="divide-y divide-[var(--th-line)]">
+          {emojis.map(e => (
+            <div key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={e.url} alt={e.name} className="w-8 h-8 object-contain shrink-0" />
+              <code className="text-white text-sm">:{e.name}:</code>
+              <button
+                onClick={() => remove(e.id, e.name)}
+                title="Excluir emoji"
+                className="ml-auto w-8 h-8 rounded-lg grid place-items-center text-[#92879f]
+                           hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplateSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const { data } = await api.post(`/servers/${serverId}/template`, { title: title.trim(), description: description.trim() || undefined });
+      const url = `${window.location.origin}/app/template/${data.code}`;
+      setLink(url);
+      await navigator.clipboard.writeText(url).catch(() => {});
+      notify('Modelo gerado e link copiado!');
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Sem permissão');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div>
+        <h2 className="text-xl font-bold text-white">Modelo do servidor</h2>
+        <p className="text-[#92879f] text-sm mt-1">
+          Um modelo de servidor é uma maneira fácil de compartilhar a configuração do seu servidor e
+          ajudar qualquer pessoa a criar um servidor instantaneamente.
+        </p>
+        <p className="text-[#92879f] text-sm mt-2">
+          Quando alguém usa o link do seu modelo, essa pessoa cria um novo servidor já preenchido com
+          os mesmos canais, cargos, permissões e configurações.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#786e83] mb-2">Modelos vão copiar:</p>
+          {['Canais e salas de voz', 'Cargos e permissões', 'Configurações de servidor padrão'].map(t => (
+            <p key={t} className="flex items-center gap-2 text-[#cfc5d8] text-sm py-0.5">
+              <span className="w-4 h-4 rounded-full bg-success/20 text-success grid place-items-center text-[10px]">✓</span> {t}
+            </p>
+          ))}
+        </div>
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#786e83] mb-2">Modelos não vão copiar:</p>
+          {['Mensagens ou qualquer conteúdo', 'Membros', 'O ícone do seu servidor'].map(t => (
+            <p key={t} className="flex items-center gap-2 text-[#cfc5d8] text-sm py-0.5">
+              <span className="w-4 h-4 rounded-full bg-destructive/20 text-destructive grid place-items-center text-[10px]">✕</span> {t}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">
+          Título do modelo <span className="text-destructive">*</span>
+        </label>
+        <input
+          value={title} onChange={e => setTitle(e.target.value)} maxLength={100}
+          placeholder="Para quem é esse servidor? Por exemplo, clube da escola ou comunidade de artistas"
+          className="nexus-input w-full"
+        />
+      </div>
+      <div>
+        <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-2">Descrição do modelo</label>
+        <textarea
+          value={description} onChange={e => setDescription(e.target.value)} maxLength={300} rows={3}
+          placeholder="O que as pessoas podem fazer nesse servidor?"
+          className="nexus-input w-full resize-none"
+        />
+      </div>
+
+      <button
+        onClick={generate}
+        disabled={generating || title.trim().length < 2}
+        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white
+                   bg-accent hover:bg-accent-hover disabled:opacity-50 active:scale-95 transition-all"
+      >
+        {generating && <Loader2 className="w-4 h-4 animate-spin" />} Gerar modelo
+      </button>
+
+      {link && (
+        <div className="rounded-2xl border border-success/40 bg-success/5 p-4">
+          <p className="text-[#cfc5d8] text-sm mb-2">Link do modelo (copiado!):</p>
+          <div className="flex items-center gap-2">
+            <code className="text-accent text-sm break-all flex-1">{link}</code>
+            <button
+              onClick={async () => { await navigator.clipboard.writeText(link); notify('Link copiado!'); }}
+              className="w-8 h-8 rounded-lg grid place-items-center text-[#92879f] hover:text-white hover:bg-white/5 shrink-0"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

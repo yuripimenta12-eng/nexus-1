@@ -26,6 +26,8 @@ export interface VoiceParticipant {
   connectionQuality: ConnectionQuality;
   // volume do participante LOCAL (só afeta quem está ouvindo)
   localVolume: number;
+  // volume da TRANSMISSÃO de tela dele (separado da voz do microfone)
+  streamVolume?: number;
   isMutedLocally: boolean;
   participant: Participant;
 }
@@ -55,6 +57,7 @@ interface VoiceStore {
   startScreenShare: (quality?: '720p30' | '1080p30' | '1080p60') => Promise<void>;
   stopScreenShare: () => Promise<void>;
   setParticipantVolume: (identity: string, volume: number) => void;
+  setStreamVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
   updateParticipant: (p: Participant) => void;
 
@@ -153,13 +156,16 @@ function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
 // Aplica o volume nas tracks de áudio do participante via API do LiveKit
 // (track.setVolume ajusta os <audio> anexados e re-aplica sozinho quando a
 // track é re-anexada — mais confiável que mexer em el.volume por fora).
-function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; isMutedLocally?: boolean }) {
+// Voz (microfone) e transmissão de tela têm volumes SEPARADOS.
+function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; streamVolume?: number; isMutedLocally?: boolean }) {
   if (!p.participant) return;
-  const vol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  const micVol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  const streamVol = effectiveVolume(p.streamVolume ?? 100, !!p.isMutedLocally);
   p.participant.trackPublications.forEach((pub) => {
     const track: any = pub.track;
     if (pub.kind === Track.Kind.Audio && track?.setVolume) {
-      try { track.setVolume(vol); } catch { /* track ainda não pronta */ }
+      const isScreen = pub.source === Track.Source.ScreenShareAudio;
+      try { track.setVolume(isScreen ? streamVol : micVol); } catch { /* track ainda não pronta */ }
     }
   });
 }
@@ -441,6 +447,20 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     });
   },
 
+  // Volume da TRANSMISSÃO de tela de alguém (só para mim)
+  setStreamVolume: (identity: string, volume: number) => {
+    set((state) => {
+      const next = new Map(state.participants);
+      const p = next.get(identity);
+      if (p) {
+        const updated = { ...p, streamVolume: volume };
+        applyVolumeToTracks(updated);
+        next.set(identity, updated);
+      }
+      return { participants: next };
+    });
+  },
+
   toggleMuteLocally: (identity) => {
     set((state) => {
       const next = new Map(state.participants);
@@ -525,6 +545,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       next.set(p.identity, {
         ...buildParticipant(p),
         localVolume: existing?.localVolume ?? 100,
+        streamVolume: existing?.streamVolume ?? 100,
         isMutedLocally: existing?.isMutedLocally ?? false,
       });
       return { participants: next };

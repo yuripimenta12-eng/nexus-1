@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
-  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check,
+  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check, Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
@@ -38,6 +38,17 @@ export function AppSidebar() {
   const [menuToast, setMenuToast] = useState<string | null>(null);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
+  // Atalho "Membros" na lista de canais (toggle em Config. → Membros)
+  const [showMembersShortcut, setShowMembersShortcut] = useState(false);
+  useEffect(() => {
+    const read = () => setShowMembersShortcut(
+      typeof window !== 'undefined' &&
+      localStorage.getItem(`nexus_members_in_channels:${serverId}`) === '1',
+    );
+    read();
+    window.addEventListener('nexus:members-page-toggle', read);
+    return () => window.removeEventListener('nexus:members-page-toggle', read);
+  }, [serverId]);
 
   useEffect(() => {
     if (!serverId) return;
@@ -247,6 +258,17 @@ export function AppSidebar() {
 
       {/* Canais */}
       <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+        {/* Atalho: página de membros (toggle em Config. → Membros) */}
+        {showMembersShortcut && (
+          <button
+            onClick={() => router.push(`/app/servers/${serverId}/settings`)}
+            className="sidebar-item w-full mb-1"
+          >
+            <Users className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
+            <span className="truncate">Membros</span>
+          </button>
+        )}
+
         {/* Canais de texto */}
         <SectionHeader label="CANAIS DE TEXTO" open={textOpen} onToggle={() => setTextOpen(!textOpen)}>
           <Plus className="w-3.5 h-3.5" onClick={(e) => { e.stopPropagation(); setShowCreateChannel(true); }} />

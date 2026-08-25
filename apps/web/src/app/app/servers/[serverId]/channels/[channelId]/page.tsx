@@ -16,6 +16,22 @@ function genClientMsgId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Substitui :nome: pelos emojis customizados do servidor */
+function renderWithEmojis(text: string, map: Record<string, string>): React.ReactNode {
+  if (!text || !text.includes(':')) return text;
+  const parts = text.split(/(:[a-z0-9_]+:)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    const m = part.match(/^:([a-z0-9_]+):$/);
+    if (m && map[m[1]]) {
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img key={i} src={map[m[1]]} alt={part} title={part}
+        className="inline-block w-6 h-6 object-contain align-text-bottom mx-0.5" />;
+    }
+    return part;
+  });
+}
+
 interface Message {
   id: string;
   content: string;
@@ -65,6 +81,19 @@ export default function ChannelPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<NodeJS.Timeout>();
   const socket = getSocket();
+
+  // Emojis customizados do servidor (:nome: → imagem)
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!serverId) return;
+    api.get(`/servers/${serverId}/emojis`)
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        data.forEach((e: any) => { map[e.name] = e.url; });
+        setEmojiMap(map);
+      })
+      .catch(() => {});
+  }, [serverId]);
 
   // ── Carrega mensagens ─────────────────────────────────────────
   useEffect(() => {
@@ -372,6 +401,7 @@ export default function ChannelPage() {
                 onCancelEdit={() => setEditingId(null)}
                 groupedReactions={groupReactions(msg.reactions)}
                 currentUserId={user?.id || ''}
+                emojiMap={emojiMap}
               />
             );
           })
@@ -518,7 +548,7 @@ export default function ChannelPage() {
 function MessageRow({
   msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction,
   editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
-  groupedReactions, currentUserId,
+  groupedReactions, currentUserId, emojiMap,
 }: any) {
   const isEditing = editingId === msg.id;
 
@@ -580,7 +610,7 @@ function MessageRow({
             msg.deleted && 'text-muted italic',
             msg.pending && 'opacity-60',
           )}>
-            {msg.content}
+            {msg.deleted ? msg.content : renderWithEmojis(msg.content, emojiMap || {})}
             {msg.edited && !msg.deleted && (
               <span className="text-muted text-[10px] ml-1">(editado)</span>
             )}

@@ -122,6 +122,7 @@ model Server {
   reports    Report[]       @relation("ServerReports")
   auditLogs  AuditLog[]
   roles      Role[]
+  emojis     CustomEmoji[]
 
   @@index([ownerId])
   @@map("servers")
@@ -147,6 +148,37 @@ model Role {
 
   @@index([serverId])
   @@map("roles")
+}
+
+// ── Emojis customizados do servidor (máx. 50) ───────────────────
+model CustomEmoji {
+  id        String   @id @default(cuid())
+  serverId  String
+  name      String   @db.VarChar(32) // usado como :nome: no chat
+  url       String   @db.Text
+  creatorId String
+  createdAt DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, name])
+  @@index([serverId])
+  @@map("custom_emojis")
+}
+
+// ── Modelo de servidor (snapshot de canais/cargos/config) ───────
+model ServerTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  serverId    String
+  title       String   @db.VarChar(100)
+  description String?  @db.VarChar(300)
+  snapshot    String   @db.Text // JSON: canais, salas, cargos, config
+  uses        Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([serverId])
+  @@map("server_templates")
 }
 
 model RoleAssignment {

@@ -57,4 +57,49 @@ export class ServersController {
   getBans(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.serversService.getBans(id, userId);
   }
+
+  @Get(':id/emojis')
+  listEmojis(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.serversService.listEmojis(id, userId);
+  }
+
+  @Delete(':id/emojis/:emojiId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteEmoji(
+    @Param('id') id: string,
+    @Param('emojiId') emojiId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.serversService.deleteEmoji(id, emojiId, userId);
+  }
+
+  @Post(':id/template')
+  createTemplate(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { title: string; description?: string },
+  ) {
+    return this.serversService.createTemplate(id, userId, body?.title || 'Meu servidor', body?.description);
+  }
+}
+
+// ── Uso de modelos (rota /templates) ────────────────────────────
+@Controller('templates')
+@UseGuards(JwtAuthGuard)
+export class TemplatesController {
+  constructor(private serversService: ServersService) {}
+
+  @Get(':code')
+  preview(@Param('code') code: string) {
+    return this.serversService.getTemplate(code);
+  }
+
+  @Post(':code/use')
+  use(
+    @Param('code') code: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { name?: string },
+  ) {
+    return this.serversService.useTemplate(code, userId, body?.name);
+  }
 }

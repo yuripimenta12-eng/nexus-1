@@ -435,7 +435,7 @@ export default function VoicePage() {
           {/* Área principal */}
           {primaryScreenSharer ? (
             /* ── Live em tela cheia (o usuário clicou para expandir) ── */
-            <div className="flex-1 relative bg-black overflow-hidden">
+            <div className="group flex-1 relative bg-black overflow-hidden">
               <div
                 className="absolute inset-0 flex items-center justify-center cursor-zoom-out"
                 onClick={() => setFocusedParticipant(null)}
@@ -486,9 +486,30 @@ export default function VoicePage() {
                 )}
               </div>
 
+              {/* Volume da transmissão focada (só para mim) — hover */}
+              {!(primaryScreenSharer.participant instanceof LocalParticipant) && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity
+                             flex items-center gap-2 bg-[#09070d]/85 backdrop-blur px-3 py-2 rounded-xl"
+                  title="Volume desta transmissão (só para você)"
+                >
+                  <Volume2 className="w-4 h-4 text-[#c887ff]" />
+                  <input
+                    type="range" min={0} max={100}
+                    value={(primaryScreenSharer as any).streamVolume ?? 100}
+                    onChange={(e) => useVoiceStore.getState().setStreamVolume(primaryScreenSharer.identity, Number(e.target.value))}
+                    className="w-32 accent-[#7a2cff]"
+                  />
+                  <span className="text-white text-[11px] font-bold tabular-nums w-8 text-right">
+                    {(primaryScreenSharer as any).streamVolume ?? 100}%
+                  </span>
+                </div>
+              )}
+
               {/* Outras lives */}
               {screenSharers.length > 1 && (
-                <div className="absolute bottom-3 right-3 flex gap-2">
+                <div className="absolute bottom-16 right-3 flex gap-2">
                   {screenSharers
                     .filter(p => p.identity !== primaryScreenSharer?.identity)
                     .map(p => {
@@ -669,6 +690,27 @@ export default function VoicePage() {
                             <Maximize2 className="w-3.5 h-3.5" /> Expandir
                           </span>
                         </div>
+
+                        {/* Volume da transmissão (só para mim) — aparece no hover */}
+                        {!isLocal && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity
+                                       flex items-center gap-2 bg-[#09070d]/85 backdrop-blur px-2.5 py-1.5 rounded-lg cursor-default"
+                            title="Volume desta transmissão (só para você)"
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-[#c887ff]" />
+                            <input
+                              type="range" min={0} max={100}
+                              value={(p as any).streamVolume ?? 100}
+                              onChange={(e) => useVoiceStore.getState().setStreamVolume(p.identity, Number(e.target.value))}
+                              className="w-24 accent-[#7a2cff]"
+                            />
+                            <span className="text-white text-[10px] font-bold tabular-nums w-7 text-right">
+                              {(p as any).streamVolume ?? 100}%
+                            </span>
+                          </div>
+                        )}
                       </button>
                     );
                   })}

@@ -37,7 +37,7 @@ export class UploadService {
 
   async uploadFile(
     file: Express.Multer.File,
-    folder: 'avatars' | 'attachments' | 'banners',
+    folder: 'avatars' | 'attachments' | 'banners' | 'server-icons' | 'emojis',
   ): Promise<{ url: string; key: string }> {
     this.validateFile(file, folder);
 
@@ -49,8 +49,8 @@ export class UploadService {
     if (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') {
       buffer = await sharp(file.buffer)
         .resize(
-          folder === 'avatars' ? 256 : folder === 'banners' ? 1920 : 1920,
-          folder === 'avatars' ? 256 : folder === 'banners' ? 480 : 1080,
+          folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 1920 : 1920,
+          folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 480 : 1080,
           { fit: 'inside', withoutEnlargement: true },
         )
         .webp({ quality: 85 })
@@ -128,7 +128,7 @@ export class UploadService {
       throw new BadRequestException(`Arquivo muito grande. Máximo: ${maxSizeMB}MB`);
     }
 
-    if (folder === 'avatars' || folder === 'banners') {
+    if (folder === 'avatars' || folder === 'banners' || folder === 'server-icons' || folder === 'emojis') {
       const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       if (!allowedImageTypes.includes(file.mimetype)) {
         throw new BadRequestException('Tipo de imagem não suportado');
