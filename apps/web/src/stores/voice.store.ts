@@ -145,14 +145,14 @@ function disconnectReasonText(reason?: DisconnectReason): string {
 function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
   if (mutedLocally || deafened) return 0;
   const out = useMediaStore.getState().outputVolume;
-  // Teto de 2.0 (200%): com webAudioMix o ganho pode amplificar acima do
-  // volume original — deixa o usuário reforçar quem fala baixo.
-  return Math.min(2, (localVolume / 100) * (out / 100));
+  // Teto de 1.0: sem WebAudio, o volume vai direto no <audio> (el.volume),
+  // que o navegador limita em 100% — valores maiores lançariam exceção.
+  return Math.min(1, (localVolume / 100) * (out / 100));
 }
 
-// Aplica o volume nas tracks de áudio do participante via API do LiveKit.
-// Com webAudioMix o <audio> fica mutado e o som sai pelo AudioContext:
-// mexer em el.volume não tem efeito — só track.setVolume (gainNode) vale.
+// Aplica o volume nas tracks de áudio do participante via API do LiveKit
+// (track.setVolume ajusta os <audio> anexados e re-aplica sozinho quando a
+// track é re-anexada — mais confiável que mexer em el.volume por fora).
 function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; isMutedLocally?: boolean }) {
   if (!p.participant) return;
   const vol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
@@ -188,11 +188,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const room = new Room({
         adaptiveStream: true,       // qualidade adaptativa
         dynacast: true,             // simulcast dinâmico
-        // Mixagem via WebAudio: o volume por participante passa a usar o
-        // gainNode do LiveKit (track.setVolume), que aceita ganho > 1.0 —
-        // necessário para o volume individual de 0 a 200%. Sem isto, o som
-        // sai direto pelo <audio> e el.volume trava em 100% (limite do DOM).
-        webAudioMix: true,
+        // NÃO usar webAudioMix: no Chrome, áudio tocado via WebAudio escapa
+        // do cancelamento de eco (crbug 40252911) — na prática, vozes
+        // duplicadas e delay para todo mundo. Com a reprodução direta nos
+        // <audio>, o AEC funciona; o custo é o volume por pessoa limitar
+        // em 100% (el.volume não amplifica acima de 1.0).
         videoCaptureDefaults: {
           deviceId: ms.videoInputId || undefined,
           resolution: { width: 1280, height: 720, frameRate: 30 },

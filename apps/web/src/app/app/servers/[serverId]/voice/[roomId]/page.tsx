@@ -890,16 +890,16 @@ export default function VoicePage() {
                                   <div className="flex items-center justify-between mb-1">
                                     <small className="text-[10px] text-[#92879f] font-bold uppercase tracking-wider">Volume do usuário</small>
                                     <span className="text-[10px] text-white font-black tabular-nums">
-                                      {p.isMutedLocally ? 0 : (p.localVolume ?? 100)}%
+                                      {p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100)}%
                                     </span>
                                   </div>
                                   <input
-                                    type="range" min={0} max={200} step={5}
-                                    value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
+                                    type="range" min={0} max={100}
+                                    value={p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100)}
                                     disabled={p.isMutedLocally}
                                     onChange={(e) => useVoiceStore.getState().setParticipantVolume(p.identity, Number(e.target.value))}
                                     className="nx-range"
-                                    style={{ ['--fill' as any]: `${(p.isMutedLocally ? 0 : (p.localVolume ?? 100)) / 2}%` }}
+                                    style={{ ['--fill' as any]: `${p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100)}%` }}
                                   />
                                 </div>
                                 <MenuAction
@@ -1263,15 +1263,14 @@ function VoiceAudioPanel() {
               <input
                 type="range"
                 min={0}
-                max={200}
-                step={5}
-                value={p.isMutedLocally ? 0 : (p.localVolume ?? 100)}
+                max={100}
+                value={p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100)}
                 disabled={p.isMutedLocally}
                 onChange={(e) => setParticipantVolume(p.identity, Number(e.target.value))}
                 className="flex-1 accent-[#7a2cff] disabled:opacity-40"
               />
               <span className="text-muted text-xs w-10 text-right tabular-nums">
-                {p.isMutedLocally ? '0' : (p.localVolume ?? 100)}%
+                {p.isMutedLocally ? '0' : Math.min(100, p.localVolume ?? 100)}%
               </span>
             </div>
           </div>
