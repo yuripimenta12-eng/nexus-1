@@ -62,7 +62,7 @@ export default function LoginPage() {
     <div
       className="login-grid relative min-h-screen overflow-x-hidden grid
                  grid-cols-1 md:grid-cols-[minmax(380px,1.12fr)_minmax(430px,.88fr)]
-                 xl:grid-cols-[minmax(360px,1fr)_minmax(300px,520px)_minmax(430px,540px)]"
+                 xl:grid-cols-[minmax(340px,1fr)_minmax(360px,620px)_minmax(430px,520px)]"
       style={{
         background:
           'radial-gradient(circle at 14% 15%,#ff6a0018 0,transparent 30%),' +
@@ -188,38 +188,8 @@ export default function LoginPage() {
         <div className="nx-orbit" style={{ width: 470, height: 470, bottom: 110 }} />
         <div className="nx-orbit" style={{ width: 620, height: 620, bottom: 40, animationDuration: '38s', animationDirection: 'reverse', opacity: 0.6 }} />
 
-        {/* Partículas de luz subindo */}
-        {[
-          { l: '12%', s: 7, c: '#ff6a00', d: 0, t: 7.5 },
-          { l: '22%', s: 5, c: '#b05cff', d: 1.8, t: 6.2 },
-          { l: '30%', s: 4, c: '#ffd166', d: 3.1, t: 8.4 },
-          { l: '40%', s: 6, c: '#ff4d8d', d: 0.9, t: 7.0 },
-          { l: '52%', s: 4, c: '#b05cff', d: 2.4, t: 6.6 },
-          { l: '60%', s: 7, c: '#ff6a00', d: 4.2, t: 8.8 },
-          { l: '70%', s: 5, c: '#ffd166', d: 1.2, t: 6.9 },
-          { l: '80%', s: 6, c: '#7a2cff', d: 3.7, t: 7.8 },
-          { l: '88%', s: 4, c: '#ff4d8d', d: 0.4, t: 6.4 },
-          { l: '18%', s: 4, c: '#7a2cff', d: 5.1, t: 9.0 },
-          { l: '48%', s: 5, c: '#ff6a00', d: 5.8, t: 7.2 },
-          { l: '76%', s: 4, c: '#b05cff', d: 6.4, t: 8.1 },
-        ].map((p, i) => (
-          <span
-            key={i}
-            className="nx-particle"
-            style={{
-              left: p.l,
-              width: p.s,
-              height: p.s,
-              background: p.c,
-              boxShadow: `0 0 ${p.s * 2.5}px ${p.c}`,
-              animationDelay: `${p.d}s`,
-              animationDuration: `${p.t}s`,
-            }}
-          />
-        ))}
-
         {/* Mascote com fade nas bordas + reflexo nos óculos */}
-        <div className="relative" style={{ width: 'min(92%, 440px)' }}>
+        <div className="relative" style={{ width: 'min(104%, 620px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/mascote.webp"
@@ -247,33 +217,68 @@ export default function LoginPage() {
               filter: 'blur(6px)',
             }}
           />
-        </div>
 
-        {/* Ícones flutuantes (artes do Nexus) */}
-        {[
-          { src: '/icon-video.webp', top: '15%', left: '6%', size: 72, delay: 0 },
-          { src: '/icon-mic.webp', top: '12%', right: '5%', size: 70, delay: 1.4 },
-          { src: '/icon-chat.webp', top: '45%', left: '2%', size: 64, delay: 2.6 },
-          { src: '/icon-tela.webp', top: '52%', right: '3%', size: 66, delay: 0.8 },
-        ].map((f, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={f.src}
-            alt=""
-            className="nx-float select-none"
-            draggable={false}
-            style={{
-              top: f.top,
-              left: (f as any).left,
-              right: (f as any).right,
-              width: f.size,
-              height: f.size,
-              filter: 'drop-shadow(0 6px 18px rgba(255,106,0,0.45))',
-              animationDelay: `${f.delay}s`,
-            }}
-          />
-        ))}
+          {/* Fagulhas de luz subindo AO REDOR do personagem */}
+          {[
+            { l: '2%', b: '10%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
+            { l: '10%', b: '4%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
+            { l: '18%', b: '16%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
+            { l: '26%', b: '2%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
+            { l: '38%', b: '6%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
+            { l: '58%', b: '4%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
+            { l: '70%', b: '12%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
+            { l: '80%', b: '3%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
+            { l: '90%', b: '9%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
+            { l: '97%', b: '15%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
+            { l: '6%', b: '30%', h: 13, c: '#7a2cff', d: 5.0, t: 4.3 },
+            { l: '94%', b: '32%', h: 13, c: '#ffd166', d: 5.6, t: 4.8 },
+            { l: '32%', b: '20%', h: 12, c: '#ffb27d', d: 6.2, t: 5.1 },
+            { l: '64%', b: '24%', h: 12, c: '#ff6a00', d: 6.8, t: 4.5 },
+          ].map((p, i) => (
+            <span
+              key={i}
+              className="nx-particle"
+              style={{
+                left: p.l,
+                bottom: p.b,
+                width: 4,
+                height: p.h,
+                borderRadius: 4,
+                background: `linear-gradient(to top, transparent, ${p.c})`,
+                boxShadow: `0 0 10px ${p.c}`,
+                animationDelay: `${p.d}s`,
+                animationDuration: `${p.t}s`,
+              }}
+            />
+          ))}
+
+          {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
+          {[
+            { src: '/icon-video.webp', top: '2%', left: '-3%', size: 96, delay: 0 },
+            { src: '/icon-mic.webp', top: '0%', right: '-2%', size: 92, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '38%', left: '-9%', size: 84, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '46%', right: '-8%', size: 88, delay: 0.8 },
+          ].map((f, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={f.src}
+              alt=""
+              className="nx-float select-none"
+              draggable={false}
+              style={{
+                top: f.top,
+                left: (f as any).left,
+                right: (f as any).right,
+                width: f.size,
+                height: f.size,
+                filter: 'drop-shadow(0 8px 22px rgba(255,106,0,0.5))',
+                animationDelay: `${f.delay}s`,
+                zIndex: 2,
+              }}
+            />
+          ))}
+        </div>
       </section>
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
