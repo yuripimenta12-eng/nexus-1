@@ -64,7 +64,10 @@ export default function LoginPage() {
                  grid-cols-1 md:grid-cols-[minmax(380px,1.12fr)_minmax(430px,.88fr)]
                  xl:grid-cols-[minmax(360px,1fr)_minmax(300px,520px)_minmax(430px,540px)]"
       style={{
-        background: 'radial-gradient(circle at 14% 15%,#ff6a0025 0,transparent 30%),radial-gradient(circle at 86% 18%,#7a2cff35 0,transparent 32%),#09070d',
+        background:
+          'radial-gradient(circle at 14% 15%,#ff6a0018 0,transparent 30%),' +
+          'radial-gradient(circle at 86% 18%,#7a2cff28 0,transparent 32%),' +
+          "url('/login-bg.webp') center/cover no-repeat, #09070d",
       }}
     >
 
@@ -130,14 +133,15 @@ export default function LoginPage() {
             style={{ border: '1px solid #2e2339', background: '#ffffff06' }}
           >
             <div className="flex -space-x-2.5">
-              {[['G', '#ff7620', '#6d27d9'], ['A', '#bc4cff', '#3d1c82'], ['L', '#17a9cf', '#2f427c']].map(([l, c1, c2]) => (
-                <span
-                  key={l}
-                  className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-black text-white ring-2 ring-[#100b16]"
-                  style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
-                >
-                  {l}
-                </span>
+              {[1, 2, 3].map(n => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={n}
+                  src={`/avatar-${n}.webp`}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-[#100b16] select-none"
+                  draggable={false}
+                />
               ))}
             </div>
             <span
@@ -151,28 +155,16 @@ export default function LoginPage() {
         {/* Feature cards + legal */}
         <div>
           <div className="flex flex-wrap gap-2.5 mb-6">
-            {[
-              { icon: '🎙️', bold: 'Áudio', rest: 'cristalino', glow: '#ff6a00' },
-              { icon: '📹', bold: 'Vídeo', rest: 'em alta qualidade', glow: '#b05cff' },
-              { icon: '🖥️', bold: 'Tela', rest: 'sem complicação', glow: '#7a2cff' },
-              { icon: '💬', bold: 'Chat', rest: 'em tempo real', glow: '#ff4d8d' },
-            ].map(f => (
-              <div
-                key={f.bold}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl"
-                style={{ border: '1px solid #2e2339', background: '#ffffff05' }}
-              >
-                <span
-                  className="w-9 h-9 rounded-full grid place-items-center text-base shrink-0"
-                  style={{ border: `1px solid ${f.glow}55`, background: `${f.glow}18`, boxShadow: `0 0 14px ${f.glow}30` }}
-                >
-                  {f.icon}
-                </span>
-                <span className="leading-tight">
-                  <strong className="block text-[#eee6f7] text-[13px]">{f.bold}</strong>
-                  <span className="text-[11px] text-[#a99db5]">{f.rest}</span>
-                </span>
-              </div>
+            {['audio', 'video', 'tela', 'chat'].map(k => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={k}
+                src={`/card-${k}.webp`}
+                alt={k}
+                className="h-[64px] w-auto select-none transition-transform hover:-translate-y-0.5"
+                draggable={false}
+                style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.45))' }}
+              />
             ))}
           </div>
           <p className="text-[11px] text-[#655c70]">© 2026 Nexus Link. Conexões que aproximam.</p>
@@ -257,31 +249,30 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Ícones flutuantes de vidro */}
+        {/* Ícones flutuantes (artes do Nexus) */}
         {[
-          { icon: '📹', top: '16%', left: '8%', size: 58, glow: '#b05cff', delay: 0 },
-          { icon: '🎙️', top: '13%', right: '7%', size: 56, glow: '#ff6a00', delay: 1.4 },
-          { icon: '💬', top: '46%', left: '4%', size: 52, glow: '#7a2cff', delay: 2.6 },
-          { icon: '🖥️', top: '52%', right: '5%', size: 54, glow: '#ff4d8d', delay: 0.8 },
+          { src: '/icon-video.webp', top: '15%', left: '6%', size: 72, delay: 0 },
+          { src: '/icon-mic.webp', top: '12%', right: '5%', size: 70, delay: 1.4 },
+          { src: '/icon-chat.webp', top: '45%', left: '2%', size: 64, delay: 2.6 },
+          { src: '/icon-tela.webp', top: '52%', right: '3%', size: 66, delay: 0.8 },
         ].map((f, i) => (
-          <div
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             key={i}
-            className="nx-float"
+            src={f.src}
+            alt=""
+            className="nx-float select-none"
+            draggable={false}
             style={{
               top: f.top,
               left: (f as any).left,
               right: (f as any).right,
               width: f.size,
               height: f.size,
-              fontSize: f.size * 0.42,
-              background: `linear-gradient(145deg, ${f.glow}30, #ffffff08)`,
-              border: `1px solid ${f.glow}66`,
-              boxShadow: `0 0 24px ${f.glow}45, inset 0 0 14px ${f.glow}22`,
+              filter: 'drop-shadow(0 6px 18px rgba(255,106,0,0.45))',
               animationDelay: `${f.delay}s`,
             }}
-          >
-            {f.icon}
-          </div>
+          />
         ))}
       </section>
 
