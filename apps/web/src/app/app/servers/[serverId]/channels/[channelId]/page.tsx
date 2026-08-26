@@ -36,12 +36,13 @@ function renderRich(
     if (part.startsWith('@') && part.length > 1) {
       const isMe = myNames.includes(part.slice(1).toLowerCase());
       return (
-        <span key={i} className={cn(
-          'rounded px-1 py-[1px] font-medium',
-          isMe
-            ? 'bg-orange/25 text-[#ffb27d]'
-            : 'bg-accent/15 text-[#c9a8ff]',
-        )}>
+        <span
+          key={i}
+          className="rounded px-1 py-[1px] font-medium"
+          style={isMe
+            ? { background: 'rgba(255,106,0,0.28)', color: '#ffb27d' }
+            : { background: 'rgba(122,44,255,0.22)', color: '#c9a8ff' }}
+        >
           {part}
         </span>
       );
@@ -738,11 +739,14 @@ function MessageRow({
   const mentioned = !msg.deleted && !isOwn && mentionsMe(msg.content, myNames || []);
 
   return (
-    <div className={cn(
-      'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40',
-      !isConsecutive && 'mt-4',
-      mentioned && 'bg-orange/[0.07] border-l-2 border-orange hover:bg-orange/[0.1]',
-    )}>
+    <div
+      className={cn(
+        'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40',
+        !isConsecutive && 'mt-4',
+        mentioned && 'border-l-2',
+      )}
+      style={mentioned ? { background: 'rgba(255,106,0,0.06)', borderLeftColor: '#ff6a00' } : undefined}
+    >
       {/* Avatar */}
       <div className="w-10 shrink-0 mt-0.5">
         {!isConsecutive ? (
