@@ -65,9 +65,9 @@ export default function LoginPage() {
                  xl:grid-cols-[minmax(340px,1fr)_minmax(360px,620px)_minmax(430px,520px)]"
       style={{
         background:
-          'radial-gradient(circle at 14% 15%,#ff6a0018 0,transparent 30%),' +
-          'radial-gradient(circle at 86% 18%,#7a2cff28 0,transparent 32%),' +
-          "url('/login-bg.webp') center/cover no-repeat, #09070d",
+          'radial-gradient(circle at 14% 15%,#ff6a0014 0,transparent 30%),' +
+          'radial-gradient(circle at 86% 18%,#7a2cff20 0,transparent 32%),' +
+          '#0a0713',
       }}
     >
 
@@ -173,23 +173,9 @@ export default function LoginPage() {
       </section>
 
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
-      <section className="relative hidden xl:flex items-end justify-center overflow-hidden" aria-hidden>
-        {/* Glow de palco atrás do personagem */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(circle at 50% 58%, rgba(122,44,255,0.30), transparent 52%),' +
-              'radial-gradient(circle at 50% 85%, rgba(255,106,0,0.16), transparent 42%)',
-          }}
-        />
-
-        {/* Órbitas girando */}
-        <div className="nx-orbit" style={{ width: 470, height: 470, bottom: 110 }} />
-        <div className="nx-orbit" style={{ width: 620, height: 620, bottom: 40, animationDuration: '38s', animationDirection: 'reverse', opacity: 0.6 }} />
-
-        {/* Mascote em cena (arcos neon já integrados) + reflexo nos óculos */}
-        <div className="relative" style={{ width: 'min(110%, 700px)' }}>
+      <section className="relative hidden xl:flex items-center justify-center overflow-hidden" aria-hidden>
+        {/* Mascote em cena (ambiente largo + fade forte = sem emenda) */}
+        <div className="relative shrink-0" style={{ width: 'min(150%, 920px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/mascote-cena.webp"
@@ -198,30 +184,30 @@ export default function LoginPage() {
             draggable={false}
             style={{
               WebkitMaskImage:
-                'radial-gradient(ellipse 92% 90% at 50% 50%, #000 68%, transparent 99%)',
+                'radial-gradient(ellipse 68% 72% at 50% 52%, #000 42%, transparent 74%)',
               maskImage:
-                'radial-gradient(ellipse 92% 90% at 50% 50%, #000 68%, transparent 99%)',
+                'radial-gradient(ellipse 68% 72% at 50% 52%, #000 42%, transparent 74%)',
             }}
           />
           {/* Reflexo varrendo os óculos */}
-          <div className="nx-glare" style={{ left: '44.5%', top: '28.3%', width: '21%', height: '8%' }} />
+          <div className="nx-glare" style={{ left: '46.4%', top: '31.2%', width: '16%', height: '7.6%' }} />
 
           {/* Fagulhas de luz subindo AO REDOR do personagem */}
           {[
-            { l: '2%', b: '10%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
-            { l: '10%', b: '4%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
-            { l: '18%', b: '16%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
-            { l: '26%', b: '2%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
-            { l: '38%', b: '6%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
-            { l: '58%', b: '4%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
-            { l: '70%', b: '12%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
-            { l: '80%', b: '3%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
-            { l: '90%', b: '9%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
-            { l: '97%', b: '15%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
-            { l: '6%', b: '30%', h: 13, c: '#7a2cff', d: 5.0, t: 4.3 },
-            { l: '94%', b: '32%', h: 13, c: '#ffd166', d: 5.6, t: 4.8 },
-            { l: '32%', b: '20%', h: 12, c: '#ffb27d', d: 6.2, t: 5.1 },
-            { l: '64%', b: '24%', h: 12, c: '#ff6a00', d: 6.8, t: 4.5 },
+            { l: '26%', b: '14%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
+            { l: '31%', b: '8%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
+            { l: '36%', b: '18%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
+            { l: '41%', b: '6%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
+            { l: '46%', b: '10%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
+            { l: '56%', b: '8%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
+            { l: '62%', b: '15%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
+            { l: '67%', b: '7%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
+            { l: '72%', b: '12%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
+            { l: '76%', b: '18%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
+            { l: '29%', b: '32%', h: 13, c: '#7a2cff', d: 5.0, t: 4.3 },
+            { l: '73%', b: '34%', h: 13, c: '#ffd166', d: 5.6, t: 4.8 },
+            { l: '44%', b: '22%', h: 12, c: '#ffb27d', d: 6.2, t: 5.1 },
+            { l: '60%', b: '26%', h: 12, c: '#ff6a00', d: 6.8, t: 4.5 },
           ].map((p, i) => (
             <span
               key={i}
@@ -242,10 +228,10 @@ export default function LoginPage() {
 
           {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
           {[
-            { src: '/icon-video.webp', top: '2%', left: '-3%', size: 96, delay: 0 },
-            { src: '/icon-mic.webp', top: '0%', right: '-2%', size: 92, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '38%', left: '-9%', size: 84, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '46%', right: '-8%', size: 88, delay: 0.8 },
+            { src: '/icon-video.webp', top: '14%', left: '18%', size: 86, delay: 0 },
+            { src: '/icon-mic.webp', top: '11%', right: '17%', size: 82, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '46%', left: '12%', size: 76, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '52%', right: '11%', size: 80, delay: 0.8 },
           ].map((f, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
