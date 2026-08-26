@@ -188,35 +188,23 @@ export default function LoginPage() {
         <div className="nx-orbit" style={{ width: 470, height: 470, bottom: 110 }} />
         <div className="nx-orbit" style={{ width: 620, height: 620, bottom: 40, animationDuration: '38s', animationDirection: 'reverse', opacity: 0.6 }} />
 
-        {/* Mascote com fade nas bordas + reflexo nos óculos */}
-        <div className="relative" style={{ width: 'min(104%, 620px)' }}>
+        {/* Mascote em cena (arcos neon já integrados) + reflexo nos óculos */}
+        <div className="relative" style={{ width: 'min(110%, 700px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/mascote.webp"
+            src="/mascote-cena.webp"
             alt=""
             className="w-full h-auto select-none"
             draggable={false}
             style={{
               WebkitMaskImage:
-                'radial-gradient(ellipse 72% 60% at 50% 46%, #000 52%, transparent 78%)',
+                'radial-gradient(ellipse 92% 90% at 50% 50%, #000 68%, transparent 99%)',
               maskImage:
-                'radial-gradient(ellipse 72% 60% at 50% 46%, #000 52%, transparent 78%)',
+                'radial-gradient(ellipse 92% 90% at 50% 50%, #000 68%, transparent 99%)',
             }}
           />
           {/* Reflexo varrendo os óculos */}
-          <div className="nx-glare" style={{ left: '35.5%', top: '19.6%', width: '47%', height: '8.2%' }} />
-          {/* Sombra no chão */}
-          <div
-            className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-            style={{
-              bottom: '2%',
-              width: '58%',
-              height: 26,
-              borderRadius: '50%',
-              background: 'radial-gradient(ellipse, rgba(122,44,255,0.4), transparent 70%)',
-              filter: 'blur(6px)',
-            }}
-          />
+          <div className="nx-glare" style={{ left: '44.5%', top: '28.3%', width: '21%', height: '8%' }} />
 
           {/* Fagulhas de luz subindo AO REDOR do personagem */}
           {[
