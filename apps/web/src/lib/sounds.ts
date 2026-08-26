@@ -62,3 +62,9 @@ export function playLiveEnd() {
   tone(783.99, 0, 0.13, 'triangle', 0.11);   // G5
   tone(523.25, 0.1, 0.28, 'triangle', 0.11); // C5
 }
+
+/** Alguém MENCIONOU você (@nome) — dois toques altos e rápidos */
+export function playMention() {
+  tone(880.0, 0, 0.09, 'sine', 0.16);    // A5
+  tone(1174.7, 0.1, 0.16, 'sine', 0.16); // D6
+}

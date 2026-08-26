@@ -201,6 +201,19 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       clientMsgId: data.clientMsgId,
     });
 
+    // Atividade para a SIDEBAR de todo o servidor: badges de não-lidas e
+    // detecção de menção em canais que o usuário não está olhando.
+    const serverId = (message as any).channel?.serverId;
+    if (serverId) {
+      this.server.to(`server:${serverId}`).emit('channel:activity', {
+        serverId,
+        channelId: data.channelId,
+        authorId: userId,
+        authorName: (message as any).author?.profile?.displayName || (message as any).author?.username || '',
+        content: (data.content || '').slice(0, 300),
+      });
+    }
+
     return message;
   }
 

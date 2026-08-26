@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu } from 'lucide-react';
+import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu, Users } from 'lucide-react';
+import { playMention } from '@/lib/sounds';
 import api from '@/lib/api';
 import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
@@ -16,21 +17,52 @@ function genClientMsgId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Substitui :nome: pelos emojis customizados do servidor */
-function renderWithEmojis(text: string, map: Record<string, string>): React.ReactNode {
-  if (!text || !text.includes(':')) return text;
-  const parts = text.split(/(:[a-z0-9_]+:)/g);
+/** Render rico: emojis customizados (:nome:) + menções (@usuario) destacadas */
+function renderRich(
+  text: string,
+  map: Record<string, string>,
+  myNames: string[], // username e displayName do usuário atual (minúsculos)
+): React.ReactNode {
+  if (!text) return text;
+  const parts = text.split(/(:[a-z0-9_]+:|@[\wÀ-ÿ.]+)/g);
   if (parts.length === 1) return text;
   return parts.map((part, i) => {
-    const m = part.match(/^:([a-z0-9_]+):$/);
-    if (m && map[m[1]]) {
+    const emoji = part.match(/^:([a-z0-9_]+):$/);
+    if (emoji && map[emoji[1]]) {
       // eslint-disable-next-line @next/next/no-img-element
-      return <img key={i} src={map[m[1]]} alt={part} title={part}
+      return <img key={i} src={map[emoji[1]]} alt={part} title={part}
         className="inline-block w-6 h-6 object-contain align-text-bottom mx-0.5" />;
+    }
+    if (part.startsWith('@') && part.length > 1) {
+      const isMe = myNames.includes(part.slice(1).toLowerCase());
+      return (
+        <span key={i} className={cn(
+          'rounded px-1 py-[1px] font-medium',
+          isMe
+            ? 'bg-orange/25 text-[#ffb27d]'
+            : 'bg-accent/15 text-[#c9a8ff]',
+        )}>
+          {part}
+        </span>
+      );
     }
     return part;
   });
 }
+
+/** A mensagem menciona este usuário? (@username ou @DisplayName) */
+function mentionsMe(content: string, myNames: string[]): boolean {
+  if (!content || !content.includes('@')) return false;
+  const low = content.toLowerCase();
+  return myNames.some(n => n && low.includes('@' + n));
+}
+
+/* Emojis padrão do seletor */
+const DEFAULT_EMOJIS = [
+  '😀','😂','🤣','😊','😍','😘','😎','🤔','😅','🙃','😭','😤','😡','🥶','🤯','🥳',
+  '👍','👎','👏','🙌','🙏','💪','🤝','✌️','🤞','👀','🔥','✨','⭐','💯','❤️','💔',
+  '😱','🤗','🤫','😴','🤤','🤡','💀','👻','🎉','🎮','🎧','🎵','⚽','🏆','🍕','☕',
+];
 
 interface Message {
   id: string;
@@ -95,6 +127,38 @@ export default function ChannelPage() {
       .catch(() => {});
   }, [serverId]);
 
+  // Nomes dos membros (para "Fulano está digitando..." e destacar menções)
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!serverId) return;
+    api.get(`/servers/${serverId}/members`)
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        data.forEach((m: any) => { map[m.userId] = m.user?.profile?.displayName || m.user?.username || ''; });
+        setMemberNames(map);
+      })
+      .catch(() => {});
+  }, [serverId]);
+
+  // Meus nomes (para detectar menção a mim)
+  const myNames = useMemo(() => [
+    (user?.username || '').toLowerCase(),
+    (user?.profile?.displayName || '').toLowerCase(),
+  ].filter(Boolean), [user]);
+
+  // Seletor de emoji + lightbox de imagem + gaveta de membros (celular)
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [membersDrawer, setMembersDrawer] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setLightbox(null); setEmojiOpen(false); setMembersDrawer(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // ── Carrega mensagens ─────────────────────────────────────────
   useEffect(() => {
     if (!channelId) return;
@@ -149,6 +213,10 @@ export default function ChannelPage() {
         if (prev.some(m => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+      // Som quando alguém menciona você (@seu_nome)
+      if (msg.authorId !== user?.id && mentionsMe(msg.content, myNames)) {
+        try { playMention(); } catch { /* autoplay bloqueado */ }
+      }
       scrollToBottom();
     });
 
@@ -330,7 +398,35 @@ export default function ChannelPage() {
           </h2>
           <p className="text-[#9188a2] text-[11px]">Canal de texto da comunidade</p>
         </div>
+        {/* Membros no celular (a lista lateral some em telas pequenas) */}
+        <button
+          onClick={() => setMembersDrawer(true)}
+          className="ml-auto lg:hidden text-muted hover:text-white p-2 rounded-lg transition-colors"
+          title="Membros do servidor"
+        >
+          <Users className="w-5 h-5" />
+        </button>
       </div>
+
+      {/* Gaveta de membros (celular) */}
+      <AnimatePresence>
+        {membersDrawer && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-black/60 z-40"
+              onClick={() => setMembersDrawer(false)}
+            />
+            <motion.div
+              initial={{ x: 280 }} animate={{ x: 0 }} exit={{ x: 280 }}
+              transition={{ type: 'tween', duration: 0.2 }}
+              className="lg:hidden fixed right-0 top-0 bottom-0 z-50 shadow-2xl"
+            >
+              <MemberList serverId={serverId} variant="drawer" />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Modal de confirmação de exclusão */}
       {deleteConfirmId && (
@@ -402,6 +498,8 @@ export default function ChannelPage() {
                 groupedReactions={groupReactions(msg.reactions)}
                 currentUserId={user?.id || ''}
                 emojiMap={emojiMap}
+                myNames={myNames}
+                onImageClick={setLightbox}
               />
             );
           })
@@ -425,7 +523,11 @@ export default function ChannelPage() {
               ))}
             </div>
             <span className="text-muted text-xs">
-              {typingUsers.length === 1 ? 'alguém está digitando...' : 'várias pessoas estão digitando...'}
+              {typingUsers.length === 1
+                ? `${memberNames[typingUsers[0].userId] || 'alguém'} está digitando...`
+                : typingUsers.length === 2
+                  ? `${memberNames[typingUsers[0].userId] || 'alguém'} e ${memberNames[typingUsers[1].userId] || 'alguém'} estão digitando...`
+                  : 'várias pessoas estão digitando...'}
             </span>
           </motion.div>
         )}
@@ -514,10 +616,65 @@ export default function ChannelPage() {
             }}
           />
 
-          <div className="flex items-center gap-1">
-            <button className="text-muted hover:text-warning p-1 rounded transition-colors">
+          <div className="flex items-center gap-1 relative">
+            <button
+              onClick={() => setEmojiOpen(v => !v)}
+              className={cn('p-1 rounded transition-colors', emojiOpen ? 'text-warning' : 'text-muted hover:text-warning')}
+              title="Emoji"
+            >
               <Smile className="w-5 h-5" />
             </button>
+
+            {/* Seletor de emojis */}
+            <AnimatePresence>
+              {emojiOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setEmojiOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                    className="absolute bottom-11 right-0 z-50 w-72 max-h-80 overflow-y-auto rounded-2xl
+                               border border-[var(--th-line-2)] bg-[var(--th-panel)] shadow-2xl p-3"
+                  >
+                    {Object.keys(emojiMap).length > 0 && (
+                      <>
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#786e83] mb-1.5">
+                          Deste servidor
+                        </p>
+                        <div className="grid grid-cols-8 gap-1 mb-3">
+                          {Object.entries(emojiMap).map(([name, url]) => (
+                            <button
+                              key={name}
+                              title={`:${name}:`}
+                              onClick={() => { setContent(c => c + `:${name}: `); setEmojiOpen(false); textareaRef.current?.focus(); }}
+                              className="w-8 h-8 rounded-lg hover:bg-white/10 grid place-items-center"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt={name} className="w-6 h-6 object-contain" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#786e83] mb-1.5">
+                      Emojis
+                    </p>
+                    <div className="grid grid-cols-8 gap-1">
+                      {DEFAULT_EMOJIS.map(e => (
+                        <button
+                          key={e}
+                          onClick={() => { setContent(c => c + e); setEmojiOpen(false); textareaRef.current?.focus(); }}
+                          className="w-8 h-8 rounded-lg hover:bg-white/10 text-xl leading-none grid place-items-center"
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
             <button
               onClick={handleSend}
               disabled={!content.trim()}
@@ -540,6 +697,33 @@ export default function ChannelPage() {
 
       {/* Lista de membros (online/offline) — lado direito */}
       <MemberList serverId={serverId} />
+
+      {/* Lightbox de imagem */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-6 cursor-zoom-out"
+            onClick={() => setLightbox(null)}
+          >
+            <motion.img
+              initial={{ scale: 0.92 }} animate={{ scale: 1 }} exit={{ scale: 0.92 }}
+              src={lightbox}
+              alt="Imagem ampliada"
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20
+                         text-white grid place-items-center transition-colors"
+              title="Fechar (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -548,12 +732,17 @@ export default function ChannelPage() {
 function MessageRow({
   msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction,
   editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
-  groupedReactions, currentUserId, emojiMap,
+  groupedReactions, currentUserId, emojiMap, myNames, onImageClick,
 }: any) {
   const isEditing = editingId === msg.id;
+  const mentioned = !msg.deleted && !isOwn && mentionsMe(msg.content, myNames || []);
 
   return (
-    <div className={cn('message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40', !isConsecutive && 'mt-4')}>
+    <div className={cn(
+      'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40',
+      !isConsecutive && 'mt-4',
+      mentioned && 'bg-orange/[0.07] border-l-2 border-orange hover:bg-orange/[0.1]',
+    )}>
       {/* Avatar */}
       <div className="w-10 shrink-0 mt-0.5">
         {!isConsecutive ? (
@@ -610,7 +799,7 @@ function MessageRow({
             msg.deleted && 'text-muted italic',
             msg.pending && 'opacity-60',
           )}>
-            {msg.deleted ? msg.content : renderWithEmojis(msg.content, emojiMap || {})}
+            {msg.deleted ? msg.content : renderRich(msg.content, emojiMap || {}, myNames || [])}
             {msg.edited && !msg.deleted && (
               <span className="text-muted text-[10px] ml-1">(editado)</span>
             )}
@@ -625,12 +814,13 @@ function MessageRow({
           <div className="mt-2 flex flex-wrap gap-2">
             {msg.attachments.map((att: any) => (
               isImageMime(att.mimeType) ? (
-                <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
-                  className="rounded-lg overflow-hidden max-w-xs border border-[var(--th-line)]">
+                <button key={att.id} onClick={() => onImageClick?.(att.url)}
+                  className="rounded-lg overflow-hidden max-w-xs border border-[var(--th-line)] cursor-zoom-in
+                             hover:border-accent transition-colors">
                   {/* img simples: next/image não aceita data URLs (fallback de storage) */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={att.url} alt={att.fileName} className="max-w-full max-h-80 object-contain" />
-                </a>
+                </button>
               ) : (
                 <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 p-2 bg-surface rounded-lg text-sm text-muted-foreground hover:text-white border border-border">

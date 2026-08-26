@@ -38,6 +38,33 @@ export function AppSidebar() {
   const [menuToast, setMenuToast] = useState<string | null>(null);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
+  // Não-lidas por canal (badge) + menções (badge vermelho + som)
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [mentioned, setMentioned] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const socket = getSocket();
+    const onActivity = (evt: { serverId: string; channelId: string; authorId: string; content: string }) => {
+      if (evt.authorId === user?.id) return;          // minhas próprias mensagens não contam
+      if (evt.channelId === activeChannelId) return;  // canal aberto = já lida
+      setUnread(prev => ({ ...prev, [evt.channelId]: (prev[evt.channelId] || 0) + 1 }));
+      const meNames = [user?.username, user?.profile?.displayName].filter(Boolean).map(n => (n as string).toLowerCase());
+      if (evt.content && meNames.some(n => evt.content.toLowerCase().includes('@' + n))) {
+        setMentioned(prev => ({ ...prev, [evt.channelId]: true }));
+        import('@/lib/sounds').then(s => s.playMention()).catch(() => {});
+      }
+    };
+    socket.on('channel:activity', onActivity);
+    return () => { socket.off('channel:activity', onActivity); };
+  }, [activeChannelId, user]);
+
+  // Abrir o canal zera o contador dele
+  useEffect(() => {
+    if (!activeChannelId) return;
+    setUnread(prev => { const n = { ...prev }; delete n[activeChannelId]; return n; });
+    setMentioned(prev => { const n = { ...prev }; delete n[activeChannelId]; return n; });
+  }, [activeChannelId]);
+
   // Atalho "Membros" na lista de canais (toggle em Config. → Membros)
   const [showMembersShortcut, setShowMembersShortcut] = useState(false);
   useEffect(() => {
@@ -288,7 +315,15 @@ export function AppSidebar() {
               )}
             >
               <Hash className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
-              <span className="truncate">{ch.name}</span>
+              <span className={cn('truncate', (unread[ch.id] || 0) > 0 && 'text-white font-semibold')}>{ch.name}</span>
+              {(unread[ch.id] || 0) > 0 && (
+                <span className={cn(
+                  'ml-auto shrink-0 text-[10px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center',
+                  mentioned[ch.id] ? 'bg-[#ed4245] text-white' : 'bg-[var(--th-panel-2)] text-[#cfc5d8]',
+                )}>
+                  {mentioned[ch.id] ? '@' : ''}{unread[ch.id] > 99 ? '99+' : unread[ch.id]}
+                </span>
+              )}
             </motion.button>
           ))}
         </AnimatePresence>

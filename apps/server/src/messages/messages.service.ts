@@ -56,6 +56,8 @@ export class MessagesService {
         replyTo: {
           include: { author: { include: { profile: true } } },
         },
+        // serverId para o gateway avisar a sidebar (badges de não-lidas)
+        channel: { select: { serverId: true } },
       },
     });
 

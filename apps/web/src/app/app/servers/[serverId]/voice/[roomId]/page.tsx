@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { cn, getInitials } from '@/lib/utils';
 import { getSocket } from '@/lib/socket';
 import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd } from '@/lib/sounds';
+import { Avatar } from '@/components/ui/avatar';
 import api from '@/lib/api';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -284,9 +285,33 @@ export default function VoicePage() {
     }
   };
 
+  // ── Pré-lobby: só entra na sala quando o usuário clicar ───────
+  const [inLobby, setInLobby] = useState(true);
+  const [lobbyInfo, setLobbyInfo] = useState<{ name: string; people: { id: string; displayName: string; avatarUrl: string | null }[] } | null>(null);
+
   useEffect(() => {
-    joinRoom();
-  }, [roomId]);
+    if (!inLobby || !serverId) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const [srv, pres] = await Promise.all([
+          api.get(`/servers/${serverId}`),
+          api.get(`/voice/servers/${serverId}/presence`),
+        ]);
+        if (!alive) return;
+        const room = (srv.data.voiceRooms || []).find((r: any) => r.id === roomId);
+        setLobbyInfo({ name: room?.name || 'Sala de Voz', people: pres.data?.[roomId] || [] });
+      } catch { /* mostra lobby genérico */ }
+    };
+    load();
+    const t = setInterval(load, 8000);
+    return () => { alive = false; clearInterval(t); };
+  }, [inLobby, serverId, roomId]);
+
+  useEffect(() => {
+    if (!inLobby) joinRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, inLobby]);
 
   const handleLeave = async () => {
     playCallLeave();
@@ -365,6 +390,64 @@ export default function VoicePage() {
         p.screenSharing &&
         (p.participant instanceof LocalParticipant || watching.has(p.identity)))
     : undefined;
+
+  if (inLobby) {
+    return (
+      <div className="flex-1 flex items-center justify-center nx-stage-bg p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm rounded-3xl border border-[var(--th-line-2)] bg-[var(--th-panel)] p-8 text-center"
+        >
+          <div className="w-16 h-16 mx-auto rounded-2xl grid place-items-center bg-[#22142f] text-[#c887ff] mb-4">
+            <Volume2 className="w-7 h-7" />
+          </div>
+          <h1 className="text-white text-xl font-bold">{lobbyInfo?.name || 'Sala de Voz'}</h1>
+
+          {lobbyInfo && lobbyInfo.people.length > 0 ? (
+            <>
+              <p className="text-[#92879f] text-sm mt-1">
+                {lobbyInfo.people.length} pessoa{lobbyInfo.people.length !== 1 ? 's' : ''} na sala agora
+              </p>
+              <div className="flex justify-center -space-x-2 mt-3">
+                {lobbyInfo.people.slice(0, 6).map(p => (
+                  <div key={p.id} className="ring-2 ring-[var(--th-panel)] rounded-full" title={p.displayName}>
+                    <Avatar src={p.avatarUrl} name={p.displayName} size="sm" />
+                  </div>
+                ))}
+                {lobbyInfo.people.length > 6 && (
+                  <span className="w-8 h-8 rounded-full bg-[var(--th-panel-2)] text-[#a99cb8] text-[10px] font-bold
+                                   grid place-items-center ring-2 ring-[var(--th-panel)]">
+                    +{lobbyInfo.people.length - 6}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="text-[#92879f] text-sm mt-1">A sala está vazia — seja o primeiro!</p>
+          )}
+
+          <button
+            onClick={() => setInLobby(false)}
+            className="w-full mt-6 py-3.5 rounded-2xl text-white text-sm font-extrabold
+                       bg-gradient-to-r from-orange to-accent shadow-[0_10px_30px_rgba(122,44,255,0.25)]
+                       hover:opacity-95 active:scale-[0.98] transition-all"
+          >
+            Entrar na chamada
+          </button>
+          <button
+            onClick={() => router.push(`/app/servers/${serverId}`)}
+            className="w-full mt-2 py-2.5 rounded-2xl text-[#a99cb8] hover:text-white text-sm font-medium transition-colors"
+          >
+            Voltar
+          </button>
+          <p className="text-[#5c5468] text-[11px] mt-4">
+            🎙️ O microfone é opcional — sem permissão, você entra só ouvindo.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (isConnecting || isJoining) {
     return (
@@ -800,9 +883,21 @@ export default function VoicePage() {
                 participantsList.length > 2 && participantsList.length <= 4 && 'grid-cols-1 sm:grid-cols-2',
                 participantsList.length > 4 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
               )}>
-                {participantsList.map(p => (
-                  <ParticipantTile key={p.identity} voiceParticipant={p} />
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {participantsList.map(p => (
+                    <motion.div
+                      key={p.identity}
+                      layout
+                      initial={{ opacity: 0, scale: 0.88 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.88 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="min-h-0"
+                    >
+                      <ParticipantTile voiceParticipant={p} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -1579,7 +1674,7 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        'relative rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
+        'relative h-full rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
         speaking
           ? 'border-[#8f42ff] shadow-[inset_0_0_0_2px_rgba(255,106,0,0.4),0_0_32px_rgba(122,44,255,0.2)] -translate-y-px'
           : 'border-[var(--th-line-2)]',

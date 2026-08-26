@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, Shield, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Crown, Shield, ShieldCheck, MessageSquare, MicOff, Mic, UserX, Ban, X, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { getSocket, joinServer } from '@/lib/socket';
+import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -51,9 +53,10 @@ function RoleIcon({ role }: { role: Role }) {
   return null;
 }
 
-export function MemberList({ serverId }: { serverId: string }) {
+export function MemberList({ serverId, variant = 'sidebar' }: { serverId: string; variant?: 'sidebar' | 'drawer' }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Member | null>(null);
 
   // Carrega os membros (com status vindo do backend)
   useEffect(() => {
@@ -122,7 +125,10 @@ export function MemberList({ serverId }: { serverId: string }) {
   }, [members]);
 
   return (
-    <aside className="hidden lg:flex w-60 shrink-0 flex-col border-l border-[var(--th-line)] bg-[var(--th-side)]">
+    <aside className={cn(
+      'w-60 shrink-0 flex-col border-l border-[var(--th-line)] bg-[var(--th-side)]',
+      variant === 'sidebar' ? 'hidden lg:flex' : 'flex h-full',
+    )}>
       <div className="h-[70px] flex items-center px-4 border-b border-[var(--th-line)] shrink-0">
         <h3 className="text-[13px] font-bold uppercase tracking-wider text-[#9188a2]">Membros</h3>
         <span className="ml-2 text-[11px] text-[#6f6478]">{members.length}</span>
@@ -142,18 +148,35 @@ export function MemberList({ serverId }: { serverId: string }) {
                 count={g.members.length}
                 members={g.members}
                 muted={false}
+                onSelect={setSelected}
               />
             ))}
-            <MemberGroup title="Online" count={online.length} members={online} muted={false} />
-            <MemberGroup title="Offline" count={offline.length} members={offline} muted />
+            <MemberGroup title="Online" count={online.length} members={online} muted={false} onSelect={setSelected} />
+            <MemberGroup title="Offline" count={offline.length} members={offline} muted onSelect={setSelected} />
           </>
         )}
       </div>
+
+      {/* Mini-perfil do membro clicado */}
+      {selected && (
+        <MemberProfileCard
+          member={selected}
+          members={members}
+          serverId={serverId}
+          onClose={() => setSelected(null)}
+          onChanged={() => {
+            setSelected(null);
+            api.get(`/servers/${serverId}/members`).then(({ data }) => setMembers(data ?? [])).catch(() => {});
+          }}
+        />
+      )}
     </aside>
   );
 }
 
-function MemberGroup({ title, count, members, muted }: { title: string; count: number; members: Member[]; muted: boolean }) {
+function MemberGroup({ title, count, members, muted, onSelect }: {
+  title: string; count: number; members: Member[]; muted: boolean; onSelect: (m: Member) => void;
+}) {
   if (count === 0) return null;
   return (
     <div>
@@ -164,10 +187,11 @@ function MemberGroup({ title, count, members, muted }: { title: string; count: n
         {members.map(m => {
           const name = m.user.profile?.displayName || m.user.username;
           return (
-            <div
+            <button
               key={m.userId}
+              onClick={() => onSelect(m)}
               className={cn(
-                'group flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-white/5',
+                'group w-full text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-white/5',
                 muted && 'opacity-45 hover:opacity-100',
               )}
             >
@@ -192,9 +216,127 @@ function MemberGroup({ title, count, members, muted }: { title: string; count: n
                   <p className="text-[11px] text-[#8a8095] truncate">{m.user.profile.customStatus}</p>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Mini-perfil (clique num membro) ─────────────────────────── */
+const ROLE_RANK: Record<Role, number> = { OWNER: 0, ADMIN: 1, MODERATOR: 2, MEMBER: 3 };
+
+function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
+  member: Member; members: Member[]; serverId: string; onClose: () => void; onChanged: () => void;
+}) {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
+
+  const name = member.user.profile?.displayName || member.user.username;
+  const isMe = member.userId === user?.id;
+  const myRole: Role = (members.find(m => m.userId === user?.id)?.role as Role) || 'MEMBER';
+  const canModerate =
+    !isMe &&
+    member.role !== 'OWNER' &&
+    ['OWNER', 'ADMIN', 'MODERATOR'].includes(myRole) &&
+    ROLE_RANK[member.role] > ROLE_RANK[myRole];
+  const topColor = nameColorOf(member) || '#7a2cff';
+
+  const act = async (kind: 'mute' | 'kick' | 'ban') => {
+    setBusy(kind);
+    try {
+      if (kind === 'mute') {
+        await api.patch(`/moderation/servers/${serverId}/mute/${member.userId}`, { muted: !(member as any).mutedBy });
+      } else {
+        await api.post(`/moderation/servers/${serverId}/${kind}/${member.userId}`, {});
+      }
+      onChanged();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.message || 'Sem permissão');
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-xs rounded-2xl overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)] shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Banner na cor do cargo mais alto */}
+        <div className="h-16" style={{ background: `linear-gradient(120deg, ${topColor}66, ${topColor}22)` }} />
+        <div className="px-4 pb-4 -mt-7">
+          <div className="relative inline-block">
+            <Avatar src={member.user.profile?.avatarUrl} name={name} size="lg" className="ring-4 ring-[var(--th-panel)]" />
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[var(--th-panel)]"
+              style={{ background: STATUS_COLOR[member.status] }}
+            />
+          </div>
+
+          <div className="mt-2 flex items-center gap-1.5">
+            <b className="text-white text-base truncate" style={{ color: nameColorOf(member) || '#fff' }}>{name}</b>
+            <RoleIcon role={member.role} />
+          </div>
+          <p className="text-[#8a8095] text-xs">@{member.user.username}</p>
+
+          {/* Cargos personalizados */}
+          {(member.roles?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {member.roles!.map(r => (
+                <span key={r.id}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-[#d7cfe0] rounded-full px-2 py-0.5
+                             bg-[var(--th-panel-2)] border border-[var(--th-line-2)]">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                  {r.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Ações */}
+          {!isMe && (
+            <div className="mt-4 space-y-1.5">
+              <button
+                onClick={() => router.push(`/app/dms/${member.userId}`)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold
+                           text-white bg-accent hover:bg-accent-hover active:scale-95 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" /> Mensagem
+              </button>
+              {canModerate && (
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => act('mute')} disabled={!!busy}
+                    title={(member as any).mutedBy ? 'Liberar microfone' : 'Silenciar no servidor'}
+                    className="flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold
+                               text-[#a99cb8] bg-[var(--th-panel-2)] hover:text-white border border-[var(--th-line-2)] transition-colors">
+                    {busy === 'mute' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
+                      (member as any).mutedBy ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+                  </button>
+                  <button onClick={() => act('kick')} disabled={!!busy} title="Expulsar do servidor"
+                    className="flex items-center justify-center py-2 rounded-xl text-xs font-bold
+                               text-warning bg-[var(--th-panel-2)] hover:bg-warning/15 border border-[var(--th-line-2)] transition-colors">
+                    {busy === 'kick' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserX className="w-3.5 h-3.5" />}
+                  </button>
+                  <button onClick={() => act('ban')} disabled={!!busy} title="Banir do servidor"
+                    className="flex items-center justify-center py-2 rounded-xl text-xs font-bold
+                               text-destructive bg-[var(--th-panel-2)] hover:bg-destructive/15 border border-[var(--th-line-2)] transition-colors">
+                    {busy === 'ban' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              )}
+              {msg && <p className="text-destructive text-xs text-center">{msg}</p>}
+            </div>
+          )}
+        </div>
+
+        <button onClick={onClose}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 text-white grid place-items-center">
+          <X className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
