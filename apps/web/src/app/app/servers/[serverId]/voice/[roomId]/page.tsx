@@ -22,6 +22,7 @@ import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn, getInitials } from '@/lib/utils';
 import { getSocket } from '@/lib/socket';
+import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd } from '@/lib/sounds';
 import api from '@/lib/api';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -152,6 +153,43 @@ export default function VoicePage() {
     });
   }, [participants]);
 
+  // ── Sons de interface ─────────────────────────────────────────
+  // Entrou/saiu alguém da call e início/fim de live, por diferença de
+  // estado entre renders. Silencioso quando você está em "Silenciar tudo".
+  const prevIdsRef = useRef<Set<string> | null>(null);
+  const prevSharersRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    const ids = new Set(Array.from(participants.keys()));
+    const sharers = new Set(
+      Array.from(participants.values()).filter(p => p.screenSharing).map(p => p.identity),
+    );
+
+    if (prevIdsRef.current === null) {
+      // Primeira renderização conectado = VOCÊ acabou de entrar
+      if (ids.size > 0) {
+        if (!isDeafened) playCallJoin();
+        prevIdsRef.current = ids;
+        prevSharersRef.current = sharers;
+      }
+      return;
+    }
+
+    if (!isDeafened) {
+      const antes = prevIdsRef.current;
+      if (Array.from(ids).some(id => !antes.has(id))) playCallJoin();
+      if (Array.from(antes).some(id => !ids.has(id))) playCallLeave();
+
+      const antesLive = prevSharersRef.current ?? new Set<string>();
+      if (Array.from(sharers).some(id => !antesLive.has(id))) playLiveStart();
+      if (Array.from(antesLive).some(id => !sharers.has(id))) playLiveEnd();
+    }
+
+    prevIdsRef.current = ids;
+    prevSharersRef.current = sharers;
+  }, [participants, isConnected, isDeafened]);
+
   const sendChat = () => {
     const content = chatInput.trim();
     if (!content) return;
@@ -251,6 +289,7 @@ export default function VoicePage() {
   }, [roomId]);
 
   const handleLeave = async () => {
+    playCallLeave();
     await api.post(`/voice/rooms/${roomId}/leave`).catch(() => {});
     await disconnect();
     router.push(`/app/servers/${serverId}`);
