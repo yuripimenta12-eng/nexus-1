@@ -13,6 +13,7 @@ export class UploadService {
   // de desenvolvimento) ou faltam credenciais — nesse caso não há para onde
   // enviar o arquivo em produção, então caímos no fallback de data URL.
   private readonly s3Configured: boolean;
+  private readonly useAcl: boolean = true;
   private warnedFallback = false;
 
   constructor(private config: ConfigService) {
@@ -33,6 +34,9 @@ export class UploadService {
 
     this.bucket = config.get<string>('S3_BUCKET', 'nexus-uploads');
     this.publicUrl = config.get<string>('S3_PUBLIC_URL', '');
+    // Cloudflare R2 nao suporta ACLs (o acesso publico vem do bucket);
+    // enviar x-amz-acl para o R2 causa erro no PutObject.
+    this.useAcl = !/r2\.cloudflarestorage\.com/.test(endpoint);
   }
 
   async uploadFile(
@@ -67,7 +71,7 @@ export class UploadService {
         Key: webpKey,
         Body: buffer,
         ContentType: 'image/webp',
-        ACL: 'public-read',
+        ...(this.useAcl ? { ACL: 'public-read' } : {}),
       }).promise();
 
       return {
@@ -93,7 +97,7 @@ export class UploadService {
       Key: key,
       Body: buffer,
       ContentType: file.mimetype,
-      ACL: 'public-read',
+      ...(this.useAcl ? { ACL: 'public-read' } : {}),
       ContentDisposition: `attachment; filename="${file.originalname}"`,
     }).promise();
 

@@ -11,6 +11,7 @@ import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -21,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private redis: RedisService,
+    private mailService: MailService,
   ) {}
 
   // ── Registro ─────────────────────────────────────────────────
@@ -134,8 +136,11 @@ export class AuthService {
       data: { userId: user.id, token, expiresAt },
     });
 
-    // TODO: enviar e-mail com o link de reset
-    // await this.mailService.sendPasswordReset(user.email, token);
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    await this.mailService.sendPasswordReset(
+      user.email,
+      `${appUrl}/auth/reset-password?token=${token}`,
+    );
 
     return { message: 'Se o e-mail existir, você receberá um link.' };
   }
