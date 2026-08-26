@@ -837,3 +837,89 @@
 .lk-focus-layout {
   background: transparent !important;
 }
+
+/* ── Login: palco do mascote ─────────────────────────────────── */
+/* Partículas de luz subindo ao redor do personagem */
+@keyframes nxRise {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  12%  { opacity: 1; }
+  80%  { opacity: 0.85; }
+  100% { transform: translateY(-540px) scale(1.15); opacity: 0; }
+}
+.nx-particle {
+  position: absolute;
+  bottom: 40px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: nxRise linear infinite;
+}
+
+/* Ícones flutuantes (vidro) */
+@keyframes nxFloat {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-14px) rotate(2deg); }
+}
+.nx-float {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  backdrop-filter: blur(6px);
+  animation: nxFloat 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Reflexo varrendo os óculos */
+@keyframes nxGlare {
+  0%   { transform: translateX(-160%) skewX(-22deg); }
+  18%  { transform: translateX(320%) skewX(-22deg); }
+  100% { transform: translateX(320%) skewX(-22deg); }
+}
+.nx-glare {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.nx-glare::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: 0;
+  width: 34%;
+  height: 180%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
+  filter: blur(5px);
+  animation: nxGlare 4.6s ease-in-out infinite;
+}
+
+/* Órbitas ao redor do mascote */
+@keyframes nxOrbitSpin { to { transform: translateX(-50%) rotate(360deg); } }
+.nx-orbit {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid rgba(176,92,255,0.22);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: nxOrbitSpin 26s linear infinite;
+}
+.nx-orbit::before {
+  content: '';
+  position: absolute;
+  width: 9px; height: 9px;
+  border-radius: 9999px;
+  background: #ff6a00;
+  box-shadow: 0 0 14px #ff6a00;
+  top: 12%; left: 4%;
+}
+.nx-orbit::after {
+  content: '';
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 9999px;
+  background: #b05cff;
+  box-shadow: 0 0 12px #b05cff;
+  bottom: 8%; right: 6%;
+}

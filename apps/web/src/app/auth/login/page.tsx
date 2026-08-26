@@ -60,11 +60,11 @@ export default function LoginPage() {
 
   return (
     <div
-      className="login-grid relative min-h-screen overflow-x-hidden"
+      className="login-grid relative min-h-screen overflow-x-hidden grid
+                 grid-cols-1 md:grid-cols-[minmax(380px,1.12fr)_minmax(430px,.88fr)]
+                 xl:grid-cols-[minmax(360px,1fr)_minmax(300px,520px)_minmax(430px,540px)]"
       style={{
         background: 'radial-gradient(circle at 14% 15%,#ff6a0025 0,transparent 30%),radial-gradient(circle at 86% 18%,#7a2cff35 0,transparent 32%),#09070d',
-        display: 'grid',
-        gridTemplateColumns: 'minmax(380px,1.12fr) minmax(430px,.88fr)',
       }}
     >
 
@@ -73,32 +73,18 @@ export default function LoginPage() {
         className="relative flex flex-col justify-between min-h-screen"
         style={{ padding: '42px clamp(35px,6vw,92px)' }}
       >
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
+        {/* Brand — logo completo com brilho */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/nexus-logo-full.png"
+            alt="Nexus Link"
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 16,
-              overflow: 'hidden',
-              flexShrink: 0,
-              boxShadow: '0 0 30px #7a2cff55',
+              height: 104,
+              width: 'auto',
+              filter: 'drop-shadow(0 6px 22px rgba(122,44,255,0.45)) drop-shadow(0 2px 8px rgba(255,106,0,0.25))',
             }}
-          >
-            <img
-              src="/nexus-logo.png"
-              alt="Nexus Link"
-              style={{
-                width: 52,
-                height: 52,
-                objectFit: 'cover',
-                objectPosition: '50% 18%',
-              }}
-            />
-          </div>
-          <span style={{ color: '#fff', fontWeight: 900, fontSize: 19, letterSpacing: 1 }}>
-            NEXUS <span style={{ color: '#ff6a00' }}>LINK</span>
-          </span>
+          />
         </div>
 
         {/* Copy */}
@@ -138,82 +124,170 @@ export default function LoginPage() {
             com seus amigos em um só lugar.
           </p>
 
-          {/* Pulse */}
-          <div className="flex items-center gap-3 mt-8 text-[#d7cfdf]">
+          {/* Prova social com avatares */}
+          <div
+            className="inline-flex items-center gap-3 mt-8 px-4 py-2.5 rounded-2xl"
+            style={{ border: '1px solid #2e2339', background: '#ffffff06' }}
+          >
+            <div className="flex -space-x-2.5">
+              {[['G', '#ff7620', '#6d27d9'], ['A', '#bc4cff', '#3d1c82'], ['L', '#17a9cf', '#2f427c']].map(([l, c1, c2]) => (
+                <span
+                  key={l}
+                  className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-black text-white ring-2 ring-[#100b16]"
+                  style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                >
+                  {l}
+                </span>
+              ))}
+            </div>
             <span
-              className="w-[11px] h-[11px] rounded-full flex-shrink-0"
-              style={{
-                background: '#47e5a4',
-                boxShadow: '0 0 0 0 #47e5a480',
-                animation: 'pulseDot 1.8s infinite',
-              }}
+              className="w-[10px] h-[10px] rounded-full flex-shrink-0"
+              style={{ background: '#47e5a4', animation: 'pulseDot 1.8s infinite' }}
             />
-            <span className="text-sm">Mais de 2.400 pessoas conectadas agora</span>
+            <span className="text-sm text-[#d7cfdf]">Mais de 2.400 pessoas<br className="sm:hidden" /> conectadas agora</span>
           </div>
         </div>
 
-        {/* Feature chips + legal */}
+        {/* Feature cards + legal */}
         <div>
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2.5 mb-6">
             {[
-              ['Áudio', 'cristalino'],
-              ['Vídeo', 'em alta qualidade'],
-              ['Tela', 'sem complicação'],
-              ['Chat', 'em tempo real'],
-            ].map(([bold, rest]) => (
-              <span
-                key={bold}
-                className="px-3 py-2 rounded-full text-[12px] text-[#a99db5]"
+              { icon: '🎙️', bold: 'Áudio', rest: 'cristalino', glow: '#ff6a00' },
+              { icon: '📹', bold: 'Vídeo', rest: 'em alta qualidade', glow: '#b05cff' },
+              { icon: '🖥️', bold: 'Tela', rest: 'sem complicação', glow: '#7a2cff' },
+              { icon: '💬', bold: 'Chat', rest: 'em tempo real', glow: '#ff4d8d' },
+            ].map(f => (
+              <div
+                key={f.bold}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl"
                 style={{ border: '1px solid #2e2339', background: '#ffffff05' }}
               >
-                <strong className="text-[#eee6f7]">{bold}</strong> {rest}
-              </span>
+                <span
+                  className="w-9 h-9 rounded-full grid place-items-center text-base shrink-0"
+                  style={{ border: `1px solid ${f.glow}55`, background: `${f.glow}18`, boxShadow: `0 0 14px ${f.glow}30` }}
+                >
+                  {f.icon}
+                </span>
+                <span className="leading-tight">
+                  <strong className="block text-[#eee6f7] text-[13px]">{f.bold}</strong>
+                  <span className="text-[11px] text-[#a99db5]">{f.rest}</span>
+                </span>
+              </div>
             ))}
           </div>
           <p className="text-[11px] text-[#655c70]">© 2026 Nexus Link. Conexões que aproximam.</p>
         </div>
 
-        {/* Orbit decoration */}
+      </section>
+
+      {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
+      <section className="relative hidden xl:flex items-end justify-center overflow-hidden" aria-hidden>
+        {/* Glow de palco atrás do personagem */}
         <div
+          className="absolute inset-0 pointer-events-none"
           style={{
-            position: 'absolute',
-            left: '49%',
-            top: '49%',
-            width: 250,
-            height: 250,
-            border: '1px solid #7a2cff35',
-            borderRadius: '50%',
-            transform: 'translate(-50%,-50%)',
-            pointerEvents: 'none',
-            animation: 'orbitSpin 18s linear infinite',
+            background:
+              'radial-gradient(circle at 50% 58%, rgba(122,44,255,0.30), transparent 52%),' +
+              'radial-gradient(circle at 50% 85%, rgba(255,106,0,0.16), transparent 42%)',
           }}
-        >
+        />
+
+        {/* Órbitas girando */}
+        <div className="nx-orbit" style={{ width: 470, height: 470, bottom: 110 }} />
+        <div className="nx-orbit" style={{ width: 620, height: 620, bottom: 40, animationDuration: '38s', animationDirection: 'reverse', opacity: 0.6 }} />
+
+        {/* Partículas de luz subindo */}
+        {[
+          { l: '12%', s: 7, c: '#ff6a00', d: 0, t: 7.5 },
+          { l: '22%', s: 5, c: '#b05cff', d: 1.8, t: 6.2 },
+          { l: '30%', s: 4, c: '#ffd166', d: 3.1, t: 8.4 },
+          { l: '40%', s: 6, c: '#ff4d8d', d: 0.9, t: 7.0 },
+          { l: '52%', s: 4, c: '#b05cff', d: 2.4, t: 6.6 },
+          { l: '60%', s: 7, c: '#ff6a00', d: 4.2, t: 8.8 },
+          { l: '70%', s: 5, c: '#ffd166', d: 1.2, t: 6.9 },
+          { l: '80%', s: 6, c: '#7a2cff', d: 3.7, t: 7.8 },
+          { l: '88%', s: 4, c: '#ff4d8d', d: 0.4, t: 6.4 },
+          { l: '18%', s: 4, c: '#7a2cff', d: 5.1, t: 9.0 },
+          { l: '48%', s: 5, c: '#ff6a00', d: 5.8, t: 7.2 },
+          { l: '76%', s: 4, c: '#b05cff', d: 6.4, t: 8.1 },
+        ].map((p, i) => (
           <span
+            key={i}
+            className="nx-particle"
             style={{
-              position: 'absolute',
-              width: 12, height: 12,
-              borderRadius: '50%',
-              background: '#ff6a00',
-              boxShadow: '0 0 20px #ff6a00',
-              left: 18, top: 42,
+              left: p.l,
+              width: p.s,
+              height: p.s,
+              background: p.c,
+              boxShadow: `0 0 ${p.s * 2.5}px ${p.c}`,
+              animationDelay: `${p.d}s`,
+              animationDuration: `${p.t}s`,
             }}
           />
-          <span
+        ))}
+
+        {/* Mascote com fade nas bordas + reflexo nos óculos */}
+        <div className="relative" style={{ width: 'min(92%, 440px)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/mascote.webp"
+            alt=""
+            className="w-full h-auto select-none"
+            draggable={false}
             style={{
-              position: 'absolute',
-              width: 9, height: 9,
+              WebkitMaskImage:
+                'radial-gradient(ellipse 72% 60% at 50% 46%, #000 52%, transparent 78%)',
+              maskImage:
+                'radial-gradient(ellipse 72% 60% at 50% 46%, #000 52%, transparent 78%)',
+            }}
+          />
+          {/* Reflexo varrendo os óculos */}
+          <div className="nx-glare" style={{ left: '35.5%', top: '19.6%', width: '47%', height: '8.2%' }} />
+          {/* Sombra no chão */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+            style={{
+              bottom: '2%',
+              width: '58%',
+              height: 26,
               borderRadius: '50%',
-              background: '#7a2cff',
-              boxShadow: '0 0 20px #7a2cff',
-              right: 5, bottom: 70,
+              background: 'radial-gradient(ellipse, rgba(122,44,255,0.4), transparent 70%)',
+              filter: 'blur(6px)',
             }}
           />
         </div>
+
+        {/* Ícones flutuantes de vidro */}
+        {[
+          { icon: '📹', top: '16%', left: '8%', size: 58, glow: '#b05cff', delay: 0 },
+          { icon: '🎙️', top: '13%', right: '7%', size: 56, glow: '#ff6a00', delay: 1.4 },
+          { icon: '💬', top: '46%', left: '4%', size: 52, glow: '#7a2cff', delay: 2.6 },
+          { icon: '🖥️', top: '52%', right: '5%', size: 54, glow: '#ff4d8d', delay: 0.8 },
+        ].map((f, i) => (
+          <div
+            key={i}
+            className="nx-float"
+            style={{
+              top: f.top,
+              left: (f as any).left,
+              right: (f as any).right,
+              width: f.size,
+              height: f.size,
+              fontSize: f.size * 0.42,
+              background: `linear-gradient(145deg, ${f.glow}30, #ffffff08)`,
+              border: `1px solid ${f.glow}66`,
+              boxShadow: `0 0 24px ${f.glow}45, inset 0 0 14px ${f.glow}22`,
+              animationDelay: `${f.delay}s`,
+            }}
+          >
+            {f.icon}
+          </div>
+        ))}
       </section>
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
       <section
-        className="min-h-screen grid place-items-center"
+        className="min-h-screen flex flex-col items-center justify-center"
         style={{
           padding: 36,
           borderLeft: '1px solid #281c35',
@@ -221,16 +295,28 @@ export default function LoginPage() {
           backdropFilter: 'blur(18px)',
         }}
       >
+        {/* Selo de status acima do card */}
+        <div
+          className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-full self-center"
+          style={{ border: '1px solid #2e2339', background: '#100b16cc' }}
+        >
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ background: '#47e5a4', animation: 'pulseDot 1.8s infinite' }}
+          />
+          <span className="text-[#cfc5d8] text-xs font-semibold">Servidores online</span>
+        </div>
+
         <form
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           style={{
             width: 'min(100%,470px)',
             padding: 40,
-            border: '1px solid #332441',
+            border: '1px solid #7a2cff55',
             borderRadius: 24,
             background: 'linear-gradient(145deg,#181021f2,#100b16f5)',
-            boxShadow: '0 35px 90px #0008,0 0 0 1px #ffffff05 inset',
+            boxShadow: '0 35px 90px #0008, 0 0 40px #7a2cff22, 0 0 0 1px #ffffff05 inset',
           }}
         >
           {/* Aviso de convite */}
