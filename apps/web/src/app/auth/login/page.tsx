@@ -65,9 +65,8 @@ export default function LoginPage() {
                  xl:grid-cols-[minmax(340px,1fr)_minmax(360px,620px)_minmax(430px,520px)]"
       style={{
         background:
-          'radial-gradient(circle at 14% 15%,#ff6a0014 0,transparent 30%),' +
-          'radial-gradient(circle at 86% 18%,#7a2cff20 0,transparent 32%),' +
-          '#0a0713',
+          'linear-gradient(90deg, rgba(8,6,15,0.90) 0%, rgba(8,6,15,0.45) 24%, rgba(8,6,15,0) 38%, rgba(8,6,15,0) 62%, rgba(8,6,15,0.45) 76%, rgba(8,6,15,0.90) 100%),' +
+          "url('/login-cena-full.webp') center/cover no-repeat #0a0713",
       }}
     >
 
@@ -180,62 +179,38 @@ export default function LoginPage() {
         <div className="nx-blob" style={{ width: 200, height: 200, top: '48%', left: '6%', background: 'rgba(255,77,141,0.36)', animationDelay: '3.2s' }} />
         <div className="nx-blob" style={{ width: 220, height: 220, top: '6%', right: '8%', background: 'rgba(176,92,255,0.44)', animationDelay: '4.4s' }} />
 
-        {/* Mascote GRANDE, pés perto do rodapé (como no mockup) */}
-        <div className="relative shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/mascote-cena.webp"
-            alt=""
-            className="select-none"
-            draggable={false}
+        {/* Reflexo varrendo os óculos (personagem está no fundo da página) */}
+        <div className="nx-glare" style={{ left: '34%', top: '28.5%', width: '30%', height: '8.5%' }} />
+
+        {/* Fagulhas de luz subindo ao redor do personagem */}
+        {[
+          { l: '26%', b: '14%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
+          { l: '31%', b: '8%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
+          { l: '36%', b: '18%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
+          { l: '41%', b: '6%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
+          { l: '46%', b: '10%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
+          { l: '56%', b: '8%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
+          { l: '62%', b: '15%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
+          { l: '67%', b: '7%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
+          { l: '72%', b: '12%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
+          { l: '76%', b: '18%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
+        ].map((p, i) => (
+          <span
+            key={i}
+            className="nx-particle"
             style={{
-              height: '94vh',
-              width: 'auto',
-              maxWidth: 'none',
-              WebkitMaskImage:
-                'radial-gradient(ellipse 82% 76% at 50% 50%, #000 62%, transparent 96%)',
-              maskImage:
-                'radial-gradient(ellipse 82% 76% at 50% 50%, #000 62%, transparent 96%)',
+              left: p.l,
+              bottom: p.b,
+              width: 4,
+              height: p.h,
+              borderRadius: 4,
+              background: `linear-gradient(to top, transparent, ${p.c})`,
+              boxShadow: `0 0 10px ${p.c}`,
+              animationDelay: `${p.d}s`,
+              animationDuration: `${p.t}s`,
             }}
           />
-          {/* Reflexo varrendo os óculos */}
-          <div className="nx-glare" style={{ left: '43.8%', top: '25.6%', width: '26.5%', height: '8%' }} />
-
-          {/* Fagulhas de luz subindo AO REDOR do personagem */}
-          {[
-            { l: '26%', b: '14%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
-            { l: '31%', b: '8%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
-            { l: '36%', b: '18%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
-            { l: '41%', b: '6%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
-            { l: '46%', b: '10%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
-            { l: '56%', b: '8%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
-            { l: '62%', b: '15%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
-            { l: '67%', b: '7%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
-            { l: '72%', b: '12%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
-            { l: '76%', b: '18%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
-            { l: '29%', b: '32%', h: 13, c: '#7a2cff', d: 5.0, t: 4.3 },
-            { l: '73%', b: '34%', h: 13, c: '#ffd166', d: 5.6, t: 4.8 },
-            { l: '44%', b: '22%', h: 12, c: '#ffb27d', d: 6.2, t: 5.1 },
-            { l: '60%', b: '26%', h: 12, c: '#ff6a00', d: 6.8, t: 4.5 },
-          ].map((p, i) => (
-            <span
-              key={i}
-              className="nx-particle"
-              style={{
-                left: p.l,
-                bottom: p.b,
-                width: 4,
-                height: p.h,
-                borderRadius: 4,
-                background: `linear-gradient(to top, transparent, ${p.c})`,
-                boxShadow: `0 0 10px ${p.c}`,
-                animationDelay: `${p.d}s`,
-                animationDuration: `${p.t}s`,
-              }}
-            />
-          ))}
-
-        </div>
+        ))}
 
         {/* Ícones flutuantes — ancorados na COLUNA visível (não são cortados) */}
         {[
