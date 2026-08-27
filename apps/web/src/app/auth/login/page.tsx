@@ -123,8 +123,7 @@ export default function LoginPage() {
           </h1>
 
           <p className="text-[#b3a8bf] text-[17px] max-w-[570px]">
-            Entre em chamadas, abra sua câmera, compartilhe a tela e viva cada momento
-            com seus amigos em um só lugar.
+            Chamadas, vídeo, tela compartilhada e conversas em um só lugar.
           </p>
 
           {/* Prova social com avatares */}
@@ -161,7 +160,7 @@ export default function LoginPage() {
                 key={k}
                 src={`/card-${k}.webp`}
                 alt={k}
-                className="h-[64px] w-auto select-none transition-transform hover:-translate-y-0.5"
+                className="h-[56px] w-auto select-none transition-transform hover:-translate-y-0.5"
                 draggable={false}
                 style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.45))' }}
               />
@@ -173,24 +172,28 @@ export default function LoginPage() {
       </section>
 
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
-      <section className="relative hidden xl:flex items-center justify-center overflow-hidden" aria-hidden>
-        {/* Mascote em cena (ambiente largo + fade forte = sem emenda) */}
-        <div className="relative shrink-0" style={{ width: 'min(150%, 920px)' }}>
+      <section className="relative hidden xl:flex items-end justify-center overflow-visible pb-3" aria-hidden>
+        {/* Mascote GRANDE, pés perto do rodapé (como no mockup) */}
+        <div className="relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/mascote-cena.webp"
             alt=""
-            className="w-full h-auto select-none"
+            className="select-none"
             draggable={false}
             style={{
+              height: '88vh',
+              maxHeight: 860,
+              width: 'auto',
+              maxWidth: 'none',
               WebkitMaskImage:
-                'radial-gradient(ellipse 68% 72% at 50% 52%, #000 42%, transparent 74%)',
+                'radial-gradient(ellipse 62% 66% at 50% 50%, #000 48%, transparent 80%)',
               maskImage:
-                'radial-gradient(ellipse 68% 72% at 50% 52%, #000 42%, transparent 74%)',
+                'radial-gradient(ellipse 62% 66% at 50% 50%, #000 48%, transparent 80%)',
             }}
           />
           {/* Reflexo varrendo os óculos */}
-          <div className="nx-glare" style={{ left: '46.4%', top: '31.2%', width: '16%', height: '7.6%' }} />
+          <div className="nx-glare" style={{ left: '43.8%', top: '31.3%', width: '26.5%', height: '7.8%' }} />
 
           {/* Fagulhas de luz subindo AO REDOR do personagem */}
           {[
@@ -228,10 +231,10 @@ export default function LoginPage() {
 
           {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
           {[
-            { src: '/icon-video.webp', top: '14%', left: '18%', size: 86, delay: 0 },
-            { src: '/icon-mic.webp', top: '11%', right: '17%', size: 82, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '46%', left: '12%', size: 76, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '52%', right: '11%', size: 80, delay: 0.8 },
+            { src: '/icon-video.webp', top: '9%', left: '-9%', size: 84, delay: 0 },
+            { src: '/icon-mic.webp', top: '6%', right: '-8%', size: 80, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '42%', left: '-15%', size: 74, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '49%', right: '-13%', size: 78, delay: 0.8 },
           ].map((f, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
