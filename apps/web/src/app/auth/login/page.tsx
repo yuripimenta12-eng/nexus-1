@@ -73,7 +73,7 @@ export default function LoginPage() {
 
       {/* ── LADO ESQUERDO: marketing copy ──────────────────────── */}
       <section
-        className="relative flex flex-col justify-between min-h-screen"
+        className="relative z-10 flex flex-col justify-between min-h-screen"
         style={{ padding: '42px clamp(35px,6vw,92px)' }}
       >
         {/* Brand — logo completo com brilho */}
@@ -173,7 +173,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
-      <section className="relative hidden xl:flex items-end justify-center overflow-hidden pb-3" aria-hidden>
+      <section className="relative z-0 hidden xl:flex items-end justify-center overflow-visible pb-3" aria-hidden>
         {/* Luzes roxo/laranja pulsando entre o personagem */}
         <div className="nx-blob" style={{ width: 260, height: 260, top: '14%', left: '2%', background: 'rgba(122,44,255,0.5)' }} />
         <div className="nx-blob" style={{ width: 300, height: 300, bottom: '8%', right: '0%', background: 'rgba(255,106,0,0.42)', animationDelay: '1.8s' }} />
@@ -193,9 +193,9 @@ export default function LoginPage() {
               width: 'auto',
               maxWidth: 'none',
               WebkitMaskImage:
-                'radial-gradient(ellipse 64% 70% at 50% 50%, #000 52%, transparent 84%)',
+                'radial-gradient(ellipse 82% 76% at 50% 50%, #000 62%, transparent 96%)',
               maskImage:
-                'radial-gradient(ellipse 64% 70% at 50% 50%, #000 52%, transparent 84%)',
+                'radial-gradient(ellipse 82% 76% at 50% 50%, #000 62%, transparent 96%)',
             }}
           />
           {/* Reflexo varrendo os óculos */}
@@ -267,7 +267,7 @@ export default function LoginPage() {
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
       <section
-        className="min-h-screen flex flex-col items-center justify-center"
+        className="relative z-10 min-h-screen flex flex-col items-center justify-center"
         style={{
           padding: 36,
           borderLeft: '1px solid #281c35',
