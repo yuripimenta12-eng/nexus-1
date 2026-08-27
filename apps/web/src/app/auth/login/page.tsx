@@ -181,9 +181,16 @@ export default function LoginPage() {
         <div className="nx-blob" style={{ width: 220, height: 220, top: '8%', left: 'calc(53% + 200px)', background: 'rgba(176,92,255,0.38)', animationDelay: '2.2s' }} />
         <div className="nx-blob" style={{ width: 190, height: 190, top: '52%', left: 'calc(53% - 460px)', background: 'rgba(255,77,141,0.30)', animationDelay: '3.6s' }} />
 
-        {/* Reflexo nos óculos — um brilho em CADA lente */}
-        <div className="nx-glare" style={{ left: 'calc(53% - 112px)', top: '31.2%', width: 96, height: 68 }} />
-        <div className="nx-glare" style={{ left: 'calc(53% + 12px)', top: '30.6%', width: 100, height: 72 }} />
+        {/* Reflexo nos óculos — wrapper replica o retângulo center/cover do fundo (1920x1165),
+            então as lentes ficam em % da IMAGEM e o brilho acompanha em qualquer tela.
+            Lentes medidas na imagem: esq centro (960,406) 110x85 · dir centro (1092,418) 85x65 */}
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ aspectRatio: '1920/1165', minWidth: '100%', minHeight: '100%' }}
+        >
+          <div className="nx-glare" style={{ left: '47.35%', top: '30.9%', width: '5.4%', height: '6.9%' }} />
+          <div className="nx-glare" style={{ left: '54.7%', top: '33.1%', width: '4.5%', height: '5.6%' }} />
+        </div>
 
         {/* Fagulhas subindo ao redor do corpo */}
         {[
