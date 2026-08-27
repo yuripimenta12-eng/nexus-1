@@ -206,15 +206,15 @@ export default function VoicePage() {
 
   // Cargos dos membros (moderação + agrupamento por cargo no painel Pessoas)
   interface CustomRole { id: string; name: string; color: string; hoist: boolean; position: number; }
-  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean; roles: CustomRole[] }>>({});
+  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean; roles: CustomRole[]; avatarUrl?: string | null }>>({});
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
 
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}/members`)
       .then(({ data }) => {
-        const map: Record<string, { role: string; mutedBy: boolean; roles: CustomRole[] }> = {};
-        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [] }; });
+        const map: Record<string, { role: string; mutedBy: boolean; roles: CustomRole[]; avatarUrl?: string | null }> = {};
+        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [], avatarUrl: m.user?.profile?.avatarUrl || null }; });
         setMembersMeta(map);
       })
       .catch(() => {});
@@ -724,12 +724,22 @@ export default function VoicePage() {
                         >
                           <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                            <div
-                              className="w-16 h-16 rounded-2xl grid place-items-center font-black text-xl text-white"
-                              style={{ background: `linear-gradient(145deg, ${g1}, ${g2})` }}
-                            >
-                              {getInitials(p.participant.name || p.identity)}
-                            </div>
+                            {membersMeta[p.identity]?.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={membersMeta[p.identity]!.avatarUrl!}
+                                alt=""
+                                draggable={false}
+                                className="w-16 h-16 rounded-2xl object-cover select-none"
+                              />
+                            ) : (
+                              <div
+                                className="w-16 h-16 rounded-2xl grid place-items-center font-black text-xl text-white"
+                                style={{ background: `linear-gradient(145deg, ${g1}, ${g2})` }}
+                              >
+                                {getInitials(p.participant.name || p.identity)}
+                              </div>
+                            )}
                             <p className="text-white text-sm font-semibold">
                               {p.participant.name || p.identity} está transmitindo
                             </p>
@@ -857,12 +867,22 @@ export default function VoicePage() {
                       />
                     ) : (
                       <div className="w-full h-full grid place-items-center">
-                        <div
-                          className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white"
-                          style={{ background: `linear-gradient(145deg, ${gradientFor(p.identity)[0]}, ${gradientFor(p.identity)[1]})` }}
-                        >
-                          {getInitials(p.participant.name || p.identity)}
-                        </div>
+                        {membersMeta[p.identity]?.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={membersMeta[p.identity]!.avatarUrl!}
+                            alt=""
+                            draggable={false}
+                            className="w-9 h-9 rounded-xl object-cover select-none"
+                          />
+                        ) : (
+                          <div
+                            className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white"
+                            style={{ background: `linear-gradient(145deg, ${gradientFor(p.identity)[0]}, ${gradientFor(p.identity)[1]})` }}
+                          >
+                            {getInitials(p.participant.name || p.identity)}
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="absolute bottom-1 left-1 flex items-center gap-1 text-white text-[9px] bg-black/60 px-1 rounded max-w-[90%]">
@@ -894,7 +914,7 @@ export default function VoicePage() {
                       transition={{ duration: 0.22, ease: 'easeOut' }}
                       className="min-h-0"
                     >
-                      <ParticipantTile voiceParticipant={p} />
+                      <ParticipantTile voiceParticipant={p} avatarUrl={membersMeta[p.identity]?.avatarUrl} />
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -1050,12 +1070,22 @@ export default function VoicePage() {
                       onClick={() => setExpandedMember(expanded ? null : p.identity)}
                       className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[var(--th-panel-2)] text-left"
                     >
-                      <div
-                        className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
-                        style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
-                      >
-                        {getInitials(p.participant.name || p.identity)}
-                      </div>
+                      {membersMeta[p.identity]?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={membersMeta[p.identity]!.avatarUrl!}
+                          alt=""
+                          draggable={false}
+                          className="w-9 h-9 rounded-xl object-cover select-none shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
+                          style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                        >
+                          {getInitials(p.participant.name || p.identity)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <b
                           className="block text-xs truncate"
@@ -1246,12 +1276,22 @@ export default function VoicePage() {
                   return (
                     <div key={`${m.ts}-${i}`} className={cn('flex gap-2', prevSame && '-mt-1')}>
                       {!prevSame ? (
-                        <div
-                          className="w-7 h-7 rounded-lg grid place-items-center font-black text-[9px] text-white shrink-0 mt-0.5"
-                          style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
-                        >
-                          {getInitials(chatNameFor(m.userId))}
-                        </div>
+                        membersMeta[m.userId]?.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={membersMeta[m.userId]!.avatarUrl!}
+                            alt=""
+                            draggable={false}
+                            className="w-7 h-7 rounded-lg object-cover select-none shrink-0 mt-0.5"
+                          />
+                        ) : (
+                          <div
+                            className="w-7 h-7 rounded-lg grid place-items-center font-black text-[9px] text-white shrink-0 mt-0.5"
+                            style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                          >
+                            {getInitials(chatNameFor(m.userId))}
+                          </div>
+                        )
                       ) : (
                         <div className="w-7 shrink-0" />
                       )}
@@ -1661,7 +1701,7 @@ function AudioRenderer({ watching }: { watching: Set<string> }) {
 }
 
 // ── Tile de participante ──────────────────────────────────────────
-function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
+function ParticipantTile({ voiceParticipant, avatarUrl }: { voiceParticipant: any; avatarUrl?: string | null }) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
   const name = voiceParticipant.participant.name || identity;
@@ -1689,16 +1729,30 @@ function ParticipantTile({ voiceParticipant }: { voiceParticipant: any }) {
         />
       ) : (
         <div className="absolute inset-0 grid place-content-center text-center">
-          <div
-            className={cn(
-              'w-[82px] h-[82px] mx-auto grid place-items-center rounded-[28px] text-[25px] font-black text-white',
-              'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
-              speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
-            )}
-            style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
-          >
-            {getInitials(name)}
-          </div>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              draggable={false}
+              className={cn(
+                'w-[82px] h-[82px] mx-auto rounded-[28px] object-cover select-none',
+                'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
+                speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
+              )}
+            />
+          ) : (
+            <div
+              className={cn(
+                'w-[82px] h-[82px] mx-auto grid place-items-center rounded-[28px] text-[25px] font-black text-white',
+                'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
+                speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
+              )}
+              style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+            >
+              {getInitials(name)}
+            </div>
+          )}
 
           {/* Ondas de voz */}
           <div className={cn(
