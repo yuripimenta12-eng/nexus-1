@@ -55,11 +55,16 @@ export function ServersSidebar() {
       <button
         onClick={() => router.push('/app/me')}
         title="Mensagens Diretas"
-        className="w-12 h-12 rounded-2xl text-white text-xl font-black
-                   bg-gradient-to-br from-orange to-accent shadow-[0_0_28px_rgba(122,44,255,0.35)]
+        className="w-12 h-12 rounded-full shadow-[0_0_28px_rgba(122,44,255,0.35)]
                    transition-transform hover:scale-105 active:scale-95"
       >
-        N
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/nexus-logo-round.webp"
+          alt="Nexus"
+          draggable={false}
+          className="w-full h-full object-contain select-none"
+        />
       </button>
 
       {/* Divisor */}
