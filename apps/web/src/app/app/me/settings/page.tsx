@@ -175,7 +175,9 @@ export default function SettingsPage() {
 
       {/* Mascote da seção, com luzes pulsando atrás */}
       <div
-        className="hidden xl:block fixed right-[3vw] -bottom-4 z-0 pointer-events-none"
+        className="hidden xl:block fixed right-[3vw] z-0 pointer-events-none"
+        // a arte da "Minha Conta" é cortada reta na barriga — afunda mais pra esconder o corte
+        style={{ bottom: activeSection === 'profile' ? -78 : -16 }}
         aria-hidden
       >
         <div
