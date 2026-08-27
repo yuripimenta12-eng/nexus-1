@@ -54,7 +54,7 @@ interface VoiceStore {
   disconnect: () => Promise<void>;
   toggleMic: () => Promise<void>;
   toggleCam: () => Promise<void>;
-  startScreenShare: (quality?: '720p30' | '1080p30' | '1080p60') => Promise<void>;
+  startScreenShare: (quality?: '720p30' | '720p60' | '1080p30' | '1080p60') => Promise<void>;
   stopScreenShare: () => Promise<void>;
   setParticipantVolume: (identity: string, volume: number) => void;
   setStreamVolume: (identity: string, volume: number) => void;
@@ -407,6 +407,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     // Configurações de qualidade para screen share
     const qualityMap = {
       '720p30':  { width: 1280, height: 720, frameRate: 30, maxBitrate: 2_000_000 },
+      '720p60':  { width: 1280, height: 720, frameRate: 60, maxBitrate: 3_500_000 },
       '1080p30': { width: 1920, height: 1080, frameRate: 30, maxBitrate: 4_000_000 },
       '1080p60': { width: 1920, height: 1080, frameRate: 60, maxBitrate: 8_000_000 },
     };

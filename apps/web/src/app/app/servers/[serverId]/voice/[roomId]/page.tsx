@@ -69,7 +69,7 @@ export default function VoicePage() {
   } = useVoiceStore();
 
   const askScreenQuality = useMediaStore(s => s.askScreenQuality);
-  const [screenQuality, setScreenQuality] = useState<'720p30' | '1080p30' | '1080p60'>(
+  const [screenQuality, setScreenQuality] = useState<'720p30' | '720p60' | '1080p30' | '1080p60'>(
     () => useMediaStore.getState().screenQuality,
   );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
@@ -986,6 +986,7 @@ export default function VoicePage() {
                 className="h-12 text-xs bg-[var(--th-panel-2)] border border-[var(--th-line-2)] rounded-[15px] px-2 text-[#d1c6da] focus:outline-none focus:border-[#7842a0]"
               >
                 <option value="720p30">720p 30fps</option>
+                <option value="720p60">720p 60fps</option>
                 <option value="1080p30">1080p 30fps</option>
                 <option value="1080p60">1080p 60fps</option>
               </select>

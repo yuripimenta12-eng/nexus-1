@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ScreenQuality = '720p30' | '1080p30' | '1080p60';
+export type ScreenQuality = '720p30' | '720p60' | '1080p30' | '1080p60';
 export type InputProfile = 'isolation' | 'studio' | 'custom';
 
 interface MediaSettingsState {
