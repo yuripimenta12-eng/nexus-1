@@ -30,7 +30,10 @@ export class AuthService {
     // Porta de entrada: com REGISTRATION_CODE definido, só cria conta quem
     // apresentar o código secreto OU um convite de servidor válido (o fluxo
     // de link de convite preenche isso automaticamente no front).
-    const requiredCode = this.config.get<string>('REGISTRATION_CODE', '');
+    // trim + remoção de aspas protege contra valores colados com espaço/aspas no painel
+    const requiredCode = (this.config.get<string>('REGISTRATION_CODE', '') || '')
+      .trim()
+      .replace(/^["']+|["']+$/g, '');
     if (requiredCode) {
       const code = (dto.inviteCode || '').trim();
       let autorizado = code.length > 0 && code === requiredCode;
