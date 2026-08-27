@@ -175,10 +175,10 @@ export default function LoginPage() {
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
       <section className="relative hidden xl:flex items-end justify-center overflow-hidden pb-3" aria-hidden>
         {/* Luzes roxo/laranja pulsando entre o personagem */}
-        <div className="nx-blob" style={{ width: 260, height: 260, top: '14%', left: '2%', background: 'rgba(122,44,255,0.34)' }} />
-        <div className="nx-blob" style={{ width: 300, height: 300, bottom: '8%', right: '0%', background: 'rgba(255,106,0,0.26)', animationDelay: '1.8s' }} />
-        <div className="nx-blob" style={{ width: 200, height: 200, top: '48%', left: '6%', background: 'rgba(255,77,141,0.22)', animationDelay: '3.2s' }} />
-        <div className="nx-blob" style={{ width: 220, height: 220, top: '6%', right: '8%', background: 'rgba(176,92,255,0.28)', animationDelay: '4.4s' }} />
+        <div className="nx-blob" style={{ width: 260, height: 260, top: '14%', left: '2%', background: 'rgba(122,44,255,0.5)' }} />
+        <div className="nx-blob" style={{ width: 300, height: 300, bottom: '8%', right: '0%', background: 'rgba(255,106,0,0.42)', animationDelay: '1.8s' }} />
+        <div className="nx-blob" style={{ width: 200, height: 200, top: '48%', left: '6%', background: 'rgba(255,77,141,0.36)', animationDelay: '3.2s' }} />
+        <div className="nx-blob" style={{ width: 220, height: 220, top: '6%', right: '8%', background: 'rgba(176,92,255,0.44)', animationDelay: '4.4s' }} />
 
         {/* Mascote GRANDE, pés perto do rodapé (como no mockup) */}
         <div className="relative shrink-0">
@@ -235,33 +235,34 @@ export default function LoginPage() {
             />
           ))}
 
-          {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
-          {[
-            { src: '/icon-video.webp', top: '13%', left: '2%', size: 84, delay: 0 },
-            { src: '/icon-mic.webp', top: '7%', right: '3%', size: 88, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '44%', left: '0%', size: 78, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '51%', right: '0%', size: 96, delay: 0.8 },
-          ].map((f, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={f.src}
-              alt=""
-              className="nx-float select-none"
-              draggable={false}
-              style={{
-                top: f.top,
-                left: (f as any).left,
-                right: (f as any).right,
-                width: f.size,
-                height: f.size,
-                filter: 'drop-shadow(0 8px 22px rgba(255,106,0,0.5))',
-                animationDelay: `${f.delay}s`,
-                zIndex: 2,
-              }}
-            />
-          ))}
         </div>
+
+        {/* Ícones flutuantes — ancorados na COLUNA visível (não são cortados) */}
+        {[
+          { src: '/icon-video.webp', top: '15%', left: '5%', size: 84, delay: 0 },
+          { src: '/icon-mic.webp', top: '9%', right: '5%', size: 88, delay: 1.4 },
+          { src: '/icon-chat.webp', top: '45%', left: '2%', size: 78, delay: 2.6 },
+          { src: '/icon-tela.webp', top: '53%', right: '2%', size: 96, delay: 0.8 },
+        ].map((f, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={f.src}
+            alt=""
+            className="nx-float select-none"
+            draggable={false}
+            style={{
+              top: f.top,
+              left: (f as any).left,
+              right: (f as any).right,
+              width: f.size,
+              height: f.size,
+              filter: 'drop-shadow(0 8px 22px rgba(255,106,0,0.5))',
+              animationDelay: `${f.delay}s`,
+              zIndex: 3,
+            }}
+          />
+        ))}
       </section>
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
