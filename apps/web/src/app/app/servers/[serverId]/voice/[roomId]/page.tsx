@@ -1053,7 +1053,7 @@ export default function VoicePage() {
           </div>
 
           {sideTab === 'people' ? (
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col">
               <h3 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mb-3">
                 Na chamada agora
               </h3>
@@ -1261,8 +1261,8 @@ export default function VoicePage() {
                 <UserPlus className="w-4 h-4" /> Convidar amigos
               </button>
 
-              {/* Mascote segurando a logo, com luz pulsando atrás */}
-              <div className="relative mt-8 flex justify-center pointer-events-none" aria-hidden>
+              {/* Mascote segurando a logo, preso ao pé do painel, com luz pulsando atrás */}
+              <div className="relative mt-auto pt-10 pb-1 flex justify-center pointer-events-none" aria-hidden>
                 <div
                   className="nx-blob"
                   style={{ width: 200, height: 200, left: '50%', top: '55%', transform: 'translate(-50%,-50%)', background: 'rgba(122,44,255,0.38)' }}
