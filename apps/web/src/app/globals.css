@@ -906,7 +906,7 @@
 .nx-ping {
   position: absolute;
   left: 50%;
-  border-radius: 9999px;
+  border-radius: 50%; /* elipse deitada, acompanha a perspectiva do chão */
   pointer-events: none;
   animation: nxPing 3.6s ease-out infinite;
 }
