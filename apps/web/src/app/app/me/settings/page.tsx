@@ -175,7 +175,7 @@ export default function SettingsPage() {
 
       {/* Mascote da seção, com luzes pulsando atrás */}
       <div
-        className="hidden xl:block fixed right-[3vw] bottom-10 z-0 pointer-events-none"
+        className="hidden xl:block fixed right-[3vw] bottom-0 z-0 pointer-events-none"
         aria-hidden
       >
         <div
