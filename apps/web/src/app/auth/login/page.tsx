@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, User, Mail } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
 const schema = z.object({
@@ -126,28 +126,29 @@ export default function LoginPage() {
             Chamadas, vídeo, tela compartilhada e conversas em um só lugar.
           </p>
 
-          {/* Prova social com avatares */}
-          <div
-            className="inline-flex items-center gap-3 mt-8 px-4 py-2.5 rounded-2xl"
-            style={{ border: '1px solid #2e2339', background: '#ffffff06' }}
-          >
-            <div className="flex -space-x-2.5">
+          {/* Prova social com avatares grandes (Photoshop do usuário) */}
+          <div className="flex items-center gap-4 mt-9">
+            <div className="flex -space-x-4">
               {[1, 2, 3].map(n => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={n}
                   src={`/avatar-${n}.webp`}
                   alt=""
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-[#100b16] select-none"
+                  className="w-16 h-16 rounded-full object-cover ring-2 ring-[#0a0713] select-none"
                   draggable={false}
                 />
               ))}
             </div>
-            <span
-              className="w-[10px] h-[10px] rounded-full flex-shrink-0"
-              style={{ background: '#47e5a4', animation: 'pulseDot 1.8s infinite' }}
-            />
-            <span className="text-sm text-[#d7cfdf]">Mais de 2.400 pessoas<br className="sm:hidden" /> conectadas agora</span>
+            <div className="flex items-start gap-2">
+              <span
+                className="w-[10px] h-[10px] rounded-full flex-shrink-0 mt-1.5"
+                style={{ background: '#47e5a4', animation: 'pulseDot 1.8s infinite' }}
+              />
+              <span className="text-white text-base leading-snug">
+                Mais de 1.688 pessoas<br />conectadas agora!
+              </span>
+            </div>
           </div>
         </div>
 
@@ -160,7 +161,7 @@ export default function LoginPage() {
                 key={k}
                 src={`/card-${k}.webp`}
                 alt={k}
-                className="h-[56px] w-auto select-none transition-transform hover:-translate-y-0.5"
+                className="h-[70px] w-auto select-none transition-transform hover:-translate-y-0.5"
                 draggable={false}
                 style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.45))' }}
               />
@@ -173,6 +174,12 @@ export default function LoginPage() {
 
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
       <section className="relative hidden xl:flex items-end justify-center overflow-hidden pb-3" aria-hidden>
+        {/* Luzes roxo/laranja pulsando entre o personagem */}
+        <div className="nx-blob" style={{ width: 260, height: 260, top: '14%', left: '2%', background: 'rgba(122,44,255,0.34)' }} />
+        <div className="nx-blob" style={{ width: 300, height: 300, bottom: '8%', right: '0%', background: 'rgba(255,106,0,0.26)', animationDelay: '1.8s' }} />
+        <div className="nx-blob" style={{ width: 200, height: 200, top: '48%', left: '6%', background: 'rgba(255,77,141,0.22)', animationDelay: '3.2s' }} />
+        <div className="nx-blob" style={{ width: 220, height: 220, top: '6%', right: '8%', background: 'rgba(176,92,255,0.28)', animationDelay: '4.4s' }} />
+
         {/* Mascote GRANDE, pés perto do rodapé (como no mockup) */}
         <div className="relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -230,10 +237,10 @@ export default function LoginPage() {
 
           {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
           {[
-            { src: '/icon-video.webp', top: '9%', left: '5%', size: 86, delay: 0 },
-            { src: '/icon-mic.webp', top: '6%', right: '5%', size: 82, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '43%', left: '1%', size: 76, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '49%', right: '1%', size: 80, delay: 0.8 },
+            { src: '/icon-video.webp', top: '13%', left: '2%', size: 84, delay: 0 },
+            { src: '/icon-mic.webp', top: '7%', right: '3%', size: 88, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '44%', left: '0%', size: 78, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '51%', right: '0%', size: 96, delay: 0.8 },
           ].map((f, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -283,6 +290,7 @@ export default function LoginPage() {
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           style={{
+            position: 'relative',
             width: 'min(100%,470px)',
             padding: 40,
             border: '1px solid #7a2cff55',
@@ -299,6 +307,15 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Ícone do app (canto do card, como no Photoshop) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/nexus-app-icon.webp"
+            alt=""
+            style={{ position: 'absolute', top: 22, right: 22, width: 56, height: 56,
+                     filter: 'drop-shadow(0 4px 14px rgba(122,44,255,0.5))' }}
+          />
+
           {/* Header */}
           <div style={{ marginBottom: 28 }}>
             <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 28, letterSpacing: -0.5, lineHeight: 1.1, margin: '0 0 6px' }}>
@@ -314,6 +331,8 @@ export default function LoginPage() {
             E-mail
           </label>
           <div style={{ position: 'relative', marginBottom: 4 }}>
+            <Mail style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                           width: 16, height: 16, color: '#8a7f98', pointerEvents: 'none', zIndex: 1 }} />
             <input
               {...register('email')}
               type="email"
@@ -321,7 +340,7 @@ export default function LoginPage() {
               autoComplete="email"
               style={{
                 width: '100%', borderRadius: 13, border: `1px solid ${errors.email ? '#ff5872' : '#332640'}`,
-                background: '#0b0810', color: '#fff', padding: '14px', fontSize: 14,
+                background: '#0b0810', color: '#fff', padding: '14px 14px 14px 40px', fontSize: 14,
                 outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
               }}
               onFocus={e => { if (!errors.email) e.currentTarget.style.borderColor = '#7a2cff'; }}
@@ -408,7 +427,7 @@ export default function LoginPage() {
             {isLoading ? (
               <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> CONECTANDO...</>
             ) : (
-              'ENTRAR NO NEXUS →'
+              <><LogIn style={{ width: 17, height: 17 }} /> ENTRAR NO NEXUS</>
             )}
           </button>
 
@@ -431,7 +450,7 @@ export default function LoginPage() {
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#7a2cff'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#38294a'; (e.currentTarget as HTMLButtonElement).style.color = '#d9cfdf'; }}
             >
-              Criar meu Nexus ID
+              <User style={{ width: 15, height: 15, display: 'inline', verticalAlign: '-2px', marginRight: 7 }} />Criar meu Nexus ID
             </button>
           </Link>
 

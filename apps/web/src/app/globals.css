@@ -923,3 +923,16 @@
   box-shadow: 0 0 12px #b05cff;
   bottom: 8%; right: 6%;
 }
+
+/* Bolhas de luz pulsando ao redor do mascote */
+@keyframes nxPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.9; transform: scale(1.15); }
+}
+.nx-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(46px);
+  pointer-events: none;
+  animation: nxPulse 5.5s ease-in-out infinite;
+}
