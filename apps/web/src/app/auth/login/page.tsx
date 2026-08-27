@@ -182,8 +182,8 @@ export default function LoginPage() {
         <div className="nx-blob" style={{ width: 190, height: 190, top: '52%', left: 'calc(53% - 460px)', background: 'rgba(255,77,141,0.30)', animationDelay: '3.6s' }} />
 
         {/* Reflexo nos óculos — um brilho em CADA lente */}
-        <div className="nx-glare" style={{ left: 'calc(53% - 116px)', top: '27.8%', width: 100, height: 82 }} />
-        <div className="nx-glare" style={{ left: 'calc(53% + 10px)', top: '27.3%', width: 104, height: 86 }} />
+        <div className="nx-glare" style={{ left: 'calc(53% - 112px)', top: '31.2%', width: 96, height: 68 }} />
+        <div className="nx-glare" style={{ left: 'calc(53% + 12px)', top: '30.6%', width: 100, height: 72 }} />
 
         {/* Fagulhas subindo ao redor do corpo */}
         {[
