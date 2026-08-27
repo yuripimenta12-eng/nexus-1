@@ -246,6 +246,89 @@ export default function LoginPage() {
             }}
           />
         ))}
+
+        {/* Mini-orbes extras (mesmos ícones, menores e mais lentos) */}
+        {[
+          { src: '/icon-chat.webp', top: '6%', x: -170, size: 42, delay: 0.5, dur: 6.2 },
+          { src: '/icon-tela.webp', top: '4%', x: 90, size: 36, delay: 2.0, dur: 5.6 },
+          { src: '/icon-mic.webp', top: '30%', x: -440, size: 40, delay: 3.2, dur: 6.8 },
+          { src: '/icon-video.webp', top: '64%', x: 340, size: 38, delay: 1.2, dur: 5.9 },
+        ].map((f, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={`mini-${i}`}
+            src={f.src}
+            alt=""
+            className="nx-float select-none"
+            draggable={false}
+            style={{
+              top: f.top,
+              left: `calc(53% + ${f.x}px)`,
+              width: f.size,
+              height: f.size,
+              opacity: 0.85,
+              filter: 'drop-shadow(0 6px 16px rgba(176,92,255,0.5))',
+              animationDelay: `${f.delay}s`,
+              animationDuration: `${f.dur}s`,
+            }}
+          />
+        ))}
+
+        {/* Estrelinhas cintilando */}
+        {[
+          { x: -300, top: '8%', s: 20, c: '#ffd166', d: 0 },
+          { x: 320, top: '22%', s: 24, c: '#b05cff', d: 1.1 },
+          { x: -430, top: '60%', s: 16, c: '#ff6a00', d: 2.3 },
+          { x: 390, top: '40%', s: 18, c: '#ff4d8d', d: 0.6 },
+          { x: -110, top: '3%', s: 14, c: '#ffffff', d: 3.0 },
+          { x: 160, top: '72%', s: 16, c: '#ffd166', d: 1.8 },
+          { x: -370, top: '26%', s: 13, c: '#ffffff', d: 2.6 },
+        ].map((f, i) => (
+          <span
+            key={`star-${i}`}
+            className="nx-star"
+            style={{
+              left: `calc(53% + ${f.x}px)`,
+              top: f.top,
+              width: f.s,
+              height: f.s,
+              background: f.c,
+              boxShadow: `0 0 12px ${f.c}`,
+              animationDelay: `${f.d}s`,
+            }}
+          />
+        ))}
+
+        {/* Pontos de luz à deriva (bokeh) */}
+        {[
+          { x: -350, top: '34%', s: 14, c: 'rgba(255,106,0,0.55)', d: 0, t: 9 },
+          { x: 300, top: '32%', s: 12, c: 'rgba(176,92,255,0.6)', d: 2.4, t: 10.5 },
+          { x: -240, top: '70%', s: 16, c: 'rgba(255,209,102,0.5)', d: 4.2, t: 8.5 },
+          { x: 260, top: '76%', s: 10, c: 'rgba(255,77,141,0.55)', d: 1.5, t: 9.8 },
+          { x: -60, top: '80%', s: 12, c: 'rgba(176,92,255,0.5)', d: 3.3, t: 11 },
+          { x: 420, top: '58%', s: 9, c: 'rgba(255,106,0,0.5)', d: 5.1, t: 9.4 },
+        ].map((f, i) => (
+          <span
+            key={`bokeh-${i}`}
+            className="nx-bokeh"
+            style={{
+              left: `calc(53% + ${f.x}px)`,
+              top: f.top,
+              width: f.s,
+              height: f.s,
+              background: f.c,
+              boxShadow: `0 0 14px ${f.c}`,
+              animationDelay: `${f.d}s`,
+              animationDuration: `${f.t}s`,
+            }}
+          />
+        ))}
+
+        {/* Anéis de energia pulsando no chão, sob o personagem */}
+        <div className="absolute inset-y-0" style={{ left: '53%', width: 0 }}>
+          <span className="nx-ping" style={{ bottom: '4%', width: 380, height: 96, border: '2px solid rgba(255,106,0,0.45)' }} />
+          <span className="nx-ping" style={{ bottom: '5.5%', width: 260, height: 66, border: '2px solid rgba(176,92,255,0.5)', animationDelay: '1.8s' }} />
+        </div>
       </div>
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
