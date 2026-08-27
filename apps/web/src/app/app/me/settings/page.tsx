@@ -16,6 +16,15 @@ const sections = [
   { id: 'appearance', label: 'Aparência', icon: Palette },
 ];
 
+// Mascote decorativo de cada seção (aparece à direita em telas largas)
+const SECTION_MASCOTS: Record<string, string> = {
+  profile: '/mascote-conta.webp',
+  voice: '/mascote-voz.webp',
+  notifications: '/mascote-notif.webp',
+  privacy: '/mascote-priv.webp',
+  appearance: '/mascote-aparencia.webp',
+};
+
 function EditableField({
   label, value, onSave,
 }: { label: string; value: string; onSave: (v: string) => Promise<void> }) {
@@ -162,6 +171,36 @@ export default function SettingsPage() {
             <LogOut size={16} /><span>Sair</span>
           </button>
         </div>
+      </div>
+
+      {/* Mascote da seção, com luzes pulsando atrás */}
+      <div
+        className="hidden xl:block fixed right-[3vw] top-1/2 -translate-y-1/2 z-0 pointer-events-none"
+        aria-hidden
+      >
+        <div
+          className="nx-blob"
+          style={{ width: 380, height: 380, left: '50%', top: '48%', transform: 'translate(-50%,-50%)', background: 'rgba(122,44,255,0.4)' }}
+        />
+        <div
+          className="nx-blob"
+          style={{ width: 260, height: 260, left: '30%', top: '72%', transform: 'translate(-50%,-50%)', background: 'rgba(255,106,0,0.28)', animationDelay: '2.4s' }}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={activeSection}
+          src={SECTION_MASCOTS[activeSection]}
+          alt=""
+          draggable={false}
+          className="relative select-none animate-in fade-in zoom-in-95 duration-300"
+          style={{
+            maxHeight: 'min(58vh, 540px)',
+            maxWidth: 'min(30vw, 560px)',
+            width: 'auto',
+            height: 'auto',
+            filter: 'drop-shadow(0 18px 44px rgba(122,44,255,0.45)) drop-shadow(0 6px 18px rgba(255,106,0,0.22))',
+          }}
+        />
       </div>
 
       {/* Botão fechar (X · ESC) */}

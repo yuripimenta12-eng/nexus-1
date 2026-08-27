@@ -1260,6 +1260,26 @@ export default function VoicePage() {
               >
                 <UserPlus className="w-4 h-4" /> Convidar amigos
               </button>
+
+              {/* Mascote segurando a logo, com luz pulsando atrás */}
+              <div className="relative mt-8 flex justify-center pointer-events-none" aria-hidden>
+                <div
+                  className="nx-blob"
+                  style={{ width: 200, height: 200, left: '50%', top: '55%', transform: 'translate(-50%,-50%)', background: 'rgba(122,44,255,0.38)' }}
+                />
+                <div
+                  className="nx-blob"
+                  style={{ width: 130, height: 130, left: '32%', top: '75%', transform: 'translate(-50%,-50%)', background: 'rgba(255,106,0,0.25)', animationDelay: '2.2s' }}
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/mascote-call.webp"
+                  alt=""
+                  draggable={false}
+                  className="relative h-[190px] w-auto select-none"
+                  style={{ filter: 'drop-shadow(0 12px 30px rgba(122,44,255,0.45))' }}
+                />
+              </div>
             </div>
           ) : sideTab === 'chat' ? (
             <div className="flex-1 flex flex-col min-h-0">
