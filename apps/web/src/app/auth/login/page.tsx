@@ -79,7 +79,7 @@ export default function LoginPage() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/nexus-logo-full.png"
+            src="/nexus-logo-full-2.webp"
             alt="Nexus Link"
             style={{
               height: 104,
