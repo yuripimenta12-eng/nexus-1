@@ -171,53 +171,55 @@ export default function LoginPage() {
 
       </section>
 
-      {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
-      <section className="relative z-0 hidden xl:flex items-end justify-center overflow-visible pb-3" aria-hidden>
-        {/* Luzes roxo/laranja pulsando entre o personagem */}
-        <div className="nx-blob" style={{ width: 260, height: 260, top: '14%', left: '2%', background: 'rgba(122,44,255,0.5)' }} />
-        <div className="nx-blob" style={{ width: 300, height: 300, bottom: '8%', right: '0%', background: 'rgba(255,106,0,0.42)', animationDelay: '1.8s' }} />
-        <div className="nx-blob" style={{ width: 200, height: 200, top: '48%', left: '6%', background: 'rgba(255,77,141,0.36)', animationDelay: '3.2s' }} />
-        <div className="nx-blob" style={{ width: 220, height: 220, top: '6%', right: '8%', background: 'rgba(176,92,255,0.44)', animationDelay: '4.4s' }} />
+      {/* ── CENTRO: coluna espaçadora (o personagem vive no fundo) ── */}
+      <section className="hidden xl:block" aria-hidden />
 
-        {/* Reflexo varrendo os óculos (personagem está no fundo da página) */}
-        <div className="nx-glare" style={{ left: '34%', top: '28.5%', width: '30%', height: '8.5%' }} />
+      {/* ── Efeitos sobre o personagem — ancorados na PÁGINA (batem com o fundo) ── */}
+      <div className="hidden xl:block absolute inset-0 z-[5] pointer-events-none" aria-hidden>
+        {/* Luzes roxas pulsando (a laranja de baixo foi removida) */}
+        <div className="nx-blob" style={{ width: 240, height: 240, top: '16%', left: 'calc(53% - 420px)', background: 'rgba(122,44,255,0.42)' }} />
+        <div className="nx-blob" style={{ width: 220, height: 220, top: '8%', left: 'calc(53% + 200px)', background: 'rgba(176,92,255,0.38)', animationDelay: '2.2s' }} />
+        <div className="nx-blob" style={{ width: 190, height: 190, top: '52%', left: 'calc(53% - 460px)', background: 'rgba(255,77,141,0.30)', animationDelay: '3.6s' }} />
 
-        {/* Fagulhas de luz subindo ao redor do personagem */}
+        {/* Reflexo varrendo os óculos */}
+        <div className="nx-glare" style={{ left: 'calc(53% - 118px)', top: '27.5%', width: 236, height: 88 }} />
+
+        {/* Fagulhas subindo ao redor do corpo */}
         {[
-          { l: '26%', b: '14%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
-          { l: '31%', b: '8%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
-          { l: '36%', b: '18%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
-          { l: '41%', b: '6%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
-          { l: '46%', b: '10%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
-          { l: '56%', b: '8%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
-          { l: '62%', b: '15%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
-          { l: '67%', b: '7%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
-          { l: '72%', b: '12%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
-          { l: '76%', b: '18%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
-        ].map((p, i) => (
+          { x: -280, b: '12%', h: 18, c: '#ff6a00', d: 0, t: 4.6 },
+          { x: -210, b: '6%', h: 14, c: '#ffd166', d: 1.6, t: 5.4 },
+          { x: -150, b: '16%', h: 20, c: '#b05cff', d: 3.0, t: 4.2 },
+          { x: -80, b: '4%', h: 13, c: '#ff4d8d', d: 0.7, t: 5.8 },
+          { x: -10, b: '8%', h: 16, c: '#ff6a00', d: 2.2, t: 4.9 },
+          { x: 70, b: '6%', h: 15, c: '#b05cff', d: 4.1, t: 5.2 },
+          { x: 140, b: '14%', h: 19, c: '#ffd166', d: 1.1, t: 4.4 },
+          { x: 210, b: '5%', h: 14, c: '#ff6a00', d: 2.9, t: 5.6 },
+          { x: 270, b: '10%', h: 17, c: '#ff4d8d', d: 0.3, t: 4.7 },
+          { x: 330, b: '16%', h: 15, c: '#b05cff', d: 3.6, t: 5.0 },
+        ].map((f, i) => (
           <span
             key={i}
             className="nx-particle"
             style={{
-              left: p.l,
-              bottom: p.b,
+              left: `calc(53% + ${f.x}px)`,
+              bottom: f.b,
               width: 4,
-              height: p.h,
+              height: f.h,
               borderRadius: 4,
-              background: `linear-gradient(to top, transparent, ${p.c})`,
-              boxShadow: `0 0 10px ${p.c}`,
-              animationDelay: `${p.d}s`,
-              animationDuration: `${p.t}s`,
+              background: `linear-gradient(to top, transparent, ${f.c})`,
+              boxShadow: `0 0 10px ${f.c}`,
+              animationDelay: `${f.d}s`,
+              animationDuration: `${f.t}s`,
             }}
           />
         ))}
 
-        {/* Ícones flutuantes — ancorados na COLUNA visível (não são cortados) */}
+        {/* Orbes flutuantes ao redor do personagem (posições do Photoshop) */}
         {[
-          { src: '/icon-video.webp', top: '15%', left: '5%', size: 84, delay: 0 },
-          { src: '/icon-mic.webp', top: '9%', right: '5%', size: 88, delay: 1.4 },
-          { src: '/icon-chat.webp', top: '45%', left: '2%', size: 78, delay: 2.6 },
-          { src: '/icon-tela.webp', top: '53%', right: '2%', size: 96, delay: 0.8 },
+          { src: '/icon-video.webp', top: '17%', x: -330, size: 84, delay: 0 },
+          { src: '/icon-mic.webp', top: '11%', x: 220, size: 88, delay: 1.4 },
+          { src: '/icon-chat.webp', top: '45%', x: -380, size: 78, delay: 2.6 },
+          { src: '/icon-tela.webp', top: '52%', x: 270, size: 96, delay: 0.8 },
         ].map((f, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -228,17 +230,15 @@ export default function LoginPage() {
             draggable={false}
             style={{
               top: f.top,
-              left: (f as any).left,
-              right: (f as any).right,
+              left: `calc(53% + ${f.x}px)`,
               width: f.size,
               height: f.size,
               filter: 'drop-shadow(0 8px 22px rgba(255,106,0,0.5))',
               animationDelay: `${f.delay}s`,
-              zIndex: 3,
             }}
           />
         ))}
-      </section>
+      </div>
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
       <section
