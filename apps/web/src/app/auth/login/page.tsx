@@ -182,18 +182,17 @@ export default function LoginPage() {
             className="select-none"
             draggable={false}
             style={{
-              height: '88vh',
-              maxHeight: 860,
+              height: '94vh',
               width: 'auto',
               maxWidth: 'none',
               WebkitMaskImage:
-                'radial-gradient(ellipse 62% 66% at 50% 50%, #000 48%, transparent 80%)',
+                'radial-gradient(ellipse 64% 70% at 50% 50%, #000 52%, transparent 84%)',
               maskImage:
-                'radial-gradient(ellipse 62% 66% at 50% 50%, #000 48%, transparent 80%)',
+                'radial-gradient(ellipse 64% 70% at 50% 50%, #000 52%, transparent 84%)',
             }}
           />
           {/* Reflexo varrendo os óculos */}
-          <div className="nx-glare" style={{ left: '43.8%', top: '31.3%', width: '26.5%', height: '7.8%' }} />
+          <div className="nx-glare" style={{ left: '43.8%', top: '25.6%', width: '26.5%', height: '8%' }} />
 
           {/* Fagulhas de luz subindo AO REDOR do personagem */}
           {[
@@ -231,10 +230,10 @@ export default function LoginPage() {
 
           {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
           {[
-            { src: '/icon-video.webp', top: '9%', left: '-9%', size: 84, delay: 0 },
-            { src: '/icon-mic.webp', top: '6%', right: '-8%', size: 80, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '42%', left: '-15%', size: 74, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '49%', right: '-13%', size: 78, delay: 0.8 },
+            { src: '/icon-video.webp', top: '3%', left: '-7%', size: 88, delay: 0 },
+            { src: '/icon-mic.webp', top: '1%', right: '-6%', size: 84, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '38%', left: '-13%', size: 78, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '45%', right: '-11%', size: 82, delay: 0.8 },
           ].map((f, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
