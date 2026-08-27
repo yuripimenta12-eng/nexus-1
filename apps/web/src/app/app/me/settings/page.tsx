@@ -177,7 +177,7 @@ export default function SettingsPage() {
       <div
         className="hidden xl:block fixed right-[3vw] z-0 pointer-events-none"
         // a arte da "Minha Conta" é cortada reta na barriga — afunda mais pra esconder o corte
-        style={{ bottom: activeSection === 'profile' ? -78 : -16 }}
+        style={{ bottom: activeSection === 'profile' ? -46 : -16 }}
         aria-hidden
       >
         <div
