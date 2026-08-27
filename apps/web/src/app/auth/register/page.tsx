@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, User, AtSign, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, MessageSquare, User, AtSign, Mail, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
 const schema = z.object({
@@ -23,6 +23,7 @@ const schema = z.object({
     .min(8, 'Mínimo 8 caracteres')
     .regex(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/, 'Use maiúscula, minúscula e número'),
   confirmPassword: z.string(),
+  inviteCode: z.string().max(64).optional(),
   terms: z.literal(true, { errorMap: () => ({ message: 'Você precisa aceitar os termos' }) }),
 }).refine(d => d.password === d.confirmPassword, {
   message: 'As senhas não conferem',
@@ -43,8 +44,11 @@ export default function RegisterPage() {
 
   // Detecta se o usuário chegou por um link de convite (para mostrar o aviso)
   const [invited, setInvited] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState('');
   useEffect(() => {
-    setInvited(!!localStorage.getItem('nexus_pending_invite'));
+    const p = localStorage.getItem('nexus_pending_invite') || '';
+    setInvited(!!p);
+    setPendingInvite(p);
   }, []);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
@@ -64,6 +68,7 @@ export default function RegisterPage() {
     setError('');
     try {
       const { confirmPassword, terms, ...payload } = data as any;
+      payload.inviteCode = (payload.inviteCode || pendingInvite || '').trim() || undefined;
       await registerUser(payload);
       const pending = localStorage.getItem('nexus_pending_invite');
       if (pending) {
@@ -208,6 +213,23 @@ export default function RegisterPage() {
                 Mínimo de 8 caracteres, uma maiúscula, uma minúscula e um número.
               </p>
             </div>
+
+            {/* Código de convite — quem veio por link de convite não precisa */}
+            {!invited && (
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-1.5">
+                  Código de convite
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-[#8a7f98] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input {...register('inviteCode')} className={FIELD_STYLE}
+                    placeholder="Peça a um amigo que já usa o Nexus" />
+                </div>
+                <p className="text-[#8a8095] text-[11px] mt-1.5">
+                  O Nexus é uma comunidade por convite — vale o código secreto ou um código de convite de servidor.
+                </p>
+              </div>
+            )}
 
             {/* Termos */}
             <label className="flex items-start gap-2.5 cursor-pointer select-none">

@@ -27,6 +27,26 @@ export class AuthService {
 
   // ── Registro ─────────────────────────────────────────────────
   async register(dto: RegisterDto) {
+    // Porta de entrada: com REGISTRATION_CODE definido, só cria conta quem
+    // apresentar o código secreto OU um convite de servidor válido (o fluxo
+    // de link de convite preenche isso automaticamente no front).
+    const requiredCode = this.config.get<string>('REGISTRATION_CODE', '');
+    if (requiredCode) {
+      const code = (dto.inviteCode || '').trim();
+      let autorizado = code.length > 0 && code === requiredCode;
+      if (!autorizado && code) {
+        const invite = await this.prisma.invite.findUnique({ where: { code } });
+        autorizado = !!invite &&
+          (!invite.expiresAt || invite.expiresAt > new Date()) &&
+          (invite.maxUses == null || invite.uses < invite.maxUses);
+      }
+      if (!autorizado) {
+        throw new UnauthorizedException(
+          'Código de convite inválido. Peça um convite a quem já usa o Nexus.',
+        );
+      }
+    }
+
     // Verifica duplicatas
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ email: dto.email }, { username: dto.username }] },

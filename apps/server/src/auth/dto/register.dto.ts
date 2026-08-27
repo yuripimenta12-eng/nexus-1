@@ -24,4 +24,11 @@ export class RegisterDto {
     message: 'Senha fraca: use maiúscula, minúscula e número',
   })
   password: string;
+
+  // Código de convite (secreto do admin OU código de convite de servidor).
+  // Obrigatório quando REGISTRATION_CODE estiver definido no ambiente.
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inviteCode?: string;
 }
