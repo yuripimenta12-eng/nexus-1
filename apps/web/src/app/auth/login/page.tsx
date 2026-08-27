@@ -172,7 +172,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── CENTRO: mascote com efeitos (só em telas grandes) ──── */}
-      <section className="relative hidden xl:flex items-end justify-center overflow-visible pb-3" aria-hidden>
+      <section className="relative hidden xl:flex items-end justify-center overflow-hidden pb-3" aria-hidden>
         {/* Mascote GRANDE, pés perto do rodapé (como no mockup) */}
         <div className="relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -230,10 +230,10 @@ export default function LoginPage() {
 
           {/* Ícones flutuantes COLADOS no personagem (como no mockup) */}
           {[
-            { src: '/icon-video.webp', top: '3%', left: '-7%', size: 88, delay: 0 },
-            { src: '/icon-mic.webp', top: '1%', right: '-6%', size: 84, delay: 1.4 },
-            { src: '/icon-chat.webp', top: '38%', left: '-13%', size: 78, delay: 2.6 },
-            { src: '/icon-tela.webp', top: '45%', right: '-11%', size: 82, delay: 0.8 },
+            { src: '/icon-video.webp', top: '9%', left: '5%', size: 86, delay: 0 },
+            { src: '/icon-mic.webp', top: '6%', right: '5%', size: 82, delay: 1.4 },
+            { src: '/icon-chat.webp', top: '43%', left: '1%', size: 76, delay: 2.6 },
+            { src: '/icon-tela.webp', top: '49%', right: '1%', size: 80, delay: 0.8 },
           ].map((f, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
