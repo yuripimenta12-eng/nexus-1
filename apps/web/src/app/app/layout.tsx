@@ -9,6 +9,7 @@ import { connectSocket } from '@/lib/socket';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { GlobalCallAudio } from '@/components/voice/global-call-audio';
 import { cn } from '@/lib/utils';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
+      {/* Áudio da chamada — global: continua tocando em qualquer tela do app */}
+      <GlobalCallAudio />
+
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div
         className={cn(

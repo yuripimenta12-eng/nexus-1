@@ -75,8 +75,10 @@ export default function VoicePage() {
     () => useMediaStore.getState().screenQuality,
   );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
-  // Assistir é opt-in: transmissões que EU escolhi assistir
-  const [watching, setWatching] = useState<Set<string>>(new Set());
+  // Assistir é opt-in: transmissões que EU escolhi assistir (vive no store
+  // para o áudio global continuar tocando fora desta página)
+  const watching = useVoiceStore(s => s.watching);
+  const setWatching = useVoiceStore(s => s.setWatching);
   // Audiência de cada transmissor: streamerId -> ids de quem assiste
   const [watchers, setWatchers] = useState<Record<string, string[]>>({});
   // Quem está em "modo reunião" (ouvindo só a live) — para o triângulo azul
@@ -228,11 +230,11 @@ export default function VoicePage() {
       notify('Seu cargo bloqueia assistir transmissões neste servidor');
       return;
     }
-    setWatching(prev => {
-      const next = new Set(prev);
+    {
+      const next = new Set(watching);
       if (now) next.add(identity); else next.delete(identity);
-      return next;
-    });
+      setWatching(next);
+    }
     getSocket().emit('voice:watch', { voiceRoomId: roomId, targetUserId: identity, watching: now });
     if (!now && focusedParticipant === identity) setFocusedParticipant(null);
   };
@@ -242,10 +244,10 @@ export default function VoicePage() {
     const sharing = new Set(
       Array.from(participants.values()).filter(p => p.screenSharing).map(p => p.identity),
     );
-    setWatching(prev => {
-      const next = new Set(Array.from(prev).filter(id => sharing.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
+    const cur = useVoiceStore.getState().watching;
+    const next = new Set(Array.from(cur).filter(id => sharing.has(id)));
+    if (next.size !== cur.size) setWatching(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participants]);
 
   // ── Sons de interface ─────────────────────────────────────────
@@ -594,8 +596,8 @@ export default function VoicePage() {
         isFullscreen && !uiVisible && 'cursor-none',
       )}
     >
-      {/* Renderizador de áudio remoto (oculto) */}
-      <AudioRenderer watching={watching} />
+      {/* Áudio remoto: tocado pelo GlobalCallAudio no layout do app
+          (continua tocando ao navegar para chat/configurações) */}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
@@ -1905,79 +1907,6 @@ function VideoTrackRenderer({
       className={className}
     />
   );
-}
-
-// ── Renderizador de áudio para participantes remotos ─────────────
-// `watching`: o som da TELA compartilhada só toca para quem escolheu
-// assistir aquela transmissão (a voz do microfone toca sempre).
-function AudioRenderer({ watching }: { watching: Set<string> }) {
-  const { participants } = useVoiceStore() as any;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const attachedRef = useRef<Map<string, HTMLAudioElement>>(new Map());
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
-    // Chaves que DEVEM estar tocando neste momento
-    const wanted = new Set<string>();
-
-    participants.forEach((vp: any) => {
-      const { participant, identity } = vp;
-
-      if (participant instanceof LocalParticipant) return;
-
-      Array.from(participant.trackPublications.values()).forEach((pub: any) => {
-        if (
-          pub.kind === Track.Kind.Audio &&
-          pub.track &&
-          pub.isSubscribed
-        ) {
-          const isScreenAudio = pub.source === Track.Source.ScreenShareAudio;
-          if (isScreenAudio && !watching.has(identity)) return; // opt-in
-          const key = `${identity}:${pub.trackSid}`;
-          wanted.add(key);
-          if (!attachedRef.current.has(key)) {
-            const el = document.createElement('audio');
-            el.autoplay = true;
-            el.dataset.lkIdentity = identity;
-            const ms = useMediaStore.getState();
-            if (ms.audioOutputId) (el as any).setSinkId?.(ms.audioOutputId)?.catch?.(() => {});
-            container.appendChild(el);
-            pub.track.attach(el);
-            attachedRef.current.set(key, el);
-            // Volume centralizado (individual × geral × silenciar tudo)
-            useVoiceStore.getState().applyOutputVolume();
-          }
-        }
-      });
-    });
-
-    attachedRef.current.forEach((el, key) => {
-      const identity = key.split(':')[0];
-      // Remove o que saiu da sala OU deixou de ser desejado (parou de assistir)
-      if (!participants.has(identity) || !wanted.has(key)) {
-        const vp = participants.get(identity);
-        if (vp) {
-          Array.from(vp.participant.trackPublications.values()).forEach((pub: any) => {
-            if (`${identity}:${pub.trackSid}` === key && pub.track) {
-              try { pub.track.detach(el); } catch { /* ok */ }
-            }
-          });
-        }
-        el.remove();
-        attachedRef.current.delete(key);
-      }
-    });
-  }, [participants, watching]);
-
-  useEffect(() => {
-    return () => {
-      attachedRef.current.forEach(el => el.remove());
-      attachedRef.current.clear();
-    };
-  }, []);
-
-  return <div ref={containerRef} aria-hidden className="hidden" />;
 }
 
 // ── Tile de participante ──────────────────────────────────────────

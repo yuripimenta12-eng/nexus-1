@@ -69,6 +69,9 @@ interface VoiceStore {
   // Modo reunião: silencia as VOZES da call (só para mim), mantendo o áudio da live
   isStreamFocus: boolean;
   toggleStreamFocus: () => void;
+  // Transmissões que EU escolhi assistir (o áudio delas toca em qualquer tela)
+  watching: Set<string>;
+  setWatching: (next: Set<string>) => void;
   setInputVolume: (volume: number) => void;
   applyOutputVolume: () => void;
   switchAudioInput: (deviceId: string) => Promise<void>;
@@ -484,6 +487,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     set({
       isDeafened: false,
       isStreamFocus: false,
+      watching: new Set<string>(),
       room: null,
       roomName: null,
       voiceRoomId: null,
@@ -626,6 +630,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   isStreamFocus: false,
+  watching: new Set<string>(),
+  setWatching: (watching: Set<string>) => set({ watching }),
 
   toggleStreamFocus: () => {
     streamFocus = !streamFocus;
