@@ -81,6 +81,8 @@ export default function VoicePage() {
   const [watchers, setWatchers] = useState<Record<string, string[]>>({});
   // Quem está em "modo reunião" (ouvindo só a live) — para o triângulo azul
   const [focusModeUsers, setFocusModeUsers] = useState<Set<string>>(new Set());
+  // Quem está com o fone mutado (ensurdecido) — para o ícone vermelho
+  const [deafenedUsers, setDeafenedUsers] = useState<Set<string>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   // Webcam ampliada durante uma live: clicou na miniatura de quem tem câmera,
@@ -172,6 +174,20 @@ export default function VoicePage() {
         return next;
       });
     };
+    // Fone mutado (ensurdecido): liga/desliga o ícone vermelho
+    const onDeafen = ({ userId, deafened }: { userId: string; deafened: boolean }) => {
+      setDeafenedUsers(prev => {
+        const next = new Set(prev);
+        if (deafened) next.add(userId); else next.delete(userId);
+        return next;
+      });
+    };
+    // Alguém entrou: re-anuncia meus estados para o recém-chegado ver os selos
+    const onJoined = () => {
+      const s = useVoiceStore.getState();
+      if (s.isDeafened) socket.emit('voice:deafen', { voiceRoomId: roomId, serverId, deafened: true });
+      if (s.isStreamFocus) socket.emit('voice:focus', { voiceRoomId: roomId, focused: true });
+    };
     // Quem sai da sala deixa de contar como espectador
     const onLeft = ({ userId }: { userId: string }) => {
       setWatchers(prev => {
@@ -184,14 +200,23 @@ export default function VoicePage() {
         next.delete(userId);
         return next;
       });
+      setDeafenedUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
     };
     socket.on('voice:watch', onWatch);
     socket.on('voice:focus', onFocus);
+    socket.on('voice:deafen', onDeafen);
+    socket.on('voice:user_joined', onJoined);
     socket.on('voice:user_left', onLeft);
     return () => {
       socket.off('voice:chat', onChat);
       socket.off('voice:watch', onWatch);
       socket.off('voice:focus', onFocus);
+      socket.off('voice:deafen', onDeafen);
+      socket.off('voice:user_joined', onJoined);
       socket.off('voice:user_left', onLeft);
     };
   }, [roomId]);
@@ -1058,6 +1083,7 @@ export default function VoicePage() {
                         voiceParticipant={p}
                         avatarUrl={membersMeta[p.identity]?.avatarUrl}
                         inFocusMode={focusModeUsers.has(p.identity)}
+                        isDeafenedUser={deafenedUsers.has(p.identity)}
                       />
                     </motion.div>
                   ))}
@@ -1300,6 +1326,8 @@ export default function VoicePage() {
                           )}
                           {p.screenSharing && <span className="ml-1.5 align-middle"><LiveBadge small /></span>}
                           {focusModeUsers.has(p.identity) && <span className="ml-1.5"><FocusBadge small /></span>}
+                          {!p.micEnabled && <MicOff className="w-3 h-3 inline ml-1.5 text-[#ff6b7f] align-middle" aria-label="Microfone mutado" />}
+                          {deafenedUsers.has(p.identity) && <HeadphoneOff className="w-3 h-3 inline ml-1 text-[#ff6b7f] align-middle" aria-label="Fone mutado" />}
                         </b>
                         <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
                           {serverMuted ? 'Silenciado no servidor'
@@ -1797,6 +1825,18 @@ function VoiceAudioPanel() {
   );
 }
 
+// ── Fone mutado (ensurdecido): fone com risco, estilo Discord ────
+function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
+  return (
+    <span className={cn('relative inline-flex shrink-0', className)} aria-label={ariaLabel} title={ariaLabel}>
+      <Headphones className="w-full h-full" />
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="block w-[135%] h-[1.5px] bg-current rotate-45 rounded-full" />
+      </span>
+    </span>
+  );
+}
+
 // ── Selo do modo reunião (triângulo azul: ouvindo só a live) ─────
 function FocusBadge({ small }: { small?: boolean }) {
   return (
@@ -1941,7 +1981,7 @@ function AudioRenderer({ watching }: { watching: Set<string> }) {
 }
 
 // ── Tile de participante ──────────────────────────────────────────
-function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean }) {
+function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean }) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
   const name = voiceParticipant.participant.name || identity;
@@ -2032,6 +2072,7 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode }: { voicePa
         ) : (
           <MicOff className="w-3 h-3 text-[#ff6b7f]" />
         )}
+        {isDeafenedUser && <HeadphoneOff className="w-3 h-3 text-[#ff6b7f]" />}
         {voiceParticipant.screenSharing && (
           <span className="flex items-center gap-1">
             <Monitor className="w-3 h-3 text-[#c887ff]" />

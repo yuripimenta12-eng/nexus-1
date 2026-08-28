@@ -57,6 +57,18 @@ export class RedisService implements OnModuleDestroy {
   }
 
   // ── Typing indicators ────────────────────────────────────────
+  // ── Ensurdecido na chamada (fone mutado) — visível para todos ──
+  async setVoiceDeafened(userId: string, deafened: boolean) {
+    if (deafened) await this.client.setex(`voice:deafen:${userId}`, 21600, '1');
+    else await this.client.del(`voice:deafen:${userId}`);
+  }
+
+  async getVoiceDeafened(userIds: string[]): Promise<Set<string>> {
+    if (!userIds.length) return new Set();
+    const vals = await this.client.mget(...userIds.map(id => `voice:deafen:${id}`));
+    return new Set(userIds.filter((_, i) => vals[i] === '1'));
+  }
+
   async setTyping(channelId: string, userId: string) {
     await this.client.setex(`typing:${channelId}:${userId}`, 5, '1');
   }

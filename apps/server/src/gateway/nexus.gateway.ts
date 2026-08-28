@@ -119,6 +119,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     userSocketMap.delete(userId);
     messageRateMap.delete(client.id);
     await this.redis.setUserOffline(userId);
+    await this.redis.setVoiceDeafened(userId, false).catch(() => {});
 
     // Se caiu no meio de uma chamada, limpa a presença de voz
     const { voiceRoomId, voiceServerId } = client.data;
@@ -408,6 +409,31 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       targetUserId: data.targetUserId, // de quem é a transmissão
       watching: !!data.watching,
     });
+  }
+
+  // ── Voz: ensurdecido (fone mutado) — visível para todo mundo ──
+  @SubscribeMessage('voice:deafen')
+  async handleVoiceDeafen(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { voiceRoomId: string; serverId?: string; deafened: boolean },
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data.voiceRoomId) return;
+    await this.redis.setVoiceDeafened(userId, !!data.deafened).catch(() => {});
+    // Para quem está NA sala (badge em tempo real)
+    this.server.to(`voice:${data.voiceRoomId}`).emit('voice:deafen', {
+      userId,
+      deafened: !!data.deafened,
+    });
+    // Para as sidebars do servidor (refazem o fetch da presença)
+    if (data.serverId) {
+      this.server.to(`server:${data.serverId}`).emit('voice:presence', {
+        serverId: data.serverId,
+        voiceRoomId: data.voiceRoomId,
+        userId,
+        action: 'deafen',
+      });
+    }
   }
 
   // ── Voz: modo reunião (ouvindo só a live) — relay para a sala ──

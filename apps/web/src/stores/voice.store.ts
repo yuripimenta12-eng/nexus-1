@@ -424,6 +424,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         leaveVoiceRoom();
       } catch { /* ok */ }
     }
+    // Limpa o estado "ensurdecido" no servidor ao sair da sala
+    if (deafened && voiceRoomId) {
+      try { getSocket().emit('voice:deafen', { voiceRoomId, serverId: get().serverId, deafened: false }); } catch { /* ok */ }
+    }
     deafened = false;
     streamFocus = false;
     set({
@@ -455,6 +459,13 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     } catch {
       // Permissão negada ou dispositivo indisponível — mantém estado real
       set({ localMicEnabled: !!micPipeline });
+    }
+    // Avisa as sidebars do servidor (ícone de mic mutado ao lado do nome)
+    const { voiceRoomId, serverId } = get() as any;
+    if (voiceRoomId && serverId) {
+      try {
+        getSocket().emit('voice:live', { voiceRoomId, serverId });
+      } catch { /* socket fora do ar — o polling da sidebar corrige */ }
     }
   },
 
@@ -554,6 +565,13 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     deafened = !deafened;
     set({ isDeafened: deafened });
     get().applyOutputVolume();
+    // Avisa a sala e as sidebars (ícone de fone mutado ao lado do nome)
+    const { voiceRoomId, serverId } = get() as any;
+    if (voiceRoomId) {
+      try {
+        getSocket().emit('voice:deafen', { voiceRoomId, serverId, deafened });
+      } catch { /* sem socket agora — o polling corrige depois */ }
+    }
   },
 
   isStreamFocus: false,

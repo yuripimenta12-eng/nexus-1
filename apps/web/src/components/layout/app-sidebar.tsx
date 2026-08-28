@@ -6,6 +6,18 @@ import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
   UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check, Users,
 } from 'lucide-react';
+
+// Fone mutado (ensurdecido): fone com risco, estilo Discord
+function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
+  return (
+    <span className={`relative inline-flex shrink-0 ${className || ''}`} aria-label={ariaLabel} title={ariaLabel}>
+      <Headphones className="w-full h-full" />
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="block w-[135%] h-[1.5px] bg-current rotate-45 rounded-full" />
+      </span>
+    </span>
+  );
+}
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -374,12 +386,20 @@ export function AppSidebar() {
                         )}>
                           {u.displayName}
                         </span>
-                        {u.live && (
-                          <span className="ml-auto shrink-0 text-[8px] font-black uppercase tracking-wide
-                                           text-white bg-[#ed4245] rounded px-1 py-[1px] shadow-[0_0_8px_#ed424566]">
-                            Live
-                          </span>
-                        )}
+                        <span className="ml-auto flex items-center gap-1 shrink-0">
+                          {u.live && (
+                            <span className="text-[8px] font-black uppercase tracking-wide
+                                             text-white bg-[#ed4245] rounded px-1 py-[1px] shadow-[0_0_8px_#ed424566]">
+                              Live
+                            </span>
+                          )}
+                          {(u as any).micMuted && (
+                            <MicOff className="w-3 h-3 text-[#ff6b7f]" aria-label="Microfone mutado" />
+                          )}
+                          {(u as any).deafened && (
+                            <HeadphoneOff className="w-3 h-3 text-[#ff6b7f]" aria-label="Fone mutado (não está ouvindo)" />
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>

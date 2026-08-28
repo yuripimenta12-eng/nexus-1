@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class VoiceService {
@@ -12,6 +13,7 @@ export class VoiceService {
     private prisma: PrismaService,
     private config: ConfigService,
     private serversService: ServersService,
+    private redis: RedisService,
   ) {
     this.roomService = new RoomServiceClient(
       this.config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
@@ -164,9 +166,18 @@ export class VoiceService {
               .filter(p => p.tracks?.some(t => t.source === TrackSource.SCREEN_SHARE))
               .map(p => p.identity),
           );
-          return { roomId: room.id, identities: participants.map(p => p.identity), sharing };
+          // Microfone mutado (ou nem publicado) — o LiveKit é a fonte da verdade
+          const muted = new Set(
+            participants
+              .filter(p => {
+                const mic = p.tracks?.find(t => t.source === TrackSource.MICROPHONE);
+                return !mic || mic.muted;
+              })
+              .map(p => p.identity),
+          );
+          return { roomId: room.id, identities: participants.map(p => p.identity), sharing, muted };
         } catch {
-          return { roomId: room.id, identities: [] as string[], sharing: new Set<string>() };
+          return { roomId: room.id, identities: [] as string[], sharing: new Set<string>(), muted: new Set<string>() };
         }
       }),
     );
@@ -179,9 +190,11 @@ export class VoiceService {
         })
       : [];
     const userMap = new Map(users.map(u => [u.id, u]));
+    // Fones mutados (ensurdecidos) — estado guardado no Redis via gateway
+    const deafenedSet = await this.redis.getVoiceDeafened(allIds).catch(() => new Set<string>());
 
-    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null; live: boolean }[]> = {};
-    for (const { roomId, identities, sharing } of roomParticipants) {
+    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null; live: boolean; micMuted: boolean; deafened: boolean }[]> = {};
+    for (const { roomId, identities, sharing, muted } of roomParticipants) {
       presence[roomId] = identities
         .map(id => userMap.get(id))
         .filter((u): u is NonNullable<typeof u> => u != null)
@@ -191,6 +204,8 @@ export class VoiceService {
           displayName: u.profile?.displayName || u.username,
           avatarUrl: u.profile?.avatarUrl ?? null,
           live: sharing.has(u.id),
+          micMuted: muted.has(u.id) || deafenedSet.has(u.id),
+          deafened: deafenedSet.has(u.id),
         }));
     }
     return presence;
