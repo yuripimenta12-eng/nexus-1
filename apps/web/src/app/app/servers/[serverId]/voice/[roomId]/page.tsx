@@ -99,6 +99,26 @@ export default function VoicePage() {
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
+
+  // Modo cinema: em tela cheia, topo e controles somem quando o mouse para
+  const [uiVisible, setUiVisible] = useState(true);
+  const uiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isFullscreen) { setUiVisible(true); return; }
+    const el = stageRef.current;
+    if (!el) return;
+    const wake = () => {
+      setUiVisible(true);
+      if (uiTimer.current) clearTimeout(uiTimer.current);
+      uiTimer.current = setTimeout(() => setUiVisible(false), 2600);
+    };
+    wake();
+    el.addEventListener('mousemove', wake);
+    return () => {
+      el.removeEventListener('mousemove', wake);
+      if (uiTimer.current) clearTimeout(uiTimer.current);
+    };
+  }, [isFullscreen]);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -510,15 +530,26 @@ export default function VoicePage() {
   }
 
   return (
-    <div ref={stageRef} className={cn('flex flex-col nx-stage-bg', isFullscreen ? 'fixed inset-0 z-50 bg-[#0a0713]' : 'flex-1')}>
+    <div
+      ref={stageRef}
+      className={cn(
+        'flex flex-col nx-stage-bg',
+        isFullscreen ? 'fixed inset-0 z-50 bg-[#0a0713]' : 'flex-1',
+        isFullscreen && !uiVisible && 'cursor-none',
+      )}
+    >
       {/* Renderizador de áudio remoto (oculto) */}
       <AudioRenderer watching={watching} />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Topbar */}
-          <div className="h-[70px] flex items-center px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0">
+          {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
+          <div className={cn(
+            'h-[70px] flex items-center px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
+            isFullscreen && 'absolute top-0 left-0 right-0 z-30 bg-black/55 border-transparent transition-all duration-300',
+            isFullscreen && !uiVisible && 'opacity-0 -translate-y-3 pointer-events-none',
+          )}>
             <div className="w-[38px] h-[38px] grid place-items-center rounded-xl bg-[#22142f] text-[#c887ff] mr-3">
               <Volume2 className="w-4 h-4" />
             </div>
@@ -952,8 +983,12 @@ export default function VoicePage() {
             </div>
           )}
 
-          {/* Controles */}
-          <div className="h-[84px] flex items-center justify-center gap-1.5 sm:gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-2 sm:px-3 overflow-x-auto">
+          {/* Controles (em tela cheia viram overlay flutuante que some com o mouse parado) */}
+          <div className={cn(
+            'h-[84px] flex items-center justify-center gap-1.5 sm:gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-2 sm:px-3 overflow-x-auto',
+            isFullscreen && 'absolute bottom-0 left-0 right-0 z-30 bg-black/55 border-transparent transition-all duration-300',
+            isFullscreen && !uiVisible && 'opacity-0 translate-y-3 pointer-events-none',
+          )}>
             <ControlButton
               onClick={toggleMic}
               danger={!localMicEnabled}
@@ -1061,7 +1096,9 @@ export default function VoicePage() {
           <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setPanelOpen(false)} />
         )}
 
-        {/* Painel lateral: fixo no desktop, gaveta pela direita no celular */}
+        {/* Painel lateral: fixo no desktop, gaveta pela direita no celular.
+            Em tela cheia ele some — o vídeo ocupa o monitor inteiro. */}
+        {!isFullscreen && (
         <aside className={cn(
           'flex-col border-l border-[var(--th-line-2)] bg-[var(--th-side)] shrink-0',
           'lg:flex lg:static lg:w-[280px] lg:z-auto lg:shadow-none',
@@ -1416,6 +1453,7 @@ export default function VoicePage() {
             <VoiceAudioPanel />
           )}
         </aside>
+        )}
       </div>
 
       {/* Toast */}
