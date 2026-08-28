@@ -19,6 +19,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { RolesModule } from './roles/roles.module';
 import { MailModule } from './mail/mail.module';
 import { DmsModule } from './dms/dms.module';
+import { FriendsModule } from './friends/friends.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -43,6 +44,7 @@ import { HealthController } from './health.controller';
     PresenceModule,
     GatewayModule,
     DmsModule,
+    FriendsModule,
     RolesModule,
     MailModule,
   ],
