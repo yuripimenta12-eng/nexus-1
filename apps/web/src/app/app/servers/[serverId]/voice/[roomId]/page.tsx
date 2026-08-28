@@ -79,6 +79,8 @@ export default function VoicePage() {
   const [watching, setWatching] = useState<Set<string>>(new Set());
   // Audiência de cada transmissor: streamerId -> ids de quem assiste
   const [watchers, setWatchers] = useState<Record<string, string[]>>({});
+  // Quem está em "modo reunião" (ouvindo só a live) — para o triângulo azul
+  const [focusModeUsers, setFocusModeUsers] = useState<Set<string>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   // Webcam ampliada durante uma live: clicou na miniatura de quem tem câmera,
@@ -162,6 +164,14 @@ export default function VoicePage() {
         return { ...prev, [targetUserId]: Array.from(cur) };
       });
     };
+    // Modo reunião: quem ligou/desligou (para mostrar o triângulo azul)
+    const onFocus = ({ userId, focused }: { userId: string; focused: boolean }) => {
+      setFocusModeUsers(prev => {
+        const next = new Set(prev);
+        if (focused) next.add(userId); else next.delete(userId);
+        return next;
+      });
+    };
     // Quem sai da sala deixa de contar como espectador
     const onLeft = ({ userId }: { userId: string }) => {
       setWatchers(prev => {
@@ -169,12 +179,19 @@ export default function VoicePage() {
         for (const k of Object.keys(prev)) next[k] = prev[k].filter(id => id !== userId);
         return next;
       });
+      setFocusModeUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
     };
     socket.on('voice:watch', onWatch);
+    socket.on('voice:focus', onFocus);
     socket.on('voice:user_left', onLeft);
     return () => {
       socket.off('voice:chat', onChat);
       socket.off('voice:watch', onWatch);
+      socket.off('voice:focus', onFocus);
       socket.off('voice:user_left', onLeft);
     };
   }, [roomId]);
@@ -1010,6 +1027,7 @@ export default function VoicePage() {
                     <div className="absolute bottom-1 left-1 flex items-center gap-1 text-white text-[9px] bg-black/60 px-1 rounded max-w-[90%]">
                       <span className="truncate">{p.participant.name || p.identity}</span>
                       {p.screenSharing && <LiveBadge tiny />}
+                      {focusModeUsers.has(p.identity) && <FocusBadge small />}
                     </div>
                   </div>
                 ))}
@@ -1036,7 +1054,11 @@ export default function VoicePage() {
                       transition={{ duration: 0.22, ease: 'easeOut' }}
                       className="min-h-0"
                     >
-                      <ParticipantTile voiceParticipant={p} avatarUrl={membersMeta[p.identity]?.avatarUrl} />
+                      <ParticipantTile
+                        voiceParticipant={p}
+                        avatarUrl={membersMeta[p.identity]?.avatarUrl}
+                        inFocusMode={focusModeUsers.has(p.identity)}
+                      />
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -1070,10 +1092,19 @@ export default function VoicePage() {
             {screenSharers.length > 0 && (
               <ControlButton
                 onClick={() => {
+                  const ligando = !isStreamFocus;
                   toggleStreamFocus();
-                  notify(isStreamFocus
-                    ? 'Vozes da chamada reativadas'
-                    : '🎧 Modo reunião: ouvindo só o áudio da live');
+                  getSocket().emit('voice:focus', { voiceRoomId: roomId, focused: ligando });
+                  if (user?.id) {
+                    setFocusModeUsers(prev => {
+                      const next = new Set(prev);
+                      if (ligando) next.add(user.id); else next.delete(user.id);
+                      return next;
+                    });
+                  }
+                  notify(ligando
+                    ? '🎧 Modo reunião: ouvindo só o áudio da live'
+                    : 'Vozes da chamada reativadas');
                 }}
                 active={isStreamFocus}
                 title={isStreamFocus
@@ -1268,6 +1299,7 @@ export default function VoicePage() {
                             </span>
                           )}
                           {p.screenSharing && <span className="ml-1.5 align-middle"><LiveBadge small /></span>}
+                          {focusModeUsers.has(p.identity) && <span className="ml-1.5"><FocusBadge small /></span>}
                         </b>
                         <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
                           {serverMuted ? 'Silenciado no servidor'
@@ -1765,6 +1797,23 @@ function VoiceAudioPanel() {
   );
 }
 
+// ── Selo do modo reunião (triângulo azul: ouvindo só a live) ─────
+function FocusBadge({ small }: { small?: boolean }) {
+  return (
+    <span
+      title="Em modo reunião: ouvindo só o áudio da live"
+      className="inline-block align-middle"
+      style={{
+        width: small ? 8 : 10,
+        height: small ? 8 : 10,
+        clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)',
+        background: '#3b9dff',
+        filter: 'drop-shadow(0 0 6px #3b9dffaa)',
+      }}
+    />
+  );
+}
+
 // ── Selo LIVE (transmitindo a tela) ──────────────────────────────
 function LiveBadge({ small, tiny }: { small?: boolean; tiny?: boolean }) {
   return (
@@ -1892,7 +1941,7 @@ function AudioRenderer({ watching }: { watching: Set<string> }) {
 }
 
 // ── Tile de participante ──────────────────────────────────────────
-function ParticipantTile({ voiceParticipant, avatarUrl }: { voiceParticipant: any; avatarUrl?: string | null }) {
+function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean }) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
   const name = voiceParticipant.participant.name || identity;
@@ -1977,6 +2026,7 @@ function ParticipantTile({ voiceParticipant, avatarUrl }: { voiceParticipant: an
       <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
                       bg-[#09070d]/75 backdrop-blur font-bold text-white text-sm">
         <span className="truncate max-w-[140px]">{name}</span>
+        {inFocusMode && <FocusBadge small />}
         {voiceParticipant.micEnabled ? (
           <Mic className="w-3 h-3 text-[#a89cb4]" />
         ) : (

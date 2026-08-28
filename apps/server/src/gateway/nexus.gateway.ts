@@ -410,6 +410,20 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     });
   }
 
+  // ── Voz: modo reunião (ouvindo só a live) — relay para a sala ──
+  @SubscribeMessage('voice:focus')
+  async handleVoiceFocus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { voiceRoomId: string; focused: boolean },
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !data.voiceRoomId) return;
+    this.server.to(`voice:${data.voiceRoomId}`).emit('voice:focus', {
+      userId,
+      focused: !!data.focused,
+    });
+  }
+
   // ── Voz: chat efêmero da sala (não persiste no banco) ─────────
   @SubscribeMessage('voice:chat')
   async handleVoiceChat(
