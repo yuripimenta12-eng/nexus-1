@@ -66,6 +66,9 @@ interface VoiceStore {
   // ── Configurações de mídia aplicadas ao vivo ──
   isDeafened: boolean;
   toggleDeafen: () => void;
+  // Modo reunião: silencia as VOZES da call (só para mim), mantendo o áudio da live
+  isStreamFocus: boolean;
+  toggleStreamFocus: () => void;
   setInputVolume: (volume: number) => void;
   applyOutputVolume: () => void;
   switchAudioInput: (deviceId: string) => Promise<void>;
@@ -125,6 +128,8 @@ async function teardownMic(room: Room | null): Promise<void> {
 // Aplica volume final (individual × global) em um elemento <audio>
 // Silenciar tudo (deafen): zera a saída da chamada sem perder os volumes
 let deafened = false;
+// Modo reunião: zera só a voz dos microfones; o áudio de transmissão segue normal
+let streamFocus = false;
 
 // true enquanto o PRÓPRIO usuário clica em "Parar tela" — diferencia o
 // encerramento intencional de quedas externas (barrinha do Chrome, janela
@@ -196,7 +201,8 @@ function applyStreamBoost(track: any, sid: string, gainValue: number): boolean {
 // Voz (microfone) e transmissão de tela têm volumes SEPARADOS.
 function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; streamVolume?: number; isMutedLocally?: boolean }) {
   if (!p.participant) return;
-  const micVol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  // Modo reunião: vozes zeradas (o áudio da live abaixo continua normal)
+  const micVol = streamFocus ? 0 : effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
   // Transmissão pode passar de 100% (até 120) — sem teto aqui; o excedente
   // sai pelo GainNode dedicado em applyStreamBoost.
   const out = useMediaStore.getState().outputVolume;
@@ -419,8 +425,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       } catch { /* ok */ }
     }
     deafened = false;
+    streamFocus = false;
     set({
       isDeafened: false,
+      isStreamFocus: false,
       room: null,
       roomName: null,
       voiceRoomId: null,
@@ -545,6 +553,14 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   toggleDeafen: () => {
     deafened = !deafened;
     set({ isDeafened: deafened });
+    get().applyOutputVolume();
+  },
+
+  isStreamFocus: false,
+
+  toggleStreamFocus: () => {
+    streamFocus = !streamFocus;
+    set({ isStreamFocus: streamFocus });
     get().applyOutputVolume();
   },
 

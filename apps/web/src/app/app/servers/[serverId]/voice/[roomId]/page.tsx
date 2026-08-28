@@ -9,7 +9,7 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
-  Eye, EyeOff, Play, HelpCircle,
+  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker,
 } from 'lucide-react';
 import {
   Track,
@@ -65,6 +65,7 @@ export default function VoicePage() {
     toggleMic, toggleCam, startScreenShare, stopScreenShare,
     participants, quality, voiceRoomId, roomName,
     isDeafened, toggleDeafen,
+    isStreamFocus, toggleStreamFocus,
     liveEndedNotice, clearLiveEndedNotice,
     reconnecting,
   } = useVoiceStore();
@@ -1064,6 +1065,24 @@ export default function VoicePage() {
             >
               {isDeafened ? <VolumeX className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
             </ControlButton>
+
+            {/* Modo reunião: silencia as vozes, mantém só o áudio da live (aparece quando há live) */}
+            {screenSharers.length > 0 && (
+              <ControlButton
+                onClick={() => {
+                  toggleStreamFocus();
+                  notify(isStreamFocus
+                    ? 'Vozes da chamada reativadas'
+                    : '🎧 Modo reunião: ouvindo só o áudio da live');
+                }}
+                active={isStreamFocus}
+                title={isStreamFocus
+                  ? 'Voltar a ouvir as vozes da chamada'
+                  : 'Modo reunião: silenciar as vozes e ouvir só a live'}
+              >
+                <MonitorSpeaker className="w-5 h-5" />
+              </ControlButton>
+            )}
 
             {/* Áudio rápido: dispositivo de saída + volume geral */}
             <div className="relative">
