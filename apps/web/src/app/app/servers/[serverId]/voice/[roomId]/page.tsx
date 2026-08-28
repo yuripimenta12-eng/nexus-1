@@ -80,6 +80,9 @@ export default function VoicePage() {
   const [watchers, setWatchers] = useState<Record<string, string[]>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  // Webcam ampliada durante uma live: clicou na miniatura de quem tem câmera,
+  // o telão mostra a câmera; clicar na live (miniatura ou telão) volta ao stream.
+  const [focusedCam, setFocusedCam] = useState<string | null>(null);
 
   // Tela cheia DE VERDADE (API do navegador), com fallback para o modo CSS
   const toggleFullscreen = async () => {
@@ -99,6 +102,13 @@ export default function VoicePage() {
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
+
+  // Se a pessoa da webcam ampliada sair/desligar a câmera, volta pra live
+  useEffect(() => {
+    if (!focusedCam) return;
+    const p = participants.get(focusedCam);
+    if (!p || !p.camEnabled) setFocusedCam(null);
+  }, [participants, focusedCam]);
 
   // Modo cinema: em tela cheia, topo e controles somem quando o mouse para
   const [uiVisible, setUiVisible] = useState(true);
@@ -431,6 +441,9 @@ export default function VoicePage() {
         p.screenSharing &&
         (p.participant instanceof LocalParticipant || watching.has(p.identity)))
     : undefined;
+  // Webcam ampliada (válida tanto na live expandida quanto na grade de lives)
+  const focusedCamP = focusedCam ? participantsList.find(pp => pp.identity === focusedCam) : null;
+  const showCam = !!(focusedCamP && focusedCamP.camEnabled);
 
   if (inLobby) {
     return (
@@ -620,20 +633,38 @@ export default function VoicePage() {
             /* ── Live em tela cheia (o usuário clicou para expandir) ── */
             <div className="group flex-1 relative bg-black overflow-hidden">
               <div
-                className="absolute inset-0 flex items-center justify-center cursor-zoom-out"
-                onClick={() => setFocusedParticipant(null)}
-                title="Clique para voltar à grade"
+                className={cn('absolute inset-0 flex items-center justify-center', showCam ? 'cursor-pointer' : 'cursor-zoom-out')}
+                onClick={() => (showCam ? setFocusedCam(null) : setFocusedParticipant(null))}
+                title={showCam ? 'Clique para voltar à live' : 'Clique para voltar à grade'}
               >
-                <VideoTrackRenderer
-                  participant={primaryScreenSharer.participant}
-                  source={Track.Source.ScreenShare}
-                  className="max-w-full max-h-full object-contain"
-                />
+                {showCam ? (
+                  <VideoTrackRenderer
+                    participant={focusedCamP!.participant}
+                    source={Track.Source.Camera}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <VideoTrackRenderer
+                    participant={primaryScreenSharer.participant}
+                    source={Track.Source.ScreenShare}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                )}
               </div>
               <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white text-xs bg-[#09070d]/75 backdrop-blur px-2.5 py-1.5 rounded-lg font-semibold pointer-events-none">
-                <LiveBadge />
-                <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
-                {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+                {showCam ? (
+                  <>
+                    <Video className="w-3.5 h-3.5 text-[#8bdcb9]" />
+                    {focusedCamP!.participant.name || focusedCamP!.identity}
+                    <span className="text-[#92879f] font-normal">· webcam (a live continua tocando)</span>
+                  </>
+                ) : (
+                  <>
+                    <LiveBadge />
+                    <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
+                    {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+                  </>
+                )}
               </div>
               <div className="absolute top-3 left-3 flex items-center gap-2">
                 <button
@@ -756,6 +787,25 @@ export default function VoicePage() {
             /* ── Grade de lives: todas visíveis ao mesmo tempo ── */
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-auto p-[14px]">
+                {showCam ? (
+                  /* Webcam ampliada — clique para voltar às lives */
+                  <div
+                    className="relative h-full rounded-2xl overflow-hidden bg-black cursor-pointer"
+                    onClick={() => setFocusedCam(null)}
+                    title="Clique para voltar para a live"
+                  >
+                    <VideoTrackRenderer
+                      participant={focusedCamP!.participant}
+                      source={Track.Source.Camera}
+                      className="absolute inset-0 w-full h-full object-contain"
+                    />
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white text-xs bg-[#09070d]/75 backdrop-blur px-2.5 py-1.5 rounded-lg font-semibold pointer-events-none">
+                      <Video className="w-3.5 h-3.5 text-[#8bdcb9]" />
+                      {focusedCamP!.participant.name || focusedCamP!.identity}
+                      <span className="text-[#92879f] font-normal">· webcam (a live continua tocando)</span>
+                    </div>
+                  </div>
+                ) : (
                 <div className={cn(
                   'grid gap-3 h-full content-stretch',
                   screenSharers.length === 1 && 'grid-cols-1',
@@ -908,16 +958,26 @@ export default function VoicePage() {
                     );
                   })}
                 </div>
+                )}
               </div>
 
-              {/* Faixa de participantes (câmeras/avatares) */}
+              {/* Faixa de participantes (câmeras/avatares) — clique numa webcam para ampliá-la */}
               <div className="shrink-0 flex gap-2 px-[14px] pb-3 overflow-x-auto">
                 {participantsList.map(p => (
                   <div
                     key={p.identity}
+                    onClick={() => {
+                      if (p.screenSharing) setFocusedCam(null); // miniatura da live: volta ao stream
+                      else if (p.camEnabled) setFocusedCam(focusedCam === p.identity ? null : p.identity);
+                    }}
+                    title={p.screenSharing ? 'Voltar para a live'
+                      : p.camEnabled ? (focusedCam === p.identity ? 'Voltar para a live' : `Ampliar a webcam de ${p.participant.name || p.identity}`)
+                      : undefined}
                     className={cn(
-                      'relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2',
-                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
+                      'relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2 transition-colors',
+                      (p.camEnabled || p.screenSharing) && 'cursor-pointer hover:border-[#c887ff]',
+                      focusedCam === p.identity ? 'border-orange shadow-[0_0_12px_rgba(255,106,0,0.4)]'
+                        : p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
                     )}
                   >
                     {p.camEnabled ? (
