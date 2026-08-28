@@ -79,6 +79,26 @@ export default function VoicePage() {
   // Audiência de cada transmissor: streamerId -> ids de quem assiste
   const [watchers, setWatchers] = useState<Record<string, string[]>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // Tela cheia DE VERDADE (API do navegador), com fallback para o modo CSS
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await (stageRef.current || document.documentElement).requestFullscreen();
+      }
+    } catch {
+      setIsFullscreen(v => !v);
+    }
+  };
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -490,7 +510,7 @@ export default function VoicePage() {
   }
 
   return (
-    <div className={cn('flex flex-col nx-stage-bg', isFullscreen ? 'fixed inset-0 z-50' : 'flex-1')}>
+    <div ref={stageRef} className={cn('flex flex-col nx-stage-bg', isFullscreen ? 'fixed inset-0 z-50 bg-[#0a0713]' : 'flex-1')}>
       {/* Renderizador de áudio remoto (oculto) */}
       <AudioRenderer watching={watching} />
 
@@ -556,9 +576,9 @@ export default function VoicePage() {
               )}
             </button>
             <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
+              onClick={toggleFullscreen}
               className="ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
-              title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+              title={isFullscreen ? 'Sair da tela cheia (Esc)' : 'Tela cheia'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
