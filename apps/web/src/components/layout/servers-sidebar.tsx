@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Settings, X, Loader2 } from 'lucide-react';
+import { Plus, Settings, X, Loader2, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { cn, getInitials } from '@/lib/utils';
@@ -96,6 +96,19 @@ export function ServersSidebar() {
       >
         <Plus className="w-5 h-5" />
       </button>
+
+      {/* Painel do dono — só aparece para o admin da plataforma */}
+      {(user as any)?.isAdmin && (
+        <button
+          onClick={() => router.push('/app/admin')}
+          className="w-[46px] h-[46px] rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
+                     transition-all duration-200 flex items-center justify-center
+                     text-[#ffb84d] hover:border-orange hover:-translate-y-0.5"
+          title="Painel do dono"
+        >
+          <ShieldCheck className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Modal criar servidor */}
       {showCreateModal && (

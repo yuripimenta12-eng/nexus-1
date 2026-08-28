@@ -97,6 +97,38 @@ export default function AdminPage() {
                 <MetricCard label="Mensagens" value={metrics.messages} icon={<Activity className="w-5 h-5" />} color="text-success" />
                 <MetricCard label="Ativos hoje" value={metrics.activeToday} icon={<CheckCircle className="w-5 h-5" />} color="text-warning" />
               </div>
+
+              {/* Cadastros por dia (14 dias) */}
+              {metrics.signupsByDay && (
+                <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white font-semibold text-sm">Cadastros por dia</h3>
+                    <span className="text-muted text-xs">
+                      últimos 14 dias · {metrics.signupsByDay.reduce((a: number, d: any) => a + d.count, 0)} novos
+                    </span>
+                  </div>
+                  {(() => {
+                    const max = Math.max(1, ...metrics.signupsByDay.map((d: any) => d.count));
+                    return (
+                      <div className="flex items-end gap-1.5 h-28">
+                        {metrics.signupsByDay.map((d: any) => (
+                          <div key={d.date} className="flex-1 flex flex-col items-center gap-1 min-w-0 group">
+                            <span className="text-[10px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
+                              {d.count}
+                            </span>
+                            <div
+                              className="w-full rounded-t-md bg-gradient-to-t from-accent to-orange transition-all"
+                              style={{ height: `${Math.max(3, (d.count / max) * 100)}%`, opacity: d.count === 0 ? 0.18 : 1 }}
+                              title={`${d.date}: ${d.count} cadastro(s)`}
+                            />
+                            <span className="text-[9px] text-muted tabular-nums">{d.date.slice(8, 10)}/{d.date.slice(5, 7)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 

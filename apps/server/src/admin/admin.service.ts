@@ -118,7 +118,24 @@ export class AdminService {
       }),
     ]);
 
-    return { users, servers, messages, activeToday };
+    // Cadastros por dia (últimos 14 dias) para o gráfico do painel
+    const since = new Date(Date.now() - 14 * 86400000);
+    const recentes = await this.prisma.user.findMany({
+      where: { createdAt: { gte: since } },
+      select: { createdAt: true },
+    });
+    const porDia = new Map<string, number>();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      porDia.set(d.toISOString().slice(0, 10), 0);
+    }
+    for (const u of recentes) {
+      const key = u.createdAt.toISOString().slice(0, 10);
+      if (porDia.has(key)) porDia.set(key, (porDia.get(key) || 0) + 1);
+    }
+    const signupsByDay = [...porDia.entries()].map(([date, count]) => ({ date, count }));
+
+    return { users, servers, messages, activeToday, signupsByDay };
   }
 
   async getAuditLogs(userId: string, serverId?: string, page = 1, limit = 50) {
