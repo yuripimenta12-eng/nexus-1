@@ -618,7 +618,7 @@ export default function VoicePage() {
                 >
                   <Volume2 className="w-4 h-4 text-[#c887ff]" />
                   <input
-                    type="range" min={0} max={100}
+                    type="range" min={0} max={120}
                     value={(primaryScreenSharer as any).streamVolume ?? 100}
                     onChange={(e) => useVoiceStore.getState().setStreamVolume(primaryScreenSharer.identity, Number(e.target.value))}
                     className="w-32 accent-[#7a2cff]"
@@ -833,7 +833,7 @@ export default function VoicePage() {
                           >
                             <Volume2 className="w-3.5 h-3.5 text-[#c887ff]" />
                             <input
-                              type="range" min={0} max={100}
+                              type="range" min={0} max={120}
                               value={(p as any).streamVolume ?? 100}
                               onChange={(e) => useVoiceStore.getState().setStreamVolume(p.identity, Number(e.target.value))}
                               className="w-24 accent-[#7a2cff]"

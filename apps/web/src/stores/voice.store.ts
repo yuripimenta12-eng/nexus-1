@@ -153,6 +153,41 @@ function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
   return Math.min(1, (localVolume / 100) * (out / 100));
 }
 
+// ── Reforço acima de 100% SÓ para áudio de transmissão de tela ──────────
+// A voz do microfone nunca passa por aqui (evita o problema de eco/AEC do
+// Chrome com WebAudio). Acima de 100%, o <audio> da track é zerado e o som
+// sai por um GainNode dedicado; em 100% ou menos, tudo volta ao caminho normal.
+const streamBoosts = new Map<string, { src: MediaStreamAudioSourceNode; gain: GainNode }>();
+let boostCtx: AudioContext | null = null;
+
+function removeStreamBoost(sid: string) {
+  const b = streamBoosts.get(sid);
+  if (!b) return;
+  try { b.src.disconnect(); b.gain.disconnect(); } catch { /* já desconectado */ }
+  streamBoosts.delete(sid);
+}
+
+function applyStreamBoost(track: any, sid: string, gainValue: number): boolean {
+  try {
+    if (!track?.mediaStreamTrack) return false;
+    if (!boostCtx) boostCtx = new AudioContext();
+    if (boostCtx.state === 'suspended') boostCtx.resume().catch(() => {});
+    let b = streamBoosts.get(sid);
+    if (!b) {
+      const src = boostCtx.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+      const gain = boostCtx.createGain();
+      src.connect(gain);
+      gain.connect(boostCtx.destination);
+      b = { src, gain };
+      streamBoosts.set(sid, b);
+    }
+    b.gain.gain.value = gainValue;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Aplica o volume nas tracks de áudio do participante via API do LiveKit
 // (track.setVolume ajusta os <audio> anexados e re-aplica sozinho quando a
 // track é re-anexada — mais confiável que mexer em el.volume por fora).
@@ -160,12 +195,26 @@ function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
 function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; streamVolume?: number; isMutedLocally?: boolean }) {
   if (!p.participant) return;
   const micVol = effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
-  const streamVol = effectiveVolume(p.streamVolume ?? 100, !!p.isMutedLocally);
+  // Transmissão pode passar de 100% (até 120) — sem teto aqui; o excedente
+  // sai pelo GainNode dedicado em applyStreamBoost.
+  const out = useMediaStore.getState().outputVolume;
+  const streamRaw = (!!p.isMutedLocally || deafened)
+    ? 0
+    : ((p.streamVolume ?? 100) / 100) * (out / 100);
   p.participant.trackPublications.forEach((pub) => {
     const track: any = pub.track;
     if (pub.kind === Track.Kind.Audio && track?.setVolume) {
       const isScreen = pub.source === Track.Source.ScreenShareAudio;
-      try { track.setVolume(isScreen ? streamVol : micVol); } catch { /* track ainda não pronta */ }
+      try {
+        if (!isScreen) {
+          track.setVolume(micVol);
+        } else if (streamRaw > 1 && applyStreamBoost(track, pub.trackSid, streamRaw)) {
+          track.setVolume(0); // toca só pelo amplificador, sem duplicar o som
+        } else {
+          removeStreamBoost(pub.trackSid);
+          track.setVolume(Math.min(1, streamRaw));
+        }
+      } catch { /* track ainda não pronta */ }
     }
   });
 }
@@ -450,6 +499,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
   // Volume da TRANSMISSÃO de tela de alguém (só para mim)
   setStreamVolume: (identity: string, volume: number) => {
+    volume = Math.max(0, Math.min(120, volume)); // transmissão vai até 120%
     set((state) => {
       const next = new Map(state.participants);
       const p = next.get(identity);
