@@ -9,7 +9,7 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
-  Eye, EyeOff, Play,
+  Eye, EyeOff, Play, HelpCircle,
 } from 'lucide-react';
 import {
   Track,
@@ -66,6 +66,7 @@ export default function VoicePage() {
     participants, quality, voiceRoomId, roomName,
     isDeafened, toggleDeafen,
     liveEndedNotice, clearLiveEndedNotice,
+    reconnecting,
   } = useVoiceStore();
 
   const askScreenQuality = useMediaStore(s => s.askScreenQuality);
@@ -524,12 +525,21 @@ export default function VoicePage() {
                 </span>
               </span>
             )}
-            <span className={cn(
-              'hidden sm:flex items-center gap-1.5 text-[#8bdcb9] text-[11px] border border-[#26523f] rounded-full px-2.5 py-1.5',
-              localScreenSharing ? 'ml-2' : 'ml-auto',
-            )}>
-              <ShieldCheck className="w-3 h-3" /> Conexão protegida
-            </span>
+            {reconnecting ? (
+              <span className={cn(
+                'flex items-center gap-1.5 text-[#ffce73] text-[11px] border border-[#6b5426] rounded-full px-2.5 py-1.5 animate-pulse',
+                localScreenSharing ? 'ml-2' : 'ml-auto',
+              )}>
+                <WifiOff className="w-3 h-3" /> Reconectando...
+              </span>
+            ) : (
+              <span className={cn(
+                'hidden sm:flex items-center gap-1.5 text-[#8bdcb9] text-[11px] border border-[#26523f] rounded-full px-2.5 py-1.5',
+                localScreenSharing ? 'ml-2' : 'ml-auto',
+              )}>
+                <ShieldCheck className="w-3 h-3" /> Conexão protegida
+              </span>
+            )}
             <CallTimer connected={isConnected} />
             {/* Abre o painel Pessoas/Chat/Áudio no celular */}
             <button
@@ -990,6 +1000,29 @@ export default function VoicePage() {
                 <option value="1080p30">1080p 30fps</option>
                 <option value="1080p60">1080p 60fps</option>
               </select>
+            )}
+
+            {/* Dica: jogos em "Tela cheia" exclusiva não aparecem na lista de janelas */}
+            {!localScreenSharing && (
+              <div className="relative group/dica hidden md:block">
+                <button
+                  type="button"
+                  aria-label="Dica sobre compartilhar jogos"
+                  className="w-7 h-12 flex items-center justify-center text-[#8a7f98] hover:text-white transition-colors cursor-help"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+                <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-72 rounded-xl border border-[var(--th-line-2)]
+                                bg-[#14101a] p-3 text-left shadow-2xl opacity-0 pointer-events-none
+                                group-hover/dica:opacity-100 transition-opacity z-50">
+                  <b className="block text-white text-xs mb-1">🎮 Seu jogo não aparece na lista?</b>
+                  <p className="text-[#b3a8bf] text-[11px] leading-relaxed">
+                    Jogos em <b className="text-white">"Tela cheia"</b> não aparecem como janela. Nas opções de
+                    vídeo do jogo, troque para <b className="text-orange">"Tela cheia sem bordas"</b> (borderless)
+                    — ou compartilhe a <b className="text-white">tela inteira</b>.
+                  </p>
+                </div>
+              </div>
             )}
 
             <button

@@ -42,6 +42,8 @@ interface VoiceStore {
   localCamEnabled: boolean;
   localScreenSharing: boolean;
   isConnected: boolean;
+  // true enquanto o LiveKit tenta retomar a conexão sozinho (internet piscou)
+  reconnecting: boolean;
   isConnecting: boolean;
   quality: ConnectionQuality;
   error: string | null;
@@ -230,6 +232,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   localScreenSharing: false,
   isConnected: false,
   isConnecting: false,
+  reconnecting: false,
   quality: ConnectionQuality.Unknown,
   error: null,
   liveEndedNotice: null,
@@ -328,6 +331,16 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         get().updateParticipant(lp);
       });
 
+      // Internet piscou: o LiveKit tenta retomar sozinho — avisa a UI em vez de "cair"
+      room.on(RoomEvent.Reconnecting, () => set({ reconnecting: true }));
+      room.on(RoomEvent.Reconnected, () => {
+        set({ reconnecting: false });
+        // Re-sincroniza participantes e volumes após a retomada
+        room.remoteParticipants.forEach((p) => get().updateParticipant(p));
+        get().updateParticipant(room.localParticipant);
+        get().applyOutputVolume();
+      });
+
       room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
         console.warn('[nexus-live] Room desconectada, reason =', reason);
         teardownMic(null);
@@ -335,6 +348,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         const intentional = reason === DisconnectReason.CLIENT_INITIATED;
         set({
           isConnected: false,
+          reconnecting: false,
           room: null,
           participants: new Map(),
           localScreenSharing: false,
