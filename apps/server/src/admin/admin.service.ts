@@ -13,6 +13,8 @@ export class AdminService {
   async getUsers(userId: string, page = 1, limit = 50, search?: string) {
     await this.requireAdmin(userId);
 
+    page = Number(page) || 1;   // query ausente vira NaN com enableImplicitConversion
+    limit = Number(limit) || 50;
     const skip = (page - 1) * limit;
     const where = search
       ? {
@@ -45,6 +47,8 @@ export class AdminService {
   async getServers(userId: string, page = 1, limit = 50) {
     await this.requireAdmin(userId);
 
+    page = Number(page) || 1;   // query ausente vira NaN com enableImplicitConversion
+    limit = Number(limit) || 50;
     const skip = (page - 1) * limit;
     const [servers, total] = await Promise.all([
       this.prisma.server.findMany({
@@ -80,6 +84,8 @@ export class AdminService {
   async getReports(userId: string, page = 1, limit = 50) {
     await this.requireAdmin(userId);
 
+    page = Number(page) || 1;   // query ausente vira NaN com enableImplicitConversion
+    limit = Number(limit) || 50;
     const skip = (page - 1) * limit;
     const [reports, total] = await Promise.all([
       this.prisma.report.findMany({
@@ -141,6 +147,8 @@ export class AdminService {
   async getAuditLogs(userId: string, serverId?: string, page = 1, limit = 50) {
     await this.requireAdmin(userId);
 
+    page = Number(page) || 1;   // query ausente vira NaN com enableImplicitConversion
+    limit = Number(limit) || 50;
     const skip = (page - 1) * limit;
     const where = serverId ? { serverId } : {};
 
