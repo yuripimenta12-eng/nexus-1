@@ -21,6 +21,8 @@ interface MediaSettingsState {
   noiseSuppression: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
+  // Portão de ruído: silencia o mic quando não há fala (mata chiado/apito constante)
+  noiseGate: boolean;
 
   // Compartilhamento de tela
   screenQuality: ScreenQuality;
@@ -35,6 +37,7 @@ interface MediaSettingsState {
   setNoiseSuppression: (on: boolean) => void;
   setEchoCancellation: (on: boolean) => void;
   setAutoGainControl: (on: boolean) => void;
+  setNoiseGate: (on: boolean) => void;
   setScreenQuality: (q: ScreenQuality) => void;
   setAskScreenQuality: (on: boolean) => void;
 }
@@ -51,6 +54,7 @@ export const useMediaStore = create<MediaSettingsState>()(
       noiseSuppression: true,
       echoCancellation: true,
       autoGainControl: true,
+      noiseGate: true,
       screenQuality: '1080p30',
       askScreenQuality: true,
 
@@ -62,14 +66,15 @@ export const useMediaStore = create<MediaSettingsState>()(
       // Perfis prontos: isolamento liga todo o processamento; estúdio desliga tudo
       setInputProfile: (inputProfile) => {
         if (inputProfile === 'isolation') {
-          set({ inputProfile, noiseSuppression: true, echoCancellation: true, autoGainControl: true });
+          set({ inputProfile, noiseSuppression: true, echoCancellation: true, autoGainControl: true, noiseGate: true });
         } else if (inputProfile === 'studio') {
-          set({ inputProfile, noiseSuppression: false, echoCancellation: false, autoGainControl: false });
+          set({ inputProfile, noiseSuppression: false, echoCancellation: false, autoGainControl: false, noiseGate: false });
         } else {
           set({ inputProfile });
         }
       },
       setNoiseSuppression: (noiseSuppression) => set({ noiseSuppression }),
+      setNoiseGate: (noiseGate) => set({ noiseGate }),
       setEchoCancellation: (echoCancellation) => set({ echoCancellation }),
       setAutoGainControl: (autoGainControl) => set({ autoGainControl }),
       setScreenQuality: (screenQuality) => set({ screenQuality }),

@@ -76,13 +76,15 @@ interface VoiceStore {
   switchVideoInput: (deviceId: string) => Promise<void>;
 }
 
-// Pipeline WebAudio do microfone: getUserMedia → GainNode → track publicado.
-// Permite controlar o ganho de entrada (0–200%) em tempo real.
+// Pipeline WebAudio do microfone: getUserMedia → filtro grave → portão de
+// ruído → GainNode → track publicado. Permite controlar o ganho de entrada
+// (0–200%) em tempo real e cortar chiado/apito constante entre as falas.
 interface MicPipeline {
   ctx: AudioContext;
   raw: MediaStream;
   gain: GainNode;
   processed: MediaStreamTrack;
+  stopGate?: () => void;
 }
 
 let micPipeline: MicPipeline | null = null;
@@ -102,14 +104,62 @@ async function buildAndPublishMic(room: Room): Promise<void> {
   const gain = ctx.createGain();
   gain.gain.value = ms.inputVolume / 100;
   const dst = ctx.createMediaStreamDestination();
-  src.connect(gain);
+
+  let stopGate: (() => void) | undefined;
+  if (ms.noiseGate) {
+    // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 85;
+
+    // Portão de ruído: silencia o mic quando não há fala. Chiado e apitos
+    // contínuos de microfone ruim somem nos silêncios entre as frases.
+    const gate = ctx.createGain();
+    gate.gain.value = 0;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    const buf = new Float32Array(analyser.fftSize);
+
+    src.connect(highpass);
+    highpass.connect(analyser);
+    highpass.connect(gate);
+    gate.connect(gain);
+
+    const LIMIAR = 0.012;    // ~ -38dB: fala normal passa, chiado de fundo não
+    const SEGURA_MS = 400;   // segura o portão aberto entre palavras
+    let ultimaFala = 0;
+    let aberto = false;
+    let vivo = true;
+    let rafId = 0;
+    const tick = () => {
+      if (!vivo) return;
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+      const rms = Math.sqrt(sum / buf.length);
+      const agora = performance.now();
+      if (rms > LIMIAR) ultimaFala = agora;
+      const deveAbrir = agora - ultimaFala < SEGURA_MS;
+      if (deveAbrir !== aberto) {
+        aberto = deveAbrir;
+        // abre rápido (não come o começo da palavra), fecha suave (sem "click")
+        gate.gain.setTargetAtTime(aberto ? 1 : 0, ctx.currentTime, aberto ? 0.01 : 0.06);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    stopGate = () => { vivo = false; cancelAnimationFrame(rafId); };
+  } else {
+    src.connect(gain);
+  }
+
   gain.connect(dst);
   const processed = dst.stream.getAudioTracks()[0];
 
   await room.localParticipant.publishTrack(processed, {
     source: Track.Source.Microphone,
   });
-  micPipeline = { ctx, raw, gain, processed };
+  micPipeline = { ctx, raw, gain, processed, stopGate };
 }
 
 async function teardownMic(room: Room | null): Promise<void> {
@@ -119,6 +169,7 @@ async function teardownMic(room: Room | null): Promise<void> {
       try { room.localParticipant.unpublishTrack(pub.track as any, true); } catch { /* ok */ }
     }
   }
+  micPipeline?.stopGate?.();
   micPipeline?.raw.getTracks().forEach(t => t.stop());
   micPipeline?.processed.stop();
   micPipeline?.ctx.close().catch(() => {});

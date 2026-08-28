@@ -189,6 +189,12 @@ export function VoiceVideoSettings() {
               checked={ms.autoGainControl}
               onChange={(v) => { ms.setAutoGainControl(v); rebuildMicIfLive(); }}
             />
+            <ToggleRow
+              label="Portão de ruído"
+              desc="Silencia seu microfone quando você não está falando — mata chiados e apitos constantes"
+              checked={ms.noiseGate}
+              onChange={(v) => { ms.setNoiseGate(v); rebuildMicIfLive(); }}
+            />
           </div>
         )}
       </section>
