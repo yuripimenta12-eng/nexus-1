@@ -37,6 +37,18 @@ export default function AdminPage() {
     enabled: tab === 'reports',
   });
 
+  const { data: serversData } = useQuery({
+    queryKey: ['admin', 'servers'],
+    queryFn: () => api.get('/admin/servers').then(r => r.data),
+    enabled: tab === 'servers',
+  });
+
+  const { data: logsData } = useQuery({
+    queryKey: ['admin', 'logs'],
+    queryFn: () => api.get('/admin/audit-logs').then(r => r.data),
+    enabled: tab === 'logs',
+  });
+
   const suspendMutation = useMutation({
     mutationFn: ({ id, suspend }: { id: string; suspend: boolean }) =>
       api.post(`/admin/users/${id}/${suspend ? 'suspend' : 'unsuspend'}`),
@@ -199,6 +211,81 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* Servidores */}
+          {tab === 'servers' && (
+            <div>
+              <h2 className="text-white font-semibold text-lg mb-4">Servidores</h2>
+              <div className="rounded-xl border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-raised">
+                    <tr>
+                      <th className="text-left text-muted px-4 py-3 font-medium">Servidor</th>
+                      <th className="text-left text-muted px-4 py-3 font-medium">Dono</th>
+                      <th className="text-left text-muted px-4 py-3 font-medium">Membros</th>
+                      <th className="text-left text-muted px-4 py-3 font-medium">Canais</th>
+                      <th className="text-left text-muted px-4 py-3 font-medium">Criado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {serversData?.servers?.map((s: any) => (
+                      <tr key={s.id} className="hover:bg-surface/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            {s.iconUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.iconUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <span className="w-8 h-8 rounded-lg bg-accent/15 text-accent grid place-items-center text-xs font-black">
+                                {s.name.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                            <p className="text-white font-medium">{s.name}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {s.owner ? `${s.owner.profile?.displayName || s.owner.username} (@${s.owner.username})` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-muted">{s._count?.members ?? 0}</td>
+                        <td className="px-4 py-3 text-muted">{s._count?.channels ?? 0}</td>
+                        <td className="px-4 py-3 text-muted">{formatRelativeDate(s.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!serversData?.servers?.length && (
+                  <p className="text-muted text-sm text-center py-8">Nenhum servidor ainda</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Auditoria */}
+          {tab === 'logs' && (
+            <div>
+              <h2 className="text-white font-semibold text-lg mb-4">Auditoria</h2>
+              <div className="space-y-2">
+                {logsData?.logs?.map((l: any) => (
+                  <div key={l.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border">
+                    <Shield className="w-4 h-4 text-accent shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-sm font-medium">{l.action}</p>
+                      <p className="text-muted text-xs">
+                        Por {l.actor?.profile?.displayName || l.actor?.username || 'sistema'}
+                        {l.targetType ? ` · alvo: ${l.targetType} ${l.targetId || ''}` : ''}
+                      </p>
+                    </div>
+                    <span className="text-muted text-xs shrink-0">{formatRelativeDate(l.createdAt)}</span>
+                  </div>
+                ))}
+                {!logsData?.logs?.length && (
+                  <p className="text-muted text-sm text-center py-8">
+                    Nenhum registro ainda — ações de moderação (suspender, banir, kick) aparecem aqui.
+                  </p>
+                )}
               </div>
             </div>
           )}

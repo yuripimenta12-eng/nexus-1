@@ -60,7 +60,15 @@ export class AdminService {
       this.prisma.server.count(),
     ]);
 
-    return { servers, total, page, pages: Math.ceil(total / limit) };
+    // O schema não tem relação owner no Server — resolve os donos à parte
+    const donos = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(servers.map(s => s.ownerId))] } },
+      select: { id: true, username: true, profile: { select: { displayName: true } } },
+    });
+    const donoPorId = new Map(donos.map(d => [d.id, d]));
+    const comDono = servers.map(s => ({ ...s, owner: donoPorId.get(s.ownerId) || null }));
+
+    return { servers: comDono, total, page, pages: Math.ceil(total / limit) };
   }
 
   async suspendUser(adminId: string, targetId: string, suspend: boolean) {
