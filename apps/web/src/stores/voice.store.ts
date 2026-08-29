@@ -87,7 +87,6 @@ interface MicPipeline {
   raw: MediaStream;
   gain: GainNode;
   processed: MediaStreamTrack;
-  stopGate?: () => void;
 }
 
 let micPipeline: MicPipeline | null = null;
@@ -108,51 +107,57 @@ async function buildAndPublishMic(room: Room): Promise<void> {
   gain.gain.value = ms.inputVolume / 100;
   const dst = ctx.createMediaStreamDestination();
 
-  let stopGate: (() => void) | undefined;
-  if (ms.noiseGate) {
-    // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.value = 85;
+  // Portão de ruído na THREAD DE ÁUDIO (AudioWorklet): funciona igual com a
+  // aba em segundo plano/minimizada. A versão antiga usava requestAnimationFrame,
+  // que o Chrome congela em abas ocultas — o mic ficava mudo "do nada" até relogar.
+  // Qualquer falha aqui cai no caminho direto (sem portão): nunca muta ninguém.
+  let ligouGate = false;
+  if (ms.noiseGate && (ctx as any).audioWorklet) {
+    try {
+      const codigo = `
+        class NexusGate extends AudioWorkletProcessor {
+          constructor() { super(); this.gain = 1; this.segurarAte = 0; }
+          process(inputs, outputs) {
+            const inp = inputs[0], out = outputs[0];
+            if (!inp || !inp[0] || !out || !out[0]) return true;
+            const ch0 = inp[0];
+            let sum = 0;
+            for (let i = 0; i < ch0.length; i++) sum += ch0[i] * ch0[i];
+            const rms = Math.sqrt(sum / ch0.length);
+            // ~ -38dB: fala normal passa, chiado de fundo não; segura 0,4s entre palavras
+            if (rms > 0.012) this.segurarAte = currentTime + 0.4;
+            const alvo = currentTime < this.segurarAte ? 1 : 0;
+            // abre rápido (~30ms, não come o começo da palavra), fecha suave (~250ms)
+            const passo = alvo > this.gain ? 0.3 : 0.05;
+            this.gain += (alvo - this.gain) * passo;
+            for (let c = 0; c < inp.length; c++) {
+              const ic = inp[c], oc = out[c] || out[0];
+              for (let i = 0; i < ic.length; i++) oc[i] = ic[i] * this.gain;
+            }
+            return true;
+          }
+        }
+        registerProcessor('nexus-gate', NexusGate);
+      `;
+      const blobUrl = URL.createObjectURL(new Blob([codigo], { type: 'application/javascript' }));
+      await ctx.audioWorklet.addModule(blobUrl);
+      URL.revokeObjectURL(blobUrl);
 
-    // Portão de ruído: silencia o mic quando não há fala. Chiado e apitos
-    // contínuos de microfone ruim somem nos silêncios entre as frases.
-    const gate = ctx.createGain();
-    gate.gain.value = 0;
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 512;
-    const buf = new Float32Array(analyser.fftSize);
+      // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
+      const highpass = ctx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 85;
+      const gateNode = new AudioWorkletNode(ctx, 'nexus-gate');
 
-    src.connect(highpass);
-    highpass.connect(analyser);
-    highpass.connect(gate);
-    gate.connect(gain);
-
-    const LIMIAR = 0.012;    // ~ -38dB: fala normal passa, chiado de fundo não
-    const SEGURA_MS = 400;   // segura o portão aberto entre palavras
-    let ultimaFala = 0;
-    let aberto = false;
-    let vivo = true;
-    let rafId = 0;
-    const tick = () => {
-      if (!vivo) return;
-      analyser.getFloatTimeDomainData(buf);
-      let sum = 0;
-      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-      const rms = Math.sqrt(sum / buf.length);
-      const agora = performance.now();
-      if (rms > LIMIAR) ultimaFala = agora;
-      const deveAbrir = agora - ultimaFala < SEGURA_MS;
-      if (deveAbrir !== aberto) {
-        aberto = deveAbrir;
-        // abre rápido (não come o começo da palavra), fecha suave (sem "click")
-        gate.gain.setTargetAtTime(aberto ? 1 : 0, ctx.currentTime, aberto ? 0.01 : 0.06);
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    stopGate = () => { vivo = false; cancelAnimationFrame(rafId); };
-  } else {
+      src.connect(highpass);
+      highpass.connect(gateNode);
+      gateNode.connect(gain);
+      ligouGate = true;
+    } catch {
+      ligouGate = false; // navegador sem suporte ou erro no worklet — segue sem portão
+    }
+  }
+  if (!ligouGate) {
     src.connect(gain);
   }
 
@@ -162,7 +167,7 @@ async function buildAndPublishMic(room: Room): Promise<void> {
   await room.localParticipant.publishTrack(processed, {
     source: Track.Source.Microphone,
   });
-  micPipeline = { ctx, raw, gain, processed, stopGate };
+  micPipeline = { ctx, raw, gain, processed };
 }
 
 async function teardownMic(room: Room | null): Promise<void> {
@@ -172,7 +177,6 @@ async function teardownMic(room: Room | null): Promise<void> {
       try { room.localParticipant.unpublishTrack(pub.track as any, true); } catch { /* ok */ }
     }
   }
-  micPipeline?.stopGate?.();
   micPipeline?.raw.getTracks().forEach(t => t.stop());
   micPipeline?.processed.stop();
   micPipeline?.ctx.close().catch(() => {});
