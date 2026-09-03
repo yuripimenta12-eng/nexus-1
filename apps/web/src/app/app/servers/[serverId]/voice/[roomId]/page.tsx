@@ -417,15 +417,40 @@ export default function VoicePage() {
   };
 
   const handleScreenShare = async () => {
-    if (localScreenSharing) {
-      await stopScreenShare();
-    } else {
-      // Sem "perguntar antes", usa a qualidade padrão das configurações
-      await startScreenShare(askScreenQuality ? screenQuality : undefined);
+    try {
+      if (localScreenSharing) {
+        await stopScreenShare();
+      } else {
+        // Sem "perguntar antes", usa a qualidade padrão das configurações
+        await startScreenShare(askScreenQuality ? screenQuality : undefined);
+        // Chrome só captura som de Aba ou Tela inteira (com a caixa marcada).
+        // Se a live nasceu muda, avisa o streamer NA HORA — antes era silêncio
+        // e ninguém entendia por que a live estava sem áudio.
+        const lp = useVoiceStore.getState().room?.localParticipant;
+        const temAudio = lp && Array.from(lp.trackPublications.values())
+          .some((pub: any) => pub.source === Track.Source.ScreenShareAudio);
+        if (!temAudio) {
+          notify('🔇 Sua live está SEM áudio! Para ter som: compartilhe uma ABA ou a TELA INTEIRA e marque "Compartilhar áudio" na janela do Chrome.');
+        }
+      }
+      // Avisa as sidebars do servidor para atualizarem o selo LIVE na hora
+      getSocket().emit('voice:live', { voiceRoomId: roomId, serverId });
+    } catch (e: any) {
+      // Antes o erro era engolido e o botão parecia "morto"
+      if (e?.name === 'NotAllowedError') {
+        notify('Compartilhamento cancelado ou bloqueado. Se você não cancelou, verifique a permissão de captura de tela do navegador/sistema.');
+      } else if (e?.name === 'NotReadableError' || e?.name === 'AbortError') {
+        notify('Não foi possível capturar a tela — outro programa pode estar bloqueando. Tente de novo ou escolha outra janela/aba.');
+      } else {
+        notify(`Erro ao compartilhar: ${e?.message || 'tente novamente'}`);
+      }
     }
-    // Avisa as sidebars do servidor para atualizarem o selo LIVE na hora
-    getSocket().emit('voice:live', { voiceRoomId: roomId, serverId });
   };
+
+  // Live sem faixa de áudio (streamer compartilhou Janela, ou não marcou a caixinha)
+  const streamSemAudio = (p: any) =>
+    p?.screenSharing && p?.participant && !Array.from(p.participant.trackPublications.values())
+      .some((pub: any) => pub.source === Track.Source.ScreenShareAudio);
 
   const handleInvite = async () => {
     try {
@@ -708,6 +733,11 @@ export default function VoicePage() {
                     <LiveBadge />
                     <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                     {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+                    {streamSemAudio(primaryScreenSharer) && (
+                      <span className="text-[#ffce73] font-normal" title="O transmissor compartilhou uma janela (sem som) ou não marcou 'Compartilhar áudio'">
+                        · 🔇 sem áudio
+                      </span>
+                    )}
                   </>
                 )}
               </div>
@@ -942,7 +972,17 @@ export default function VoicePage() {
                           source={Track.Source.ScreenShare}
                           className="absolute inset-0 w-full h-full object-contain"
                         />
-                        <span className="absolute top-2.5 right-2.5"><LiveBadge /></span>
+                        <span className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                          {streamSemAudio(p) && (
+                            <span
+                              title="O transmissor compartilhou uma janela (sem som) ou não marcou 'Compartilhar áudio'"
+                              className="text-[#ffce73] text-[10px] font-bold bg-[#09070d]/80 backdrop-blur px-2 py-1 rounded-lg"
+                            >
+                              🔇 sem áudio
+                            </span>
+                          )}
+                          <LiveBadge />
+                        </span>
 
                         {/* Transmissor vê a audiência; espectador pode sair da live */}
                         {isLocal ? (
