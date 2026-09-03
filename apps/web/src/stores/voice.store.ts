@@ -305,6 +305,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   clearLiveEndedNotice: () => set({ liveEndedNotice: null }),
 
   connect: async (url, token, voiceRoomId, roomName, serverId) => {
+    // Trocar de sala SEM sair da anterior deixava um "fantasma" conectado
+    // na sala antiga (aparecia em 2-3 calls ao mesmo tempo).
+    if (get().room) {
+      try { await get().disconnect(); } catch { /* segue para a nova sala */ }
+    }
     set({ isConnecting: true, error: null });
 
     try {

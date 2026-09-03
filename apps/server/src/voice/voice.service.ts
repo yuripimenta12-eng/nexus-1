@@ -43,6 +43,20 @@ export class VoiceService {
       include: { profile: true },
     });
 
+    // Uma pessoa só pode estar em UMA sala por vez: remove o usuário de
+    // qualquer outra sala do servidor antes de entrar (evita "fantasmas"
+    // aparecendo em 2-3 calls ao mesmo tempo).
+    const outrasSalas = await this.prisma.voiceRoom.findMany({
+      where: { serverId: voiceRoom.serverId, id: { not: voiceRoomId } },
+    });
+    await Promise.all(outrasSalas.map(async (sala) => {
+      try {
+        await this.roomService.removeParticipant(sala.livekitRoom, userId);
+      } catch {
+        // não estava nessa sala — ok
+      }
+    }));
+
     // Cria sala no LiveKit se não existir
     try {
       await this.roomService.createRoom({
