@@ -102,6 +102,8 @@ async function buildAndPublishMic(room: Room): Promise<void> {
     },
   });
   const ctx = new AudioContext();
+  // Contexto pode nascer "suspended" (política de autoplay) = mic mudo sem erro.
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   const src = ctx.createMediaStreamSource(raw);
   const gain = ctx.createGain();
   gain.gain.value = ms.inputVolume / 100;
@@ -482,6 +484,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         leaveVoiceRoom();
       } catch { /* ok */ }
     }
+    // Desliga os amplificadores de transmissão (>100%) para não vazar nós órfãos
+    streamBoosts.forEach((_, sid) => removeStreamBoost(sid));
     // Limpa o estado "ensurdecido" no servidor ao sair da sala
     if (deafened && voiceRoomId) {
       try { getSocket().emit('voice:deafen', { voiceRoomId, serverId: get().serverId, deafened: false }); } catch { /* ok */ }
@@ -555,10 +559,18 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
     const opts = qualityMap[quality];
 
-    await room.localParticipant.setScreenShareEnabled(true, {
-      resolution: opts,
-      audio: true, // captura áudio do sistema quando suportado
-    });
+    await room.localParticipant.setScreenShareEnabled(
+      true,
+      {
+        resolution: { width: opts.width, height: opts.height, frameRate: opts.frameRate },
+        audio: true, // captura áudio do sistema quando suportado
+      },
+      {
+        // O bitrate vai nas opções de PUBLICAÇÃO — antes ia junto da resolução
+        // e era ignorado: toda live saía no encoding padrão (mais baixo).
+        screenShareEncoding: { maxBitrate: opts.maxBitrate, maxFramerate: opts.frameRate },
+      },
+    );
 
     set({ localScreenSharing: true, liveEndedNotice: null });
   },
