@@ -43,6 +43,9 @@ export function AppSidebar() {
   const [textOpen, setTextOpen] = useState(true);
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showCreateVoice, setShowCreateVoice] = useState(false);
+  const [newVoiceName, setNewVoiceName] = useState('');
+  const [creatingVoice, setCreatingVoice] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [voicePresence, setVoicePresence] = useState<Record<string, PresenceUser[]>>({});
@@ -128,6 +131,24 @@ export function AppSidebar() {
       clearInterval(interval);
     };
   }, [serverId]);
+
+  const handleCreateVoice = async () => {
+    if (!newVoiceName.trim() || !serverId) return;
+    setCreatingVoice(true);
+    try {
+      const { data } = await api.post(`/voice/servers/${serverId}/rooms`, {
+        name: newVoiceName.trim(),
+      });
+      setServer(prev => prev ? { ...prev, voiceRooms: [...prev.voiceRooms, data] } : prev);
+      setNewVoiceName('');
+      setShowCreateVoice(false);
+      router.push(`/app/servers/${serverId}/voice/${data.id}`);
+    } catch {
+      // sem permissão ou erro — mantém o modal aberto para tentar de novo
+    } finally {
+      setCreatingVoice(false);
+    }
+  };
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim() || !serverId) return;
@@ -343,7 +364,10 @@ export function AppSidebar() {
         {/* Salas de voz */}
         <div className="mt-4">
           <SectionHeader label="SALAS DE VOZ" open={voiceOpen} onToggle={() => setVoiceOpen(!voiceOpen)}>
-            <Plus className="w-3.5 h-3.5" onClick={(e) => { e.stopPropagation(); }} />
+            <Plus
+              className="w-3.5 h-3.5 hover:text-white transition-colors"
+              onClick={(e) => { e.stopPropagation(); setShowCreateVoice(true); }}
+            />
           </SectionHeader>
 
           <AnimatePresence>
@@ -439,6 +463,41 @@ export function AppSidebar() {
             >
               {creatingChannel && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Criar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal criar sala de voz */}
+      {showCreateVoice && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 rounded-r-none"
+          onClick={() => setShowCreateVoice(false)}>
+          <div className="bg-surface border border-border rounded-xl p-5 w-52 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold text-sm">Criar sala de voz</h3>
+              <button onClick={() => setShowCreateVoice(false)} className="text-muted hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <input
+              autoFocus
+              value={newVoiceName}
+              onChange={e => setNewVoiceName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateVoice(); if (e.key === 'Escape') setShowCreateVoice(false); }}
+              placeholder="Nome da sala"
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2
+                         text-white text-sm placeholder:text-muted focus:border-accent outline-none mb-3"
+            />
+            <button
+              onClick={handleCreateVoice}
+              disabled={!newVoiceName.trim() || creatingVoice}
+              className="w-full py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium
+                         transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {creatingVoice && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <Volume2 className="w-3.5 h-3.5" />
+              Criar sala
             </button>
           </div>
         </div>
