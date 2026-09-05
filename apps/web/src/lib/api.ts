@@ -31,7 +31,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as any;
 
-    if (error.response?.status === 401 && !original._retry) {
+    // Rotas de autenticação NÃO passam pelo fluxo de renovação: um 401 de
+    // senha errada no /login entrava em deadlock (botão "conectando" eterno)
+    const urlOriginal = String(original?.url || '');
+    const rotaDeAuth = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password']
+      .some((r) => urlOriginal.includes(r));
+
+    if (error.response?.status === 401 && !original._retry && !rotaDeAuth) {
       if (isRefreshing) {
         return new Promise((resolve) => {
           refreshQueue.push((token) => {
