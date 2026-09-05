@@ -57,6 +57,15 @@ export class RedisService implements OnModuleDestroy {
   }
 
   // ── Typing indicators ────────────────────────────────────────
+  // ── Valores temporários genéricos (ex.: cache de rotação de refresh) ──
+  async setTemp(key: string, value: string, ttlSeconds: number) {
+    await this.client.setex(key, ttlSeconds, value);
+  }
+
+  async getTemp(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
   // ── Ensurdecido na chamada (fone mutado) — visível para todos ──
   async setVoiceDeafened(userId: string, deafened: boolean) {
     if (deafened) await this.client.setex(`voice:deafen:${userId}`, 21600, '1');

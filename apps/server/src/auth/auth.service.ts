@@ -8,6 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -103,6 +104,16 @@ export class AuthService {
 
   // ── Refresh de token ─────────────────────────────────────────
   async refreshTokens(userId: string, refreshToken: string) {
+    // Duas abas renovando ao mesmo tempo: a primeira rotaciona, a segunda
+    // chegava com o token já revogado e DERRUBAVA a sessão ("Token revogado").
+    // Guardamos o resultado da rotação por 60s e devolvemos o MESMO par
+    // para a aba atrasada — refresh idempotente, sessão nunca cai por corrida.
+    const rotKey = `refresh-rotated:${createHash('sha256').update(refreshToken).digest('hex')}`;
+    const jaRotacionado = await this.redis.getTemp(rotKey).catch(() => null);
+    if (jaRotacionado) {
+      return JSON.parse(jaRotacionado) as { accessToken: string; refreshToken: string };
+    }
+
     const session = await this.prisma.session.findUnique({
       where: { refreshToken },
     });
@@ -127,6 +138,9 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    // Janela de graça: abas atrasadas recebem o mesmo par recém-gerado
+    await this.redis.setTemp(rotKey, JSON.stringify(tokens), 60).catch(() => { /* opcional */ });
 
     return tokens;
   }

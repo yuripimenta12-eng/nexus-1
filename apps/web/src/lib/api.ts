@@ -65,6 +65,9 @@ api.interceptors.response.use(
       } catch {
         localStorage.removeItem('nexus_access_token');
         localStorage.removeItem('nexus_refresh_token');
+        // Limpa também o estado persistido do usuário — sem isto o app ficava
+        // num "limbo": parecia logado (dados do localStorage) mas tudo dava 401
+        try { localStorage.removeItem('nexus-auth'); } catch { /* ok */ }
         window.location.href = '/auth/login';
       } finally {
         isRefreshing = false;
