@@ -34,9 +34,12 @@ export class UploadService {
 
     this.bucket = config.get<string>('S3_BUCKET', 'nexus-uploads');
     this.publicUrl = config.get<string>('S3_PUBLIC_URL', '');
-    // Cloudflare R2 nao suporta ACLs (o acesso publico vem do bucket);
-    // enviar x-amz-acl para o R2 causa erro no PutObject.
-    this.useAcl = !/r2\.cloudflarestorage\.com/.test(endpoint);
+    // Cloudflare R2 e o MinIO do VPS nao usam ACL por objeto (o acesso publico
+    // vem da politica do bucket); enviar x-amz-acl causa erro no PutObject.
+    // S3_NO_ACL=true desliga explicitamente para qualquer provedor.
+    this.useAcl =
+      !/r2\.cloudflarestorage\.com/.test(endpoint) &&
+      config.get<string>('S3_NO_ACL', 'false') !== 'true';
   }
 
   async uploadFile(

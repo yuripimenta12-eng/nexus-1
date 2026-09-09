@@ -6,8 +6,12 @@ export class RedisService implements OnModuleDestroy {
   private client: Redis;
 
   constructor(@Inject('REDIS_OPTIONS') private options: { url: string }) {
+    // Redis no VPS usa TLS com certificado proprio (rediss:// + REDIS_TLS_INSECURE=true):
+    // o trafego fica criptografado, so nao validamos a cadeia do certificado.
+    const tlsInseguro = options.url.startsWith('rediss://') && process.env.REDIS_TLS_INSECURE === 'true';
     this.client = new Redis(options.url, {
       retryStrategy: (times) => Math.min(times * 100, 3000),
+      ...(tlsInseguro ? { tls: { rejectUnauthorized: false } } : {}),
     });
 
     this.client.on('error', (err) => {

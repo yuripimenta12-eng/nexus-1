@@ -122,7 +122,9 @@ export function AppSidebar() {
     socket.on('connect', onConnect);
 
     // Fallback: mantém a lista correta mesmo se algum evento se perder
-    const interval = setInterval(fetchPresence, 20_000);
+    // 60s: os eventos em tempo real (voice:presence) ja atualizam na hora;
+    // o polling e so rede de seguranca — a cada 20s por pessoa pesava demais
+    const interval = setInterval(fetchPresence, 60_000);
 
     return () => {
       cancelled = true;
