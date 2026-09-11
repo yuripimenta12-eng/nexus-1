@@ -174,7 +174,8 @@ export class AuthService {
     });
 
     const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
-    await this.mailService.sendPasswordReset(
+    // Não bloqueia a resposta: o envio tem tempo limite e loga falhas por conta própria.
+    void this.mailService.sendPasswordReset(
       user.email,
       `${appUrl}/auth/reset-password?token=${token}`,
     );
