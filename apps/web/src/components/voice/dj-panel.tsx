@@ -58,12 +58,15 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
   const progress = cur && cur.duration ? Math.min(100, ((cur.positionSec ?? 0) / cur.duration) * 100) : 0;
 
   return (
+    <>
+      {/* clique fora fecha */}
+      <div className="fixed inset-0 z-40" onClick={onClose} />
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.98 }}
       transition={{ duration: 0.18 }}
-      className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[min(440px,calc(100vw-24px))] z-50
+      className="fixed bottom-[100px] left-1/2 -translate-x-1/2 w-[min(440px,calc(100vw-24px))] z-50
                  rounded-2xl border border-[var(--th-line-2)] bg-[#14101a]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
       onClick={(e) => e.stopPropagation()}
     >
@@ -206,6 +209,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
         )}
       </div>
     </motion.div>
+    </>
   );
 }
 
