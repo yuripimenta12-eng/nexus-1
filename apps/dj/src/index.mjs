@@ -308,7 +308,10 @@ class Session {
 
   stream(url) {
     return new Promise((resolve, reject) => {
-      const yt = spawn('yt-dlp', [...YTDLP_COMMON, ...(isYouTube(url) ? ytArgs() : []), '-q', '-f', 'bestaudio/best', '-o', '-', url],
+      // Prefere download direto (http) a HLS: no SoundCloud, o stream HLS traz
+      // anúncios de áudio inseridos no meio da faixa (~15s de "outra música").
+      const fmt = 'bestaudio[protocol^=http][protocol!*=m3u8]/bestaudio/best';
+      const yt = spawn('yt-dlp', [...YTDLP_COMMON, ...(isYouTube(url) ? ytArgs() : []), '-q', '-f', fmt, '-o', '-', url],
         { stdio: ['ignore', 'pipe', 'pipe'] });
       const ff = spawn('ffmpeg', [
         '-v', 'error', '-i', 'pipe:0', '-vn',
