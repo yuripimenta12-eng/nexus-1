@@ -9,8 +9,10 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
-  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker,
+  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music,
 } from 'lucide-react';
+import { DjPanel } from '@/components/voice/dj-panel';
+import { DJ_IDENTITY } from '@/stores/voice.store';
 import {
   Track,
   ConnectionQuality,
@@ -138,6 +140,9 @@ export default function VoicePage() {
   }, [isFullscreen]);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
+  const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
+  const djState = useVoiceStore(s => s.djState);
+  const djInRoom = participants.has(DJ_IDENTITY);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [sideTab, setSideTab] = useState<'people' | 'chat' | 'audio'>('people');
@@ -1183,6 +1188,29 @@ export default function VoicePage() {
               </ControlButton>
             )}
 
+            {/* DJ Nexus: bot de música (YouTube/SoundCloud) que entra na call */}
+            <div className="relative">
+              <ControlButton
+                onClick={() => setDjPanel(v => !v)}
+                active={djPanel || djInRoom}
+                title={djInRoom
+                  ? (djState?.current ? `DJ: ${djState.current.title}` : 'DJ Nexus está na sala')
+                  : 'DJ Nexus: tocar música na call'}
+              >
+                <span className="relative">
+                  <Music className="w-5 h-5" />
+                  {djInRoom && djState?.current && !djState.paused && (
+                    <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[#ff6a00] animate-pulse" />
+                  )}
+                </span>
+              </ControlButton>
+              <AnimatePresence>
+                {djPanel && (
+                  <DjPanel onClose={() => setDjPanel(false)} notify={notify} />
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Áudio rápido: dispositivo de saída + volume geral */}
             <div className="relative">
               <ControlButton
@@ -1957,6 +1985,61 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedU
   const [c1, c2] = gradientFor(identity);
   const glow = glowFor(identity);
   const speaking = voiceParticipant.isSpeaking;
+  const djState = useVoiceStore(s => s.djState);
+
+  // Tile do DJ Nexus (bot de música): ícone de música + faixa tocando
+  if (identity === DJ_IDENTITY) {
+    const cur = djState?.current;
+    const playing = !!cur && !djState?.paused;
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className={cn(
+          'relative h-full rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
+          playing ? 'border-[#ff6a00]/70 shadow-[0_0_32px_rgba(255,106,0,0.18)]' : 'border-[var(--th-line-2)]',
+        )}
+        style={{ background: 'radial-gradient(circle at 50% 38%, rgba(122,44,255,0.25) 0, #14101a 55%, #100c15 100%)' }}
+      >
+        <div className="absolute inset-0 grid place-content-center text-center px-4">
+          {cur?.thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cur.thumbnail} alt="" draggable={false}
+                 className={cn('w-[82px] h-[82px] mx-auto rounded-[28px] object-cover select-none shadow-[0_12px_30px_rgba(0,0,0,0.45)]',
+                   playing && 'ring-1 ring-[#ff9a4d] ring-offset-4 ring-offset-transparent')} />
+          ) : (
+            <div className="w-[82px] h-[82px] mx-auto grid place-items-center rounded-[28px] text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)]"
+                 style={{ background: 'linear-gradient(145deg, #ff6a00, #7a2cff)' }}>
+              <Music className="w-9 h-9" />
+            </div>
+          )}
+          <div className="mt-3 text-[11px] text-[#c9bfd6] max-w-[220px] mx-auto truncate">
+            {cur ? cur.title : 'Esperando música...'}
+          </div>
+          {/* Barras de "tocando" */}
+          <div className={cn('h-7 mt-1 flex items-center justify-center gap-[3px] transition-opacity', playing ? 'opacity-100' : 'opacity-20')}>
+            {[0, 1, 2, 3, 4, 5, 6].map(i => (
+              <span key={i} className="block w-[3px] h-[5px] rounded"
+                    style={{ background: 'linear-gradient(#ff6a00, #7a2cff)',
+                             animation: playing ? 'nx-voice 0.72s ease-in-out infinite' : 'none',
+                             animationDelay: `${[0, 0.12, 0.24, 0.36, 0.24, 0.12, 0][i]}s` }} />
+            ))}
+          </div>
+        </div>
+        {playing && (
+          <span className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-[#100b16]/85 border border-[#a0522d]
+                           text-[#ffb070] text-[9px] uppercase tracking-wider font-black">
+            Tocando
+          </span>
+        )}
+        <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
+                        bg-[#09070d]/75 backdrop-blur font-bold text-white text-sm">
+          <Music className="w-3 h-3 text-[#ffb070]" />
+          <span className="truncate max-w-[140px]">{name}</span>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

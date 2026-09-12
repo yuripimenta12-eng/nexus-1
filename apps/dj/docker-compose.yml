@@ -1,0 +1,20 @@
+# DJ Nexus — roda no VPS ao lado do LiveKit (rede do host: fala com o
+# livekit-server em 127.0.0.1:7880 e escuta em 127.0.0.1:4100 atrás do Caddy).
+services:
+  dj:
+    build: .
+    image: nexus-dj:latest
+    container_name: nexus-dj
+    network_mode: host
+    restart: unless-stopped
+    env_file: /root/nexus-dj.env      # LIVEKIT_API_KEY / LIVEKIT_API_SECRET
+    volumes:
+      - /root/nexus-dj-data:/data:ro  # opcional: /data/yt-cookies.txt libera o YouTube
+    environment:
+      PORT: "4100"
+      BIND: "127.0.0.1"
+      LIVEKIT_URL: "ws://127.0.0.1:7880"
+      ALLOWED_ORIGINS: "https://nexus-eight-kohl.vercel.app,http://localhost:3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

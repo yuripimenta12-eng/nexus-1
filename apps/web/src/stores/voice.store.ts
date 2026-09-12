@@ -32,8 +32,27 @@ export interface VoiceParticipant {
   participant: Participant;
 }
 
+// ── DJ Nexus (bot de música) ─────────────────────────────────────
+export const DJ_IDENTITY = 'dj-nexus';
+export const DJ_URL = process.env.NEXT_PUBLIC_DJ_URL || 'https://dj.76-13-167-166.sslip.io';
+export interface DjTrack {
+  id: string; title: string; duration: number; url: string; thumbnail: string | null;
+  uploader: string; requestedBy: string; positionSec?: number;
+}
+export interface DjState {
+  connected: boolean; paused: boolean; current: DjTrack | null; queue: DjTrack[];
+  error: string | null; listeners: number; version?: number;
+}
+export type DjCommand = 'play' | 'skip' | 'pause' | 'resume' | 'stop' | 'remove' | 'leave';
+
 interface VoiceStore {
   room: Room | null;
+  // token LiveKit desta sessão (autentica os comandos ao DJ)
+  livekitToken: string | null;
+  djState: DjState | null;
+  djBusy: boolean;
+  djSummon: () => Promise<void>;
+  djCommand: (cmd: DjCommand, payload?: { query?: string; id?: string }) => Promise<void>;
   roomName: string | null;
   voiceRoomId: string | null;
   serverId: string | null;
@@ -262,7 +281,8 @@ function applyStreamBoost(track: any, sid: string, gainValue: number): boolean {
 function applyVolumeToTracks(p: { participant?: Participant; localVolume?: number; streamVolume?: number; isMutedLocally?: boolean }) {
   if (!p.participant) return;
   // Modo reunião: vozes zeradas (o áudio da live abaixo continua normal)
-  const micVol = streamFocus ? 0 : effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  const isDj = p.participant.identity === DJ_IDENTITY;
+  const micVol = (streamFocus && !isDj) ? 0 : effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
   // Transmissão pode passar de 100% (até 120) — sem teto aqui; o excedente
   // sai pelo GainNode dedicado em applyStreamBoost.
   const out = useMediaStore.getState().outputVolume;
@@ -289,6 +309,37 @@ function applyVolumeToTracks(p: { participant?: Participant; localVolume?: numbe
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({
   room: null,
+  livekitToken: null,
+  djState: null,
+  djBusy: false,
+  djSummon: async () => {
+    const token = get().livekitToken;
+    if (!token) throw new Error('Entre na sala primeiro.');
+    set({ djBusy: true });
+    try {
+      const res = await fetch(`${DJ_URL}/summon`, {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: '{}',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || 'DJ indisponível no momento.');
+      set({ djState: data });
+    } finally { set({ djBusy: false }); }
+  },
+  djCommand: async (cmd, payload = {}) => {
+    const token = get().livekitToken;
+    if (!token) throw new Error('Entre na sala primeiro.');
+    set({ djBusy: true });
+    try {
+      const res = await fetch(`${DJ_URL}/command`, {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cmd, ...payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || 'O DJ não respondeu.');
+      if (data?.state) set({ djState: data.state });
+      else if (cmd === 'leave') set({ djState: null });
+    } finally { set({ djBusy: false }); }
+  },
   roomName: null,
   voiceRoomId: null,
   serverId: null,
@@ -428,6 +479,16 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         });
       });
 
+      // Estado do DJ Nexus (fila/música atual) chega pelo canal de dados
+      room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+        if (topic !== 'dj-state' || participant?.identity !== DJ_IDENTITY) return;
+        try { set({ djState: JSON.parse(new TextDecoder().decode(payload)) }); } catch { /* ignora */ }
+      });
+      // DJ saiu da sala → some o painel
+      room.on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+        if (p.identity === DJ_IDENTITY) set({ djState: null });
+      });
+
       // Conecta ao LiveKit
       await room.connect(url, token, {
         autoSubscribe: true,
@@ -446,6 +507,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
       set({
         room,
+        livekitToken: token,
         roomName,
         voiceRoomId,
         serverId: serverId ?? null,
@@ -502,6 +564,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       isStreamFocus: false,
       watching: new Set<string>(),
       room: null,
+      livekitToken: null,
+      djState: null,
       roomName: null,
       voiceRoomId: null,
       serverId: null,
