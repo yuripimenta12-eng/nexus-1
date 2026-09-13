@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
-  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check, Users,
+  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock,
 } from 'lucide-react';
+import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
 // Fone mutado (ensurdecido): fone com risco, estilo Discord
 function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
@@ -27,9 +28,9 @@ import { getSocket, joinServer } from '@/lib/socket';
 import { Avatar } from '@/components/ui/avatar';
 
 interface Channel { id: string; name: string; type: string; }
-interface VoiceRoom { id: string; name: string; }
+interface VoiceRoom { id: string; name: string; allowedRoleIds?: string[]; }
 interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; live?: boolean; }
-interface Server { id: string; name: string; iconUrl: string | null; channels: Channel[]; voiceRooms: VoiceRoom[]; }
+interface Server { id: string; name: string; iconUrl: string | null; channels: Channel[]; voiceRooms: VoiceRoom[]; members?: { userId: string; role: string }[]; }
 
 export function AppSidebar() {
   const params = useParams();
@@ -44,8 +45,7 @@ export function AppSidebar() {
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateVoice, setShowCreateVoice] = useState(false);
-  const [newVoiceName, setNewVoiceName] = useState('');
-  const [creatingVoice, setCreatingVoice] = useState(false);
+  const [editVoiceRoom, setEditVoiceRoom] = useState<VoiceRoom | null>(null);
   const [newChannelName, setNewChannelName] = useState('');
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [voicePresence, setVoicePresence] = useState<Record<string, PresenceUser[]>>({});
@@ -134,22 +134,27 @@ export function AppSidebar() {
     };
   }, [serverId]);
 
-  const handleCreateVoice = async () => {
-    if (!newVoiceName.trim() || !serverId) return;
-    setCreatingVoice(true);
-    try {
-      const { data } = await api.post(`/voice/servers/${serverId}/rooms`, {
-        name: newVoiceName.trim(),
-      });
-      setServer(prev => prev ? { ...prev, voiceRooms: [...prev.voiceRooms, data] } : prev);
-      setNewVoiceName('');
-      setShowCreateVoice(false);
-      router.push(`/app/servers/${serverId}/voice/${data.id}`);
-    } catch {
-      // sem permissão ou erro — mantém o modal aberto para tentar de novo
-    } finally {
-      setCreatingVoice(false);
-    }
+  // Dono/admin podem criar, editar e restringir salas de voz por cargo
+  const myRole = server?.members?.find(m => m.userId === user?.id)?.role;
+  const canManageVoice = myRole === 'OWNER' || myRole === 'ADMIN';
+
+  const handleVoiceSaved = (room: VoiceRoom, created: boolean) => {
+    setServer(prev => {
+      if (!prev) return prev;
+      const voiceRooms = created
+        ? [...prev.voiceRooms, room]
+        : prev.voiceRooms.map(r => (r.id === room.id ? { ...r, ...room } : r));
+      return { ...prev, voiceRooms };
+    });
+    setShowCreateVoice(false);
+    setEditVoiceRoom(null);
+    if (created) router.push(`/app/servers/${serverId}/voice/${room.id}`);
+  };
+
+  const handleVoiceDeleted = (roomId: string) => {
+    setServer(prev => prev ? { ...prev, voiceRooms: prev.voiceRooms.filter(r => r.id !== roomId) } : prev);
+    setEditVoiceRoom(null);
+    if (activeRoomId === roomId) router.push(`/app/servers/${serverId}`);
   };
 
   const handleCreateChannel = async () => {
@@ -383,12 +388,25 @@ export function AppSidebar() {
                 <button
                   onClick={() => router.push(`/app/servers/${serverId}/voice/${room.id}`)}
                   className={cn(
-                    'sidebar-item w-full',
+                    'sidebar-item w-full group/sala',
                     (activeRoomId === room.id || voiceRoomId === room.id) && 'active',
                   )}
+                  title={(room.allowedRoleIds?.length ?? 0) > 0 ? 'Sala restrita a cargos' : undefined}
                 >
-                  <Volume2 className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
+                  {(room.allowedRoleIds?.length ?? 0) > 0
+                    ? <Lock className="w-4 h-4 shrink-0 text-[#ffb070]" />
+                    : <Volume2 className="w-4 h-4 shrink-0 text-[#8c5dcc]" />}
                   <span className="truncate">{room.name}</span>
+                  {canManageVoice && (
+                    <span
+                      role="button"
+                      title="Configurar sala (nome e cargos)"
+                      onClick={(e) => { e.stopPropagation(); setEditVoiceRoom(room); }}
+                      className="ml-1 opacity-0 group-hover/sala:opacity-100 text-muted hover:text-white transition-opacity shrink-0"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   {(voicePresence[room.id]?.length ?? 0) > 0 && (
                     <span className="ml-auto text-[10px] font-extrabold text-white bg-orange rounded-full px-1.5 py-0.5 shrink-0">
                       {voicePresence[room.id].length}
@@ -470,39 +488,15 @@ export function AppSidebar() {
         </div>
       )}
 
-      {/* Modal criar sala de voz */}
-      {showCreateVoice && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 rounded-r-none"
-          onClick={() => setShowCreateVoice(false)}>
-          <div className="bg-surface border border-border rounded-xl p-5 w-52 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-semibold text-sm">Criar sala de voz</h3>
-              <button onClick={() => setShowCreateVoice(false)} className="text-muted hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <input
-              autoFocus
-              value={newVoiceName}
-              onChange={e => setNewVoiceName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleCreateVoice(); if (e.key === 'Escape') setShowCreateVoice(false); }}
-              placeholder="Nome da sala"
-              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2
-                         text-white text-sm placeholder:text-muted focus:border-accent outline-none mb-3"
-            />
-            <button
-              onClick={handleCreateVoice}
-              disabled={!newVoiceName.trim() || creatingVoice}
-              className="w-full py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium
-                         transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {creatingVoice && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <Volume2 className="w-3.5 h-3.5" />
-              Criar sala
-            </button>
-          </div>
-        </div>
+      {/* Modal criar/editar sala de voz (nome + cargos que podem entrar) */}
+      {(showCreateVoice || editVoiceRoom) && serverId && (
+        <VoiceRoomModal
+          serverId={serverId}
+          room={editVoiceRoom}
+          onClose={() => { setShowCreateVoice(false); setEditVoiceRoom(null); }}
+          onSaved={handleVoiceSaved}
+          onDeleted={editVoiceRoom ? handleVoiceDeleted : undefined}
+        />
       )}
 
       {/* Painel do usuário + voz */}

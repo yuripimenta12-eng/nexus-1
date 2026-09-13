@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Get, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Delete, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { VoiceService } from './voice.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -22,8 +22,24 @@ export class VoiceController {
 
   // Lista participantes ativos
   @Get('rooms/:roomId/participants')
-  participants(@Param('roomId') roomId: string) {
-    return this.voiceService.getRoomParticipants(roomId);
+  participants(@Param('roomId') roomId: string, @CurrentUser('id') userId: string) {
+    return this.voiceService.getRoomParticipants(roomId, userId);
+  }
+
+  // Editar sala: nome e cargos que podem entrar (dono/admin)
+  @Patch('rooms/:roomId')
+  updateRoom(
+    @Param('roomId') roomId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: { name?: string; allowedRoleIds?: string[] },
+  ) {
+    return this.voiceService.updateVoiceRoom(roomId, userId, dto);
+  }
+
+  // Apagar sala (dono/admin)
+  @Delete('rooms/:roomId')
+  deleteRoom(@Param('roomId') roomId: string, @CurrentUser('id') userId: string) {
+    return this.voiceService.deleteVoiceRoom(roomId, userId);
   }
 
   // Presença: quem está em cada sala de voz do servidor
@@ -38,8 +54,9 @@ export class VoiceController {
     @Param('serverId') serverId: string,
     @CurrentUser('id') userId: string,
     @Body('name') name: string,
+    @Body('allowedRoleIds') allowedRoleIds?: string[],
   ) {
-    return this.voiceService.createVoiceRoom(serverId, userId, name);
+    return this.voiceService.createVoiceRoom(serverId, userId, name, allowedRoleIds || []);
   }
 
   // Kick de participante (admin)

@@ -10,6 +10,7 @@ import { RolesService } from '../roles/roles.service';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
 import { MemberRole } from '@prisma/client';
+import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -54,14 +55,17 @@ export class ServersService {
   }
 
   async findById(serverId: string, userId: string) {
-    const member = await this.checkMembership(serverId, userId);
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: MEMBER_WITH_ROLES_INCLUDE,
+    });
     if (!member) throw new ForbiddenException('Você não é membro deste servidor');
 
-    return this.prisma.server.findUnique({
+    const server = await this.prisma.server.findUnique({
       where: { id: serverId },
       include: {
         channels: { orderBy: { position: 'asc' } },
-        voiceRooms: { orderBy: { position: 'asc' } },
+        voiceRooms: { orderBy: { position: 'asc' }, include: { allowedRoles: { select: { id: true } } } },
         members: {
           where: { banned: false },
           include: { user: { include: { profile: true } } },
@@ -70,6 +74,15 @@ export class ServersService {
         _count: { select: { members: true } },
       },
     });
+    if (!server) return null;
+
+    // Salas de voz restritas por cargo só aparecem para quem pode entrar
+    return {
+      ...server,
+      voiceRooms: server.voiceRooms
+        .filter(r => canAccessVoiceRoom(r, member, server.ownerId))
+        .map(r => toPublicVoiceRoom(r)),
+    };
   }
 
   async update(serverId: string, userId: string, dto: UpdateServerDto) {

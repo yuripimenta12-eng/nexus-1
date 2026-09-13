@@ -165,6 +165,7 @@ model Role {
 
   server      Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
   assignments RoleAssignment[]
+  voiceRooms  VoiceRoom[]      @relation("VoiceRoomAllowedRoles")
 
   @@index([serverId])
   @@map("roles")
@@ -279,6 +280,9 @@ model VoiceRoom {
 
   server       Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
   callSessions CallSession[]
+  // Sala restrita: só quem tem um destes cargos (ou dono/admin) vê e entra.
+  // Lista vazia = sala aberta a todos os membros.
+  allowedRoles Role[]         @relation("VoiceRoomAllowedRoles")
 
   @@index([serverId])
   @@map("voice_rooms")

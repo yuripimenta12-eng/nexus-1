@@ -4,6 +4,10 @@ import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk'
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
 import { RedisService } from '../redis/redis.service';
+import {
+  canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE,
+  RoomAccessInfo, MemberAccessInfo,
+} from './voice-access';
 
 @Injectable()
 export class VoiceService {
@@ -26,14 +30,17 @@ export class VoiceService {
   async joinRoom(voiceRoomId: string, userId: string) {
     const voiceRoom = await this.prisma.voiceRoom.findUnique({
       where: { id: voiceRoomId },
-      include: { server: true },
+      include: { server: true, allowedRoles: { select: { id: true } } },
     });
 
     if (!voiceRoom) throw new NotFoundException('Sala de voz não encontrada');
 
-    // Verifica se o usuário é membro do servidor
-    const member = await this.serversService.checkMembership(voiceRoom.serverId, userId);
+    // Verifica se o usuário é membro do servidor (com os cargos, para salas restritas)
+    const member = await this.getMemberWithRoles(voiceRoom.serverId, userId);
     if (!member || member.banned) throw new ForbiddenException('Sem acesso à sala');
+    if (!this.canAccessRoom(voiceRoom, member, voiceRoom.server.ownerId)) {
+      throw new ForbiddenException('Esta sala é restrita a cargos específicos');
+    }
     if (member.mutedBy) {
       // Usuário silenciado globalmente pelo admin — entra sem mic
     }
@@ -136,24 +143,114 @@ export class VoiceService {
   }
 
   // ── Cria salas de voz em um servidor ─────────────────────────
-  async createVoiceRoom(serverId: string, userId: string, name: string) {
+  async createVoiceRoom(serverId: string, userId: string, name: string, allowedRoleIds: string[] = []) {
     await this.serversService.requireRole(serverId, userId, ['OWNER', 'ADMIN'] as any);
 
     const livekitRoom = `${serverId}-${Date.now()}`;
+    const roleIds = await this.validRoleIds(serverId, allowedRoleIds);
 
-    return this.prisma.voiceRoom.create({
+    const room = await this.prisma.voiceRoom.create({
       data: {
         serverId,
-        name,
+        name: name.trim().slice(0, 64),
         livekitRoom,
+        allowedRoles: { connect: roleIds.map(id => ({ id })) },
       },
+      include: { allowedRoles: { select: { id: true } } },
+    });
+    return this.publicRoom(room);
+  }
+
+  // ── Editar sala (nome / cargos que podem entrar) — dono/admin ──
+  async updateVoiceRoom(
+    voiceRoomId: string,
+    userId: string,
+    dto: { name?: string; allowedRoleIds?: string[] },
+  ) {
+    const room = await this.prisma.voiceRoom.findUnique({ where: { id: voiceRoomId } });
+    if (!room) throw new NotFoundException('Sala de voz não encontrada');
+    await this.serversService.requireRole(room.serverId, userId, ['OWNER', 'ADMIN'] as any);
+
+    const data: any = {};
+    if (typeof dto.name === 'string' && dto.name.trim()) data.name = dto.name.trim().slice(0, 64);
+    if (Array.isArray(dto.allowedRoleIds)) {
+      const roleIds = await this.validRoleIds(room.serverId, dto.allowedRoleIds);
+      data.allowedRoles = { set: roleIds.map(id => ({ id })) };
+    }
+    const updated = await this.prisma.voiceRoom.update({
+      where: { id: voiceRoomId },
+      data,
+      include: { allowedRoles: { select: { id: true } } },
+    });
+
+    // Quem perdeu o acesso e está dentro da sala é removido na hora
+    if (data.allowedRoles) {
+      try {
+        const participants = await this.roomService.listParticipants(updated.livekitRoom);
+        const server = await this.prisma.server.findUnique({ where: { id: room.serverId }, select: { ownerId: true } });
+        await Promise.all(participants.map(async (p) => {
+          if (p.identity === 'dj-nexus') return;
+          const m = await this.getMemberWithRoles(room.serverId, p.identity);
+          if (!m || !this.canAccessRoom(updated, m, server?.ownerId ?? '')) {
+            await this.roomService.removeParticipant(updated.livekitRoom, p.identity).catch(() => {});
+          }
+        }));
+      } catch { /* sala vazia ou LiveKit indisponível */ }
+    }
+    return this.publicRoom(updated);
+  }
+
+  async deleteVoiceRoom(voiceRoomId: string, userId: string) {
+    const room = await this.prisma.voiceRoom.findUnique({ where: { id: voiceRoomId } });
+    if (!room) throw new NotFoundException('Sala de voz não encontrada');
+    await this.serversService.requireRole(room.serverId, userId, ['OWNER', 'ADMIN'] as any);
+    try { await this.roomService.deleteRoom(room.livekitRoom); } catch { /* sala não existia no LiveKit */ }
+    await this.prisma.voiceRoom.delete({ where: { id: voiceRoomId } });
+    return { ok: true };
+  }
+
+  // ── Acesso a salas restritas ──────────────────────────────────
+  // Regra: sem cargos configurados = aberta; dono/admin sempre entram;
+  // senão precisa ter pelo menos um dos cargos permitidos (ou "administrator").
+  canAccessRoom(room: RoomAccessInfo, member: MemberAccessInfo, ownerId: string): boolean {
+    return canAccessVoiceRoom(room, member, ownerId);
+  }
+
+  async getMemberWithRoles(serverId: string, userId: string) {
+    return this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: MEMBER_WITH_ROLES_INCLUDE,
     });
   }
 
+  // Só aceita cargos que existem neste servidor (e nunca o @everyone)
+  private async validRoleIds(serverId: string, ids: string[]) {
+    const wanted = [...new Set((ids || []).filter(id => typeof id === 'string'))];
+    if (!wanted.length) return [];
+    const roles = await this.prisma.role.findMany({
+      where: { serverId, id: { in: wanted }, isDefault: false },
+      select: { id: true },
+    });
+    return roles.map(r => r.id);
+  }
+
+  publicRoom<T extends { allowedRoles?: { id: string }[] }>(room: T) {
+    return toPublicVoiceRoom(room);
+  }
+
   // ── Participantes ativos na sala ──────────────────────────────
-  async getRoomParticipants(voiceRoomId: string) {
-    const voiceRoom = await this.prisma.voiceRoom.findUnique({ where: { id: voiceRoomId } });
+  async getRoomParticipants(voiceRoomId: string, userId?: string) {
+    const voiceRoom = await this.prisma.voiceRoom.findUnique({
+      where: { id: voiceRoomId },
+      include: { server: { select: { ownerId: true } }, allowedRoles: { select: { id: true } } },
+    });
     if (!voiceRoom) throw new NotFoundException();
+    if (userId) {
+      const member = await this.getMemberWithRoles(voiceRoom.serverId, userId);
+      if (!member || member.banned || !this.canAccessRoom(voiceRoom, member, voiceRoom.server.ownerId)) {
+        throw new ForbiddenException('Sem acesso à sala');
+      }
+    }
 
     try {
       const participants = await this.roomService.listParticipants(voiceRoom.livekitRoom);
@@ -165,10 +262,16 @@ export class VoiceService {
 
   // ── Presença: quem está em cada sala do servidor ──────────────
   async getServerVoicePresence(serverId: string, userId: string) {
-    const member = await this.serversService.checkMembership(serverId, userId);
+    const member = await this.getMemberWithRoles(serverId, userId);
     if (!member || member.banned) throw new ForbiddenException('Sem acesso ao servidor');
 
-    const rooms = await this.prisma.voiceRoom.findMany({ where: { serverId } });
+    const server = await this.prisma.server.findUnique({ where: { id: serverId }, select: { ownerId: true } });
+    const allRooms = await this.prisma.voiceRoom.findMany({
+      where: { serverId },
+      include: { allowedRoles: { select: { id: true } } },
+    });
+    // Salas restritas só aparecem (com quem está nelas) para quem pode entrar
+    const rooms = allRooms.filter(r => this.canAccessRoom(r, member, server?.ownerId ?? ''));
 
     const roomParticipants = await Promise.all(
       rooms.map(async (room) => {
