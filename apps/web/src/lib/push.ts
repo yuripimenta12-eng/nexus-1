@@ -1,16 +1,20 @@
 'use client';
 
 import api from '@/lib/api';
+import { isDesktopApp } from '@/lib/desktop';
 
 // Notificações com o Nexus fechado (Web Push).
 // A inscrição fica no navegador/aparelho; o servidor só guarda o endereço dela
 // ligado à conta logada. No iPhone só funciona com o Nexus instalado na tela
 // de início (Compartilhar → Adicionar à Tela de Início), iOS 16.4+.
 
-export type PushSupport = 'ok' | 'unsupported' | 'ios-needs-install';
+export type PushSupport = 'ok' | 'unsupported' | 'ios-needs-install' | 'desktop-app';
 
 export function pushSupport(): PushSupport {
   if (typeof window === 'undefined') return 'unsupported';
+  // App de PC: o Electron não tem Web Push; os avisos chegam pelo próprio app,
+  // que fica aberto na bandeja do Windows
+  if (isDesktopApp()) return 'desktop-app';
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone =
     window.matchMedia?.('(display-mode: standalone)').matches ||

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Compartilhar tela</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #120d1c; color: #e8e0f0; font: 14px/1.4 'Segoe UI', Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: 16px 20px 8px; }
+  h1 { margin: 0; font-size: 18px; }
+  .tabs { display: flex; gap: 8px; padding: 8px 20px; }
+  .tab { background: #1e1630; border: 1px solid #2d2342; color: #cfc6dd; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .tab.on { background: linear-gradient(110deg, #ff6a00, #7a2cff); color: #fff; border-color: transparent; }
+  .grid { flex: 1; overflow-y: auto; padding: 8px 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-content: start; }
+  .item { background: #1a1328; border: 2px solid transparent; border-radius: 12px; padding: 8px; cursor: pointer; }
+  .item:hover { border-color: #4d3560; }
+  .item.sel { border-color: #ff6a00; }
+  .item img.thumb { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; border-radius: 8px; display: block; }
+  .name { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: #cfc6dd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name img { width: 16px; height: 16px; flex-shrink: 0; }
+  footer { display: flex; align-items: center; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid #2d2342; }
+  label { display: flex; align-items: center; gap: 6px; color: #b3a8bf; font-size: 13px; flex: 1; cursor: pointer; }
+  button { border: 0; border-radius: 10px; padding: 9px 18px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .cancel { background: #2a2138; color: #cfc6dd; }
+  .ok { background: linear-gradient(110deg, #ff6a00, #7a2cff); color: #fff; }
+  .ok:disabled { opacity: .4; cursor: default; }
+  small { color: #8a8095; display: block; font-size: 11px; }
+</style>
+</head>
+<body>
+<header><h1>O que você quer compartilhar?</h1></header>
+<div class="tabs">
+  <button class="tab on" data-t="screen">Telas inteiras</button>
+  <button class="tab" data-t="window">Janelas</button>
+</div>
+<div class="grid" id="grid"></div>
+<footer>
+  <label><input type="checkbox" id="audio">
+    <span>Incluir o som do PC<small>Todos ouvem o áudio do seu computador (músicas, vídeos, jogos)</small></span></label>
+  <button class="cancel" id="cancel">Cancelar</button>
+  <button class="ok" id="ok" disabled>Compartilhar</button>
+</footer>
+<script>
+  let all = [], tab = 'screen', sel = null;
+  const grid = document.getElementById('grid');
+  const ok = document.getElementById('ok');
+  function render() {
+    grid.innerHTML = '';
+    all.filter(s => (tab === 'screen') === s.screen).forEach((s, i) => {
+      const d = document.createElement('div');
+      d.className = 'item' + (s.id === sel ? ' sel' : '');
+      const t = document.createElement('img'); t.className = 'thumb'; t.src = s.thumb; d.appendChild(t);
+      const n = document.createElement('div'); n.className = 'name';
+      if (s.icon) { const ic = document.createElement('img'); ic.src = s.icon; n.appendChild(ic); }
+      const sp = document.createElement('span');
+      sp.textContent = s.screen ? (all.filter(x => x.screen).length > 1 ? 'Tela ' + (i + 1) : 'Tela inteira') : s.name;
+      n.appendChild(sp); d.appendChild(n);
+      d.onclick = () => { sel = s.id; ok.disabled = false; render(); };
+      d.ondblclick = () => window.picker.choose(s.id, document.getElementById('audio').checked);
+      grid.appendChild(d);
+    });
+  }
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+    tab = b.dataset.t; render();
+  });
+  document.getElementById('cancel').onclick = () => window.picker.choose(null);
+  ok.onclick = () => sel && window.picker.choose(sel, document.getElementById('audio').checked);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.picker.choose(null); });
+  window.picker.onSources(list => { all = list; render(); });
+</script>
+</body>
+</html>

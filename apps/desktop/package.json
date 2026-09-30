@@ -1,0 +1,47 @@
+{
+  "name": "nexus-desktop",
+  "version": "1.0.0",
+  "description": "Nexus Link para Windows",
+  "author": "Nexus Link",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "art.nexuslink.desktop",
+    "productName": "Nexus Link",
+    "copyright": "Nexus Link",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "picker.html",
+      "picker-preload.js",
+      "offline.html",
+      "assets/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nexus Link",
+      "artifactName": "Nexus-Link-Setup-${version}.${ext}",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

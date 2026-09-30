@@ -32,6 +32,17 @@ export function showDesktopNotification(title: string, body: string) {
   } catch { /* sem suporte */ }
 }
 
+// Menção (@você) num canal: o som de menção já toca na sidebar; aqui só o aviso do sistema
+export function notifyMention(authorName: string, content: string) {
+  const { notifDesktop } = usePrefsStore.getState();
+  const unfocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+  if (!unfocused || !notifDesktop) return;
+  showDesktopNotification(
+    `${authorName} mencionou você`,
+    content.length > 80 ? `${content.slice(0, 80)}…` : content,
+  );
+}
+
 // Notifica uma mensagem recebida respeitando as preferências do usuário.
 // Só dispara quando a janela não está em foco (para não incomodar em uso ativo).
 export function notifyIncomingMessage(senderName: string, content: string) {

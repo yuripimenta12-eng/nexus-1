@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isDesktopApp } from '@/lib/desktop';
 
 export type AccentTheme = 'nexus' | 'ember' | 'violet' | 'ocean' | 'emerald';
 
@@ -52,7 +53,8 @@ export const usePrefsStore = create<PrefsState>()(
   persist(
     (set) => ({
       accent: 'nexus',
-      notifDesktop: false,
+      // No app de PC as notificações do Windows já vêm ligadas (no navegador, o usuário ativa)
+      notifDesktop: isDesktopApp(),
       notifSound: true,
 
       setAccent: (accent) => set({ accent }),

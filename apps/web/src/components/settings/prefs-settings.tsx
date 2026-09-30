@@ -228,6 +228,14 @@ function PushSettings() {
             onChange={toggle}
           />
         </div>
+      ) : support === 'desktop-app' ? (
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4 text-sm text-[#cfc6dd] space-y-1">
+          <b className="block">Você está no app do Nexus para PC</b>
+          <span className="block text-xs text-[#92879f]">
+            Ao fechar a janela, o Nexus continua rodando na bandeja do Windows (perto do relógio) e
+            os avisos chegam normalmente. Para sair de vez, clique com o botão direito no ícone da bandeja → Sair.
+          </span>
+        </div>
       ) : support === 'ios-needs-install' ? (
         <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4 text-sm text-[#cfc6dd] space-y-1">
           <b className="block">No iPhone, instale o Nexus primeiro</b>

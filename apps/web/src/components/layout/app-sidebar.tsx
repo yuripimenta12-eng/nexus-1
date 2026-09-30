@@ -59,7 +59,7 @@ export function AppSidebar() {
 
   useEffect(() => {
     const socket = getSocket();
-    const onActivity = (evt: { serverId: string; channelId: string; authorId: string; content: string }) => {
+    const onActivity = (evt: { serverId: string; channelId: string; authorId: string; authorName?: string; content: string }) => {
       if (evt.authorId === user?.id) return;          // minhas próprias mensagens não contam
       if (evt.channelId === activeChannelId) return;  // canal aberto = já lida
       setUnread(prev => ({ ...prev, [evt.channelId]: (prev[evt.channelId] || 0) + 1 }));
@@ -67,6 +67,7 @@ export function AppSidebar() {
       if (evt.content && meNames.some(n => evt.content.toLowerCase().includes('@' + n))) {
         setMentioned(prev => ({ ...prev, [evt.channelId]: true }));
         import('@/lib/sounds').then(s => s.playMention()).catch(() => {});
+        import('@/lib/notify').then(n => n.notifyMention(evt.authorName || 'Alguém', evt.content)).catch(() => {});
       }
     };
     socket.on('channel:activity', onActivity);

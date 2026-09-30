@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Nexus Link</title>
+<style>
+  body { margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #0a0713; color: #e8e0f0; font: 15px/1.5 'Segoe UI', Arial, sans-serif; text-align: center; }
+  img { width: 96px; height: 96px; border-radius: 22px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { color: #b3a8bf; margin: 0 0 22px; }
+  button { border: 0; border-radius: 12px; padding: 12px 26px; font-weight: 700; font-size: 15px; color: #fff; cursor: pointer; background: linear-gradient(110deg, #ff6a00, #7a2cff); }
+</style>
+</head>
+<body>
+  <div>
+    <img src="assets/icon.png" alt="">
+    <h1>Sem conexão com o Nexus</h1>
+    <p>Confira sua internet. Assim que ela voltar, o Nexus tenta de novo sozinho.</p>
+    <button id="b">Tentar de novo</button>
+  </div>
+<script>
+  const volta = new URLSearchParams(location.search).get('volta') || 'https://www.nexuslink.art/app';
+  const destino = /^https:\/\/(www\.)?nexuslink\.art\//.test(volta) ? volta : 'https://www.nexuslink.art/app';
+  const ir = () => { location.href = destino; };
+  document.getElementById('b').onclick = ir;
+  window.addEventListener('online', ir);
+  setInterval(() => { if (navigator.onLine) ir(); }, 15000);
+</script>
+</body>
+</html>
