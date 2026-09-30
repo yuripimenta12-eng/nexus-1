@@ -6,8 +6,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Loader2, LogIn, User, Mail } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, User, Mail, Download } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { isDesktopApp } from '@/lib/desktop';
+
+// Instalador publicado nas Releases do GitHub; "latest" sempre aponta para a versão mais nova
+const DESKTOP_DOWNLOAD_URL =
+  'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
 
 const schema = z.object({
   email:    z.string().email('E-mail inválido'),
@@ -21,8 +26,11 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
   const [invited,  setInvited]  = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
   useEffect(() => {
     setInvited(!!localStorage.getItem('nexus_pending_invite'));
+    // Botão de download só fora do app de PC (depois de montar, sem divergir do HTML do servidor)
+    setShowDownload(!isDesktopApp());
   }, []);
 
   // Quem já tem sessão válida volta para o app (ou para o convite pendente)
@@ -529,6 +537,32 @@ export default function LoginPage() {
               <User style={{ width: 15, height: 15, display: 'inline', verticalAlign: '-2px', marginRight: 7 }} />Criar meu Nexus ID
             </button>
           </Link>
+
+          {/* Download do app para Windows (só no computador e fora do próprio app) */}
+          {showDownload && (
+            <a
+              href={DESKTOP_DOWNLOAD_URL}
+              className="hidden md:flex"
+              style={{
+                marginTop: 14, alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13,
+                border: '1px solid #38294a', background: 'linear-gradient(110deg, rgba(255,106,0,0.08), rgba(122,44,255,0.1))',
+                textDecoration: 'none', color: '#d9cfdf', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#ff6a00'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#38294a'; e.currentTarget.style.color = '#d9cfdf'; }}
+            >
+              <span style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'linear-gradient(110deg, #ff6a00, #7a2cff)',
+              }}>
+                <Download style={{ width: 18, height: 18, color: '#fff' }} />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ display: 'block', fontSize: 14 }}>Baixar o Nexus para Windows</b>
+                <small style={{ display: 'block', fontSize: 11, color: '#8a8095' }}>App para PC · Windows 10 e 11 · 112 MB</small>
+              </span>
+            </a>
+          )}
 
           {/* Security */}
           <p style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: '#6f6478' }}>
