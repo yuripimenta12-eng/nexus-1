@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Music, Play, Pause, SkipForward, Square, Trash2, X, LogOut, Loader2, ListMusic, Search,
+  Music, Play, Pause, SkipForward, Square, Trash2, X, LogOut, Loader2, ListMusic, Search, MonitorSpeaker,
 } from 'lucide-react';
-import { useVoiceStore, DJ_IDENTITY, type DjTrack } from '@/stores/voice.store';
+import { LocalParticipant } from 'livekit-client';
+import { useVoiceStore, DJ_IDENTITY, MUSIC_TRACK_NAME, type DjTrack } from '@/stores/voice.store';
+import { isDesktopApp } from '@/lib/desktop';
 import { cn } from '@/lib/utils';
 
 function fmt(sec: number) {
@@ -96,6 +98,13 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
         <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-[#8a7f98] hover:text-white hover:bg-white/5">
           <X className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Música de uma aba do navegador / janela de música do app */}
+      <TabMusicSection notify={notify} />
+
+      <div className="px-4 pt-2 text-[10px] uppercase tracking-wider font-black text-[#8a7f98]">
+        Ou peça ao DJ Nexus (bot)
       </div>
 
       {/* Entrada */}
@@ -210,6 +219,135 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
       </div>
     </motion.div>
     </>
+  );
+}
+
+// Quem está transmitindo música de aba agora (remoto) — para o ouvinte ajustar o volume
+function useRemoteTabMusic() {
+  const participants = useVoiceStore(s => s.participants);
+  const list: { identity: string; name: string; volume: number }[] = [];
+  participants.forEach((vp: any) => {
+    if (vp.participant instanceof LocalParticipant) return;
+    const has = Array.from(vp.participant.trackPublications.values())
+      .some((pub: any) => pub.trackName === MUSIC_TRACK_NAME);
+    if (has) list.push({ identity: vp.identity, name: vp.displayName || vp.participant.name || vp.identity, volume: vp.streamVolume ?? 100 });
+  });
+  return list;
+}
+
+export function useAnyTabMusic() {
+  const local = useVoiceStore(s => s.localMusicSharing);
+  const remote = useRemoteTabMusic();
+  return local || remote.length > 0;
+}
+
+function TabMusicSection({ notify }: { notify: (msg: string) => void }) {
+  const { localMusicSharing, localScreenSharing, startTabMusic, stopTabMusic, setStreamVolume } = useVoiceStore();
+  const remote = useRemoteTabMusic();
+  const [busy, setBusy] = useState(false);
+  const [desktop, setDesktop] = useState(false);
+  const [canCapture, setCanCapture] = useState(true);
+  const [oldDesktop, setOldDesktop] = useState(false); // app de PC anterior à janela de música
+  useEffect(() => {
+    const d = isDesktopApp();
+    setDesktop(d);
+    setOldDesktop(d && typeof (window as any).nexusDesktop?.musicArm !== 'function');
+    setCanCapture(!!(navigator.mediaDevices as any)?.getDisplayMedia);
+  }, []);
+
+  const start = async () => {
+    setBusy(true);
+    try {
+      await startTabMusic();
+      notify('🎧 Música no ar! Todos na call estão ouvindo o som da aba.');
+    } catch (e: any) {
+      if (e?.name === 'NotAllowedError') notify('Seleção cancelada.');
+      else if (e?.message === 'SEM_AUDIO') notify('🔇 Veio sem som: escolha uma ABA (não janela) e deixe marcado "Compartilhar áudio da aba".');
+      else notify(`🎵 ${e?.message || 'Não foi possível pegar o som da aba.'}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mx-3 mt-3 rounded-xl border border-[#5a2e8a]/60 bg-[#1d1428] p-3">
+      <div className="flex items-center gap-2">
+        <MonitorSpeaker className="w-4 h-4 text-[#ffb070] flex-shrink-0" />
+        <div className="text-white text-sm font-bold flex-1">Música do seu {desktop ? 'PC' : 'navegador'}</div>
+        {localMusicSharing && (
+          <span className="flex items-center gap-1 text-[10px] font-black text-[#ffb070]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#ff6a00] animate-pulse" /> AO VIVO
+          </span>
+        )}
+      </div>
+
+      {!localMusicSharing ? (
+        <>
+          <p className="text-[11px] text-[#a89cb4] mt-1.5 leading-snug">
+            {desktop
+              ? 'Abre uma janela com o YouTube: o que tocar nela vai para a call (só o som, sem eco da conversa).'
+              : 'Toque no YouTube, Spotify Web ou SoundCloud em outra aba, clique abaixo e escolha essa aba. Só o som dela vai para a call.'}
+          </p>
+          {oldDesktop ? (
+            <p className="text-[11px] text-[#ffb070] mt-2">
+              Sua versão do app ainda não tem a janela de música. Baixe a versão nova no botão
+              “Baixar o Nexus para Windows” da tela de login e instale por cima.
+            </p>
+          ) : canCapture ? (
+            <button
+              type="button"
+              disabled={busy || localScreenSharing}
+              onClick={start}
+              title={localScreenSharing ? 'Pare a transmissão de tela primeiro' : undefined}
+              className="mt-2.5 w-full h-10 rounded-xl text-xs font-extrabold text-white flex items-center justify-center gap-1.5
+                         disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 transition-all"
+              style={{ background: 'linear-gradient(110deg, #ff6a00, #7a2cff)' }}
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Music className="w-4 h-4" />}
+              {desktop ? 'Abrir janela de música e transmitir' : 'Escolher a aba da música'}
+            </button>
+          ) : (
+            <p className="text-[11px] text-[#ffb070] mt-2">
+              Este aparelho não permite capturar áudio. Use o Chrome ou o Edge no computador, ou o app do Nexus para PC.
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="text-[11px] text-[#a89cb4] mt-1.5 leading-snug">
+            {desktop
+              ? 'Tudo que tocar na janela de música está indo para a call. Fechar a janela também para a música.'
+              : 'O som da aba escolhida está indo para a call. Controle a música pela própria aba (pausar, pular, volume).'}
+          </p>
+          <button
+            type="button"
+            onClick={() => stopTabMusic().then(() => notify('⏹️ Música parada'))}
+            className="mt-2.5 w-full h-10 rounded-xl text-xs font-extrabold text-white flex items-center justify-center gap-1.5
+                       bg-red-500/80 hover:bg-red-500 transition-colors"
+          >
+            <Square className="w-4 h-4" /> Parar de transmitir a música
+          </button>
+        </>
+      )}
+
+      {remote.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+          {remote.map(r => (
+            <div key={r.identity} className="flex items-center gap-2">
+              <Music className="w-3.5 h-3.5 text-[#c59bff] flex-shrink-0" />
+              <span className="text-[11px] text-white truncate flex-1" title={r.name}>Música de {r.name}</span>
+              <input
+                type="range" min={0} max={120} value={r.volume}
+                onChange={(e) => setStreamVolume(r.identity, Number(e.target.value))}
+                className="w-24 accent-[#7a2cff]"
+                title="Volume desta música (só para você)"
+              />
+              <span className="text-[10px] text-[#a89cb4] w-8 text-right tabular-nums">{r.volume}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

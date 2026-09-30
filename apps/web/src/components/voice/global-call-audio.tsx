@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Track, LocalParticipant } from 'livekit-client';
-import { useVoiceStore } from '@/stores/voice.store';
+import { useVoiceStore, MUSIC_TRACK_NAME } from '@/stores/voice.store';
 import { useMediaStore } from '@/stores/media.store';
 
 // ── Player de áudio GLOBAL da chamada ────────────────────────────
@@ -33,7 +33,8 @@ export function GlobalCallAudio() {
           pub.isSubscribed
         ) {
           const isScreenAudio = pub.source === Track.Source.ScreenShareAudio;
-          if (isScreenAudio && !watching.has(identity)) return; // opt-in
+          const isMusic = pub.trackName === MUSIC_TRACK_NAME; // música de aba toca para todos
+          if (isScreenAudio && !isMusic && !watching.has(identity)) return; // live: opt-in
           const key = `${identity}:${pub.trackSid}`;
           wanted.add(key);
           if (!attachedRef.current.has(key)) {

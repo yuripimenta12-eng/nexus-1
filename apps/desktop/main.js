@@ -200,8 +200,14 @@ function setupPermissions() {
   });
   ses.setPermissionCheckHandler((_wc, permission, origin) => isAllowed(origin) && allowed.has(permission));
 
-  // Compartilhar tela: abre o seletor do Nexus (telas e janelas, com prévia)
+  // Compartilhar tela: abre o seletor do Nexus (telas e janelas, com prévia).
+  // Exceção: "música" armada pelo site → captura só a janela de música do app.
   ses.setDisplayMediaRequestHandler(async (request, callback) => {
+    if (musicArmedUntil > Date.now() && musicWin && !musicWin.isDestroyed()) {
+      musicArmedUntil = 0;
+      const frame = musicWin.webContents.mainFrame;
+      return callback({ video: frame, audio: frame });
+    }
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen', 'window'],
@@ -243,6 +249,57 @@ function openPicker(sources) {
     });
   });
 }
+
+// ── Janela de música (YouTube etc.) ─────────────────────────────
+// O que tocar nela vai para a call como "música de aba": o Electron captura
+// o áudio SÓ desta janela, então as vozes da conversa não voltam (sem eco).
+let musicWin = null;
+let musicArmedUntil = 0;
+
+function openMusicWindow() {
+  if (musicWin && !musicWin.isDestroyed()) {
+    if (musicWin.isMinimized()) musicWin.restore();
+    musicWin.show();
+    return musicWin;
+  }
+  musicWin = new BrowserWindow({
+    width: 1100, height: 720, minWidth: 480, minHeight: 360,
+    title: 'Nexus — Música (o som desta janela vai para a call)',
+    icon: iconPath('icon.png'),
+    backgroundColor: '#0f0f0f',
+    autoHideMenuBar: true,
+    webPreferences: {
+      partition: 'persist:musica', // sessão própria: cookies do YouTube ficam separados do Nexus
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: false, // continua tocando minimizada
+    },
+  });
+  // User agent de Chrome comum: sem "Electron", o YouTube trata como navegador normal
+  musicWin.webContents.setUserAgent(
+    app.userAgentFallback.replace(/\s*Electron\/\S+/, '').replace(/\s*NexusDesktop\/\S+/, '').replace(/\s*nexus-desktop\/\S+/, ''),
+  );
+  musicWin.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'fullscreen'));
+  // Links que abririam nova janela abrem nesta mesma
+  musicWin.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) musicWin.loadURL(url);
+    return { action: 'deny' };
+  });
+  musicWin.on('page-title-updated', (e, title) => {
+    e.preventDefault();
+    musicWin.setTitle(`🎵 ${title} — tocando na call do Nexus`);
+  });
+  musicWin.on('closed', () => { musicWin = null; });
+  musicWin.loadURL('https://www.youtube.com');
+  return musicWin;
+}
+
+// O site pede "música": abre/mostra a janela e marca que a PRÓXIMA captura é dela
+ipcMain.handle('music:arm', () => {
+  openMusicWindow();
+  musicArmedUntil = Date.now() + 15000;
+  return true;
+});
 
 ipcMain.on('app:show', showWindow);
 ipcMain.on('app:flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });

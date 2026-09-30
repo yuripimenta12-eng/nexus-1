@@ -11,7 +11,7 @@ import {
   MessageCircle, Send, Headphones, Settings, ChevronRight,
   Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X,
 } from 'lucide-react';
-import { DjPanel } from '@/components/voice/dj-panel';
+import { DjPanel, useAnyTabMusic } from '@/components/voice/dj-panel';
 import { DJ_IDENTITY } from '@/stores/voice.store';
 import {
   Track,
@@ -148,6 +148,7 @@ export default function VoicePage() {
   }, []);
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
+  const tabMusicOn = useAnyTabMusic();                     // alguém transmitindo música de uma aba
   const djState = useVoiceStore(s => s.djState);
   const djInRoom = participants.has(DJ_IDENTITY);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -1207,14 +1208,16 @@ export default function VoicePage() {
             <div className="relative">
               <ControlButton
                 onClick={() => setDjPanel(v => !v)}
-                active={djPanel || djInRoom}
-                title={djInRoom
+                active={djPanel || djInRoom || tabMusicOn}
+                title={tabMusicOn
+                  ? 'Música tocando na call (clique para volume ou parar)'
+                  : djInRoom
                   ? (djState?.current ? `DJ: ${djState.current.title}` : 'DJ Nexus está na sala')
-                  : 'DJ Nexus: tocar música na call'}
+                  : 'Música: toque do seu navegador ou peça ao DJ Nexus'}
               >
                 <span className="relative">
                   <Music className="w-5 h-5" />
-                  {djInRoom && djState?.current && !djState.paused && (
+                  {((djInRoom && djState?.current && !djState.paused) || tabMusicOn) && (
                     <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[#ff6a00] animate-pulse" />
                   )}
                 </span>

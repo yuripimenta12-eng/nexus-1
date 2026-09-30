@@ -12,6 +12,8 @@ import {
   VideoQuality,
   ConnectionQuality,
   DisconnectReason,
+  LocalAudioTrack,
+  AudioPresets,
 } from 'livekit-client';
 
 export interface VoiceParticipant {
@@ -77,6 +79,9 @@ interface VoiceStore {
   toggleCam: () => Promise<void>;
   startScreenShare: (quality?: '720p30' | '720p60' | '1080p30' | '1080p60') => Promise<void>;
   stopScreenShare: () => Promise<void>;
+  localMusicSharing: boolean;
+  startTabMusic: () => Promise<void>;
+  stopTabMusic: () => Promise<void>;
   setParticipantVolume: (identity: string, volume: number) => void;
   setStreamVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
@@ -207,6 +212,21 @@ async function teardownMic(room: Room | null): Promise<void> {
 // Aplica volume final (individual × global) em um elemento <audio>
 // Silenciar tudo (deafen): zera a saída da chamada sem perder os volumes
 let deafened = false;
+// ── Música de uma aba ────────────────────────────────────────────
+// Transmite SÓ o áudio de uma aba do navegador (YouTube, Spotify Web…) —
+// ou, no app de PC, da janela de música — como "áudio de transmissão".
+// Diferente do som de uma live, a música toca para todos sem precisar
+// "assistir" e cada ouvinte ajusta o volume dela separado da voz.
+export const MUSIC_TRACK_NAME = 'musica-aba';
+let musicStream: MediaStream | null = null;
+let musicTrack: LocalAudioTrack | null = null;
+
+function releaseMusicCapture() {
+  musicStream?.getTracks().forEach(t => { try { t.stop(); } catch { /* ok */ } });
+  musicStream = null;
+  musicTrack = null;
+}
+
 // Modo reunião: zera só a voz dos microfones; o áudio de transmissão segue normal
 let streamFocus = false;
 
@@ -347,6 +367,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   localMicEnabled: true,
   localCamEnabled: false,
   localScreenSharing: false,
+  localMusicSharing: false,
   isConnected: false,
   isConnecting: false,
   reconnecting: false,
@@ -543,6 +564,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   disconnect: async () => {
     const { room, voiceRoomId, serverId } = get();
     await teardownMic(room);
+    releaseMusicCapture(); // encerra a captura da aba de música (some a barra "compartilhando")
     if (room) {
       await room.disconnect();
     }
@@ -574,6 +596,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       localMicEnabled: false,
       localCamEnabled: false,
       localScreenSharing: false,
+      localMusicSharing: false,
     });
   },
 
@@ -616,6 +639,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   startScreenShare: async (quality) => {
     const { room } = get();
     if (!room) return;
+    if (get().localMusicSharing) {
+      throw new Error('Pare a música da aba antes de transmitir a tela.');
+    }
     if (!quality) quality = useMediaStore.getState().screenQuality;
 
     // Configurações de qualidade para screen share
@@ -655,6 +681,72 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       stoppingShareByUser = false;
     }
     set({ localScreenSharing: false });
+  },
+
+  startTabMusic: async () => {
+    const { room, localScreenSharing, localMusicSharing } = get();
+    if (!room || localMusicSharing) return;
+    // Uma "fonte de áudio de transmissão" por vez: a live já leva o som dela
+    if (localScreenSharing) {
+      throw new Error('Pare a transmissão de tela antes (ou marque "Compartilhar áudio" na própria live).');
+    }
+
+    const desktop = (typeof window !== 'undefined' ? (window as any).nexusDesktop : null);
+    // App de PC: abre a janela de música do Nexus e captura o som SÓ dela
+    if (desktop?.musicArm) await desktop.musicArm();
+
+    // Chrome só entrega som de ABA junto com vídeo; o vídeo fica parado e não é publicado
+    const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+      video: { displaySurface: 'browser', width: { max: 320 }, height: { max: 180 }, frameRate: { max: 1 } },
+      audio: {
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+        channelCount: 2, sampleRate: 48000, suppressLocalAudioPlayback: false,
+      },
+      preferCurrentTab: false,
+      selfBrowserSurface: 'exclude',   // não oferece a própria aba do Nexus
+      systemAudio: 'exclude',          // som do sistema levaria as vozes da call junto (eco)
+      monitorTypeSurfaces: 'exclude',  // só abas/janelas, nada de tela inteira
+      surfaceSwitching: 'include',     // dá para trocar de aba sem parar
+    });
+
+    const audio = stream.getAudioTracks()[0];
+    if (!audio) {
+      stream.getTracks().forEach(t => t.stop());
+      throw new Error('SEM_AUDIO');
+    }
+
+    musicStream = stream;
+    musicTrack = new LocalAudioTrack(audio, undefined, true);
+    try {
+      await room.localParticipant.publishTrack(musicTrack, {
+        source: Track.Source.ScreenShareAudio,
+        name: MUSIC_TRACK_NAME,
+        audioPreset: AudioPresets.musicHighQualityStereo,
+        forceStereo: true,
+        dtx: false, // silêncios curtos da música não viram "buracos"
+        red: false,
+      });
+    } catch (e) {
+      releaseMusicCapture();
+      throw e;
+    }
+
+    // Fechou a aba/janela ou clicou "Parar compartilhamento" na barra do Chrome
+    const onEnded = () => { get().stopTabMusic().catch(() => {}); };
+    audio.addEventListener('ended', onEnded);
+    stream.getVideoTracks().forEach(v => v.addEventListener('ended', onEnded));
+
+    set({ localMusicSharing: true });
+  },
+
+  stopTabMusic: async () => {
+    const { room } = get();
+    const track = musicTrack;
+    releaseMusicCapture();
+    if (room && track) {
+      try { await room.localParticipant.unpublishTrack(track, true); } catch { /* já saiu */ }
+    }
+    set({ localMusicSharing: false });
   },
 
   setParticipantVolume: (identity, volume) => {
