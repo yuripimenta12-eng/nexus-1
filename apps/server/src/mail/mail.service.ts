@@ -57,18 +57,30 @@ export class MailService {
   async sendPasswordReset(email: string, resetLink: string) {
     const subject = 'Nexus — redefinição de senha';
     const text = `Você pediu para redefinir sua senha no Nexus.\n\nAbra este link (válido por 1 hora):\n${resetLink}\n\nSe não foi você, ignore este e-mail.`;
+    // Mascote servido pelo próprio site (mesmo domínio do link de redefinição)
+    const mascote = `${new URL(resetLink).origin}/email/mascote-senha.png`;
+    // Tabela em vez de flex/grid: é o que os clientes de e-mail (Gmail, Outlook) respeitam
     const html = `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#120d1c;border-radius:16px;color:#e8e0f0">
-        <h2 style="margin:0 0 4px;color:#fff">Nexus <span style="color:#ff6a00">Link</span></h2>
-        <p style="color:#b3a8bf">Você pediu para redefinir sua senha.</p>
-        <p style="margin:24px 0">
-          <a href="${resetLink}"
-             style="display:inline-block;padding:13px 26px;border-radius:12px;background:linear-gradient(110deg,#ff6a00,#7a2cff);color:#fff;text-decoration:none;font-weight:bold">
-            Redefinir minha senha
-          </a>
-        </p>
-        <p style="color:#8a8095;font-size:12px">O link vale por 1 hora. Se não foi você, ignore este e-mail.</p>
-      </div>`;
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="max-width:540px;margin:0 auto;background:#120d1c;border-radius:16px;font-family:Arial,sans-serif;color:#e8e0f0">
+        <tr>
+          <td valign="middle" style="padding:24px 8px 24px 24px">
+            <h2 style="margin:0 0 4px;color:#fff">Nexus <span style="color:#ff6a00">Link</span></h2>
+            <p style="color:#b3a8bf">Você pediu para redefinir sua senha.</p>
+            <p style="margin:24px 0">
+              <a href="${resetLink}"
+                 style="display:inline-block;padding:13px 26px;border-radius:12px;background:#ff6a00;background:linear-gradient(110deg,#ff6a00,#7a2cff);color:#fff;text-decoration:none;font-weight:bold">
+                Redefinir minha senha
+              </a>
+            </p>
+            <p style="color:#8a8095;font-size:12px;margin:0">O link vale por 1 hora. Se não foi você, ignore este e-mail.</p>
+          </td>
+          <td width="136" valign="bottom" align="right" style="padding:12px 16px 0 0">
+            <img src="${mascote}" width="120" height="176" alt=""
+                 style="display:block;border:0;width:120px;height:176px;border-radius:12px">
+          </td>
+        </tr>
+      </table>`;
 
     if (!this.configured) {
       this.logger.warn(`[sem e-mail] Link de reset para ${email}: ${resetLink}`);
