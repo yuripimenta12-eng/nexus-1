@@ -58,7 +58,7 @@ export class MailService {
     const subject = 'Nexus — redefinição de senha';
     const text = `Você pediu para redefinir sua senha no Nexus.\n\nAbra este link (válido por 1 hora):\n${resetLink}\n\nSe não foi você, ignore este e-mail.`;
     // Mascote servido pelo próprio site (mesmo domínio do link de redefinição)
-    const mascote = `${new URL(resetLink).origin}/email/mascote-senha.png`;
+    const mascote = `${new URL(resetLink).origin}/email/mascote-senha.png?v=2`;
     // Tabela em vez de flex/grid: é o que os clientes de e-mail (Gmail, Outlook) respeitam
     const html = `
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
@@ -75,9 +75,9 @@ export class MailService {
             </p>
             <p style="color:#8a8095;font-size:12px;margin:0">O link vale por 1 hora. Se não foi você, ignore este e-mail.</p>
           </td>
-          <td width="136" valign="bottom" align="right" style="padding:12px 16px 0 0">
-            <img src="${mascote}" width="120" height="176" alt=""
-                 style="display:block;border:0;width:120px;height:176px;border-radius:12px">
+          <td width="138" valign="bottom" align="right" style="padding:10px 16px 0 0">
+            <img src="${mascote}" width="122" height="250" alt=""
+                 style="display:block;border:0;width:122px;height:250px">
           </td>
         </tr>
       </table>`;
