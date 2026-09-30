@@ -178,7 +178,8 @@ export default function RegisterPage() {
                 <input {...register('password')} type={showPass ? 'text' : 'password'}
                   className={FIELD_STYLE + ' pr-11'} placeholder="••••••••••" />
                 <button type="button" onClick={() => setShowPass(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8a7f98] hover:text-white">
+                  aria-label="Mostrar ou esconder senha"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-[#8a7f98] hover:text-white">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -194,7 +195,8 @@ export default function RegisterPage() {
                 <input {...register('confirmPassword')} type={showPass2 ? 'text' : 'password'}
                   className={FIELD_STYLE + ' pr-11'} placeholder="••••••••••" />
                 <button type="button" onClick={() => setShowPass2(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8a7f98] hover:text-white">
+                  aria-label="Mostrar ou esconder senha"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-[#8a7f98] hover:text-white">
                   {showPass2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>

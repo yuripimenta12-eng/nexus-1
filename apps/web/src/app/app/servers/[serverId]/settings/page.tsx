@@ -220,24 +220,25 @@ export default function ServerSettingsPage() {
   return (
     <div className="h-full overflow-y-auto text-white nx-page-bg">
       {/* Header */}
-      <div className="px-7 pt-6 pb-4 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div>
+      <div className="px-3 pt-3 pb-3 md:px-7 md:pt-6 md:pb-4 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur sticky top-0 z-10">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="min-w-0">
             <p className="text-orange text-[10px] font-extrabold uppercase tracking-[1.5px]">Administração</p>
             <h1 className="text-xl font-bold mt-0.5">Configurações do servidor</h1>
-            <p className="text-[#92879f] text-xs mt-1">
+            <p className="hidden sm:block text-[#92879f] text-xs mt-1">
               Controle quem participa e o que cada pessoa pode fazer na sua comunidade.
             </p>
           </div>
           <button
             onClick={copyInvite}
-            className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-extrabold text-white
+            title="Copiar convite"
+            className="ml-auto shrink-0 flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-xl text-sm font-extrabold text-white
                        bg-gradient-to-r from-orange to-accent shadow-[0_5px_18px_rgba(255,90,0,0.2)]
                        hover:opacity-90 active:scale-95 transition-all"
           >
-            <UserPlus className="w-4 h-4" /> Convidar
+            <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Convidar</span>
           </button>
-          <div className="flex flex-col items-center gap-1 ml-1">
+          <div className="flex flex-col items-center gap-1 ml-1 shrink-0">
             <button
               onClick={handleClose}
               title="Fechar (Esc)"
@@ -247,26 +248,28 @@ export default function ServerSettingsPage() {
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
+            <span className="hidden md:block text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
           </div>
         </div>
       </div>
 
-      <div className="p-7 flex gap-8 max-w-6xl">
-        {/* ── Navegação das seções ─────────────────────────── */}
-        <nav className="w-52 shrink-0 space-y-4 sticky top-28 self-start">
+      <div className="p-3 md:p-7 flex flex-col md:flex-row gap-3 md:gap-8 max-w-6xl">
+        {/* ── Navegação das seções — no celular vira faixa de abas roláveis ── */}
+        <nav className="w-full md:w-52 shrink-0 md:space-y-4 md:sticky md:top-28 md:self-start
+                        flex md:block gap-1 overflow-x-auto nx-no-scrollbar -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
           {SECTION_GROUPS.map(g => (
-            <div key={g.title || 'root'}>
+            <div key={g.title || 'root'} className="contents md:block">
               {g.title && (
-                <p className="px-2 mb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#786e83]">{g.title}</p>
+                <p className="hidden md:block px-2 mb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#786e83]">{g.title}</p>
               )}
-              <div className="space-y-0.5">
+              <div className="contents md:block md:space-y-0.5">
                 {g.items.map(it => (
                   <button
                     key={it.key}
-                    onClick={() => setSection(it.key)}
+                    onClick={(e) => { setSection(it.key); e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
                     className={cn(
-                      'w-full text-left px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                      'shrink-0 whitespace-nowrap md:w-full text-left px-3 md:px-2.5 py-2 md:py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                      'border border-[var(--th-line)] md:border-transparent',
                       it.danger
                         ? 'text-[#ff5872] hover:bg-[#ff587215]'
                         : section === it.key
@@ -358,7 +361,7 @@ export default function ServerSettingsPage() {
               const isBusy = busy === m.userId;
 
               return (
-                <div key={m.id} className="flex items-center gap-3 p-3.5 hover:bg-white/[0.02] transition-colors">
+                <div key={m.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 p-3 sm:p-3.5 hover:bg-white/[0.02] transition-colors">
                   <div
                     className="w-10 h-10 rounded-xl grid place-items-center font-black text-xs text-white shrink-0"
                     style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
@@ -366,7 +369,8 @@ export default function ServerSettingsPage() {
                     {getInitials(m.user.profile?.displayName || m.user.username)}
                   </div>
 
-                  <div className="min-w-0 flex-1">
+                  {/* No celular o nome ocupa a linha toda; cargo e ações descem para a linha de baixo */}
+                  <div className="min-w-0 flex-1 basis-[calc(100%-52px)] sm:basis-0">
                     <div className="flex items-center gap-2">
                       <b className="text-sm truncate">{m.user.profile?.displayName || m.user.username}</b>
                       {isMe && <span className="text-[10px] text-[#92879f]">(você)</span>}
@@ -386,7 +390,7 @@ export default function ServerSettingsPage() {
                       disabled={isBusy}
                       onChange={(e) => changeRole(m, e.target.value as MemberRole)}
                       className={cn(
-                        'text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer focus:outline-none',
+                        'ml-[52px] sm:ml-0 text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer focus:outline-none',
                         'bg-[var(--th-panel-2)] border border-[var(--th-line-2)] text-[#d3a8ef] hover:border-accent',
                       )}
                     >
@@ -395,20 +399,20 @@ export default function ServerSettingsPage() {
                       <option value="MEMBER">Membro</option>
                     </select>
                   ) : (
-                    <span className={cn('text-[11px] font-extrabold rounded-full px-3 py-1.5 flex items-center gap-1.5', meta.badge)}>
+                    <span className={cn('ml-[52px] sm:ml-0 text-[11px] font-extrabold rounded-full px-3 py-1.5 flex items-center gap-1.5', meta.badge)}>
                       <meta.icon className="w-3 h-3" /> {meta.label}
                     </span>
                   )}
 
                   {/* Ações de moderação */}
                   {canModerate && !isMe && m.role !== 'OWNER' && targetBelowMe && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 ml-[52px] sm:ml-0">
                       <button
                         onClick={() => toggleMute(m)}
                         disabled={isBusy}
                         title={m.mutedBy ? 'Liberar microfone no servidor' : 'Silenciar no servidor'}
                         className={cn(
-                          'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
+                          'w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors',
                           m.mutedBy
                             ? 'bg-destructive/15 text-destructive hover:bg-destructive hover:text-white'
                             : 'text-[#92879f] hover:text-white hover:bg-[#21152c]',
@@ -420,7 +424,7 @@ export default function ServerSettingsPage() {
                         onClick={() => setConfirm({ action: 'kick', member: m })}
                         disabled={isBusy}
                         title="Expulsar do servidor"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#92879f]
                                    hover:text-warning hover:bg-[#21152c] transition-colors"
                       >
                         <UserX className="w-4 h-4" />
@@ -429,7 +433,7 @@ export default function ServerSettingsPage() {
                         onClick={() => setConfirm({ action: 'ban', member: m })}
                         disabled={isBusy}
                         title="Banir do servidor"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#92879f]
                                    hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <Ban className="w-4 h-4" />
@@ -437,7 +441,7 @@ export default function ServerSettingsPage() {
                       <button
                         onClick={() => { navigator.clipboard.writeText(m.userId); notify('ID copiado'); }}
                         title="Copiar ID do usuário"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#92879f]
                                    hover:text-white hover:bg-[#21152c] transition-colors"
                       >
                         <Copy className="w-4 h-4" />
@@ -507,7 +511,7 @@ export default function ServerSettingsPage() {
         {toast && (
           <motion.div
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-            className="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 px-4 py-2.5 rounded-xl
+            className="fixed inset-x-0 mx-auto w-fit max-w-[calc(100vw-24px)] text-center bottom-6 z-50 px-4 py-2.5 rounded-xl
                        bg-[#1a1024] border border-[#6f36a1] text-white text-sm shadow-2xl"
           >
             {toast}

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocketStore, type DmMessage } from '@/stores/socket.store';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 
 /* ── Types ───────────────────────────────────── */
@@ -204,13 +205,16 @@ export default function DmPage() {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#0d0a16', overflow: 'hidden' }}>
       {/* ── Header ─────────────────────────────── */}
-      <div style={{
+      <div className="!h-14 sm:!h-12 !px-3 sm:!px-4" style={{
         height: 48, display: 'flex', alignItems: 'center', gap: 10,
         padding: '0 16px', borderBottom: '1px solid #1e1630', flexShrink: 0,
         background: '#0f0c1a',
       }}>
+        <MobileMenuButton />
         <button
           onClick={() => router.back()}
+          aria-label="Voltar"
+          className="[@media(hover:none)]:!p-2.5"
           style={{ background: 'none', border: 'none', color: '#4a4560', cursor: 'pointer', display: 'flex', padding: 4 }}
         >
           <ArrowLeft style={{ width: 18, height: 18 }} />
@@ -280,6 +284,11 @@ export default function DmPage() {
                   style={{ position: 'relative', marginTop: grouped_with_prev ? 2 : 12 }}
                   onMouseEnter={() => setMenuMsgId(msg.id)}
                   onMouseLeave={() => setMenuMsgId(null)}
+                  // Celular: tocar na mensagem abre/fecha o menu (editar/apagar)
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, a, textarea, input')) return;
+                    setMenuMsgId(id => (id === msg.id ? null : msg.id));
+                  }}
                 >
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexDirection: isMe ? 'row-reverse' : 'row' }}>
                     {!grouped_with_prev && !isMe && (
@@ -365,19 +374,19 @@ export default function DmPage() {
                         {isMe && (
                           <button
                             onClick={() => { setEditingId(msg.id); setEditValue(msg.content); }}
-                            style={{ background: 'none', border: 'none', color: '#7a748e', cursor: 'pointer', padding: '2px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                            className="[@media(hover:none)]:!p-2.5" style={{ background: 'none', border: 'none', color: '#7a748e', cursor: 'pointer', padding: '2px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
                             title="Editar"
                           >
-                            <Pencil style={{ width: 12, height: 12 }} />
+                            <Pencil className="[@media(hover:none)]:!w-4 [@media(hover:none)]:!h-4" style={{ width: 12, height: 12 }} />
                           </button>
                         )}
                         {isMe && (
                           <button
                             onClick={() => confirmDelete(msg.id)}
-                            style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                            className="[@media(hover:none)]:!p-2.5" style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
                             title="Deletar"
                           >
-                            <Trash2 style={{ width: 12, height: 12 }} />
+                            <Trash2 className="[@media(hover:none)]:!w-4 [@media(hover:none)]:!h-4" style={{ width: 12, height: 12 }} />
                           </button>
                         )}
                       </motion.div>

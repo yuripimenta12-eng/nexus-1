@@ -113,7 +113,7 @@ export function ProfileCard() {
         <div className="absolute inset-0 bg-black/0 group-hover/banner:bg-black/40 transition-colors" />
 
         {/* Ações do banner (aparecem no hover) */}
-        <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover/banner:opacity-100 transition-opacity">
+        <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover/banner:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
           <button
             onClick={() => setShowPalette(v => !v)}
             title="Escolher cor do banner"
@@ -183,7 +183,7 @@ export function ProfileCard() {
               disabled={uploadingAvatar}
               title="Alterar foto de perfil"
               className="absolute inset-0 rounded-full bg-black/0 group-hover/avatar:bg-black/55
-                         flex items-center justify-center gap-1 opacity-0 group-hover/avatar:opacity-100 transition-all"
+                         flex items-center justify-center gap-1 opacity-0 group-hover/avatar:opacity-100 [@media(hover:none)]:opacity-100 transition-all"
             >
               {uploadingAvatar ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
             </button>
@@ -191,8 +191,8 @@ export function ProfileCard() {
               <button
                 onClick={(e) => { e.stopPropagation(); removeAvatar(); }}
                 title="Remover foto de perfil"
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-white
-                           flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all shadow-lg"
+                className="absolute -top-1 -right-1 w-5 h-5 [@media(hover:none)]:w-7 [@media(hover:none)]:h-7 rounded-full bg-destructive text-white
+                           flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 [@media(hover:none)]:opacity-100 transition-all shadow-lg"
               >
                 <X className="w-3 h-3" />
               </button>

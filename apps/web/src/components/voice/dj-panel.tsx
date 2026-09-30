@@ -66,7 +66,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.98 }}
       transition={{ duration: 0.18 }}
-      className="fixed bottom-[100px] left-1/2 -translate-x-1/2 w-[min(440px,calc(100vw-24px))] z-50
+      className="fixed bottom-[80px] sm:bottom-[100px] inset-x-0 mx-auto w-[min(440px,calc(100vw-24px))] max-h-[calc(100dvh-160px)] overflow-y-auto z-50
                  rounded-2xl border border-[var(--th-line-2)] bg-[#14101a]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
       onClick={(e) => e.stopPropagation()}
     >
@@ -199,7 +199,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
                   title="Remover da fila"
                   disabled={busy}
                   onClick={() => run(() => djCommand('remove', { id: t.id }))}
-                  className="w-7 h-7 rounded-md grid place-items-center text-[#8a7f98] opacity-0 group-hover:opacity-100 hover:text-red-300 hover:bg-red-500/10"
+                  className="w-7 h-7 [@media(hover:none)]:w-9 [@media(hover:none)]:h-9 rounded-md grid place-items-center text-[#8a7f98] opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:text-red-300 hover:bg-red-500/10"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

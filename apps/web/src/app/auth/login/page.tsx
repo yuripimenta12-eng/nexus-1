@@ -72,7 +72,7 @@ export default function LoginPage() {
 
       {/* ── LADO ESQUERDO: marketing copy ──────────────────────── */}
       <section
-        className="relative z-10 flex flex-col justify-between min-h-screen"
+        className="relative z-10 hidden md:flex flex-col justify-between min-h-screen"
         style={{ padding: '42px clamp(35px,6vw,92px)' }}
       >
         {/* Brand — logo completo com brilho */}
@@ -333,14 +333,22 @@ export default function LoginPage() {
 
       {/* ── LADO DIREITO: form de login ─────────────────────────── */}
       <section
-        className="relative z-10 min-h-screen flex flex-col items-center justify-center"
+        className="relative z-10 min-h-screen min-h-[100dvh] flex flex-col items-center justify-center px-4 py-6 sm:p-9 nx-safe-top nx-safe-bottom"
         style={{
-          padding: 36,
           borderLeft: '1px solid #281c35',
           background: '#0d0912aa',
           backdropFilter: 'blur(18px)',
         }}
       >
+        {/* Logo no celular (o painel de apresentação some em telas pequenas) */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/nexus-logo-full-2.webp"
+          alt="Nexus Link"
+          className="md:hidden h-16 w-auto mb-3 self-center"
+          style={{ filter: 'drop-shadow(0 6px 22px rgba(122,44,255,0.45)) drop-shadow(0 2px 8px rgba(255,106,0,0.25))' }}
+        />
+
         {/* Selo de status acima do card */}
         <div
           className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-full self-center"
@@ -439,10 +447,11 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPass(!showPass)}
+              aria-label={showPass ? 'Esconder senha' : 'Mostrar senha'}
               style={{
-                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#9689a4', padding: 4, display: 'flex', alignItems: 'center',
+                color: '#9689a4', padding: 12, display: 'flex', alignItems: 'center',
               }}
             >
               {showPass ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
@@ -458,7 +467,7 @@ export default function LoginPage() {
               <input type="checkbox" style={{ accentColor: '#7a2cff' }} />
               Manter conectado
             </label>
-            <Link href="/auth/forgot-password" style={{ color: '#92869e', textDecoration: 'none' }}
+            <Link href="/auth/forgot-password" style={{ color: '#92869e', textDecoration: 'none', padding: '10px 0 10px 8px', margin: '-10px 0' }}
               onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#ff9650'}
               onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = '#92869e'}
             >

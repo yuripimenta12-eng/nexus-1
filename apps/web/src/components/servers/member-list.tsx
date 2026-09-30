@@ -53,7 +53,7 @@ function RoleIcon({ role }: { role: Role }) {
   return null;
 }
 
-export function MemberList({ serverId, variant = 'sidebar' }: { serverId: string; variant?: 'sidebar' | 'drawer' }) {
+export function MemberList({ serverId, variant = 'sidebar', onClose }: { serverId: string; variant?: 'sidebar' | 'drawer'; onClose?: () => void }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Member | null>(null);
@@ -132,6 +132,16 @@ export function MemberList({ serverId, variant = 'sidebar' }: { serverId: string
       <div className="h-[70px] flex items-center px-4 border-b border-[var(--th-line)] shrink-0">
         <h3 className="text-[13px] font-bold uppercase tracking-wider text-[#9188a2]">Membros</h3>
         <span className="ml-2 text-[11px] text-[#6f6478]">{members.length}</span>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Fechar membros"
+            title="Fechar"
+            className="ml-auto -mr-1 w-10 h-10 rounded-xl grid place-items-center text-[#a99cb8] hover:text-white hover:bg-white/5"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
@@ -334,7 +344,8 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
         </div>
 
         <button onClick={onClose}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 text-white grid place-items-center">
+          aria-label="Fechar"
+          className="absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-black/30 hover:bg-black/50 text-white grid place-items-center">
           <X className="w-4 h-4" />
         </button>
       </div>

@@ -118,8 +118,8 @@ export function ServersSidebar() {
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-white font-semibold text-lg">Criar servidor</h2>
-              <button onClick={() => setShowCreateModal(false)}
-                className="text-muted hover:text-white transition-colors">
+              <button onClick={() => setShowCreateModal(false)} aria-label="Fechar"
+                className="text-muted hover:text-white transition-colors -m-2 p-2">
                 <X className="w-5 h-5" />
               </button>
             </div>

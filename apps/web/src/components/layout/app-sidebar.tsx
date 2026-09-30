@@ -338,7 +338,11 @@ export function AppSidebar() {
 
         {/* Canais de texto */}
         <SectionHeader label="CANAIS DE TEXTO" open={textOpen} onToggle={() => setTextOpen(!textOpen)}>
-          <Plus className="w-3.5 h-3.5" onClick={(e) => { e.stopPropagation(); setShowCreateChannel(true); }} />
+          <span role="button" aria-label="Criar canal de texto" title="Criar canal de texto"
+            className="-m-2 p-2 md:m-0 md:p-0 inline-flex"
+            onClick={(e) => { e.stopPropagation(); setShowCreateChannel(true); }}>
+            <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />
+          </span>
         </SectionHeader>
 
         <AnimatePresence>
@@ -371,10 +375,11 @@ export function AppSidebar() {
         {/* Salas de voz */}
         <div className="mt-4">
           <SectionHeader label="SALAS DE VOZ" open={voiceOpen} onToggle={() => setVoiceOpen(!voiceOpen)}>
-            <Plus
-              className="w-3.5 h-3.5 hover:text-white transition-colors"
-              onClick={(e) => { e.stopPropagation(); setShowCreateVoice(true); }}
-            />
+            <span role="button" aria-label="Criar sala de voz" title="Criar sala de voz"
+              className="-m-2 p-2 md:m-0 md:p-0 inline-flex hover:text-white transition-colors"
+              onClick={(e) => { e.stopPropagation(); setShowCreateVoice(true); }}>
+              <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />
+            </span>
           </SectionHeader>
 
           <AnimatePresence>
@@ -402,7 +407,7 @@ export function AppSidebar() {
                       role="button"
                       title="Configurar sala (nome e cargos)"
                       onClick={(e) => { e.stopPropagation(); setEditVoiceRoom(room); }}
-                      className="ml-1 opacity-0 group-hover/sala:opacity-100 text-muted hover:text-white transition-opacity shrink-0"
+                      className="ml-1 -my-2 -mr-1 p-2 md:m-0 md:p-0 md:opacity-0 md:group-hover/sala:opacity-100 text-muted hover:text-white transition-opacity shrink-0"
                     >
                       <Settings className="w-3.5 h-3.5" />
                     </span>
@@ -462,7 +467,7 @@ export function AppSidebar() {
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold text-sm">Criar canal</h3>
-              <button onClick={() => setShowCreateChannel(false)} className="text-muted hover:text-white">
+              <button onClick={() => setShowCreateChannel(false)} aria-label="Fechar" className="text-muted hover:text-white -m-2 p-2">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -511,7 +516,7 @@ export function AppSidebar() {
               </div>
               <button
                 onClick={async () => { await disconnect(); router.push(`/app/servers/${serverId}`); }}
-                className="w-7 h-7 rounded-md bg-destructive/10 hover:bg-destructive text-destructive
+                className="w-9 h-9 md:w-7 md:h-7 rounded-md bg-destructive/10 hover:bg-destructive text-destructive
                            hover:text-white flex items-center justify-center transition-colors"
                 title="Sair da chamada"
               >
@@ -543,7 +548,7 @@ export function AppSidebar() {
             <button
               onClick={toggleMic}
               className={cn(
-                'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+                'w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center transition-colors',
                 localMicEnabled
                   ? 'text-muted hover:text-white hover:bg-surface-raised'
                   : 'text-destructive bg-destructive/10 hover:bg-destructive hover:text-white',
@@ -555,7 +560,7 @@ export function AppSidebar() {
             <button
               onClick={toggleDeafen}
               className={cn(
-                'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+                'w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center transition-colors',
                 isDeafened
                   ? 'text-destructive bg-destructive/10 hover:bg-destructive hover:text-white'
                   : 'text-muted hover:text-white hover:bg-surface-raised',
@@ -566,7 +571,7 @@ export function AppSidebar() {
             </button>
             <button
               onClick={() => router.push('/app/me/settings')}
-              className="w-7 h-7 rounded-md text-muted hover:text-white hover:bg-surface-raised
+              className="w-9 h-9 md:w-7 md:h-7 rounded-md text-muted hover:text-white hover:bg-surface-raised
                          flex items-center justify-center transition-colors"
               title="Configurações"
             >
@@ -604,7 +609,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="flex items-center gap-1 w-full px-1 py-1 group"
+      className="flex items-center gap-1 w-full px-1 py-2 md:py-1 group"
     >
       <ChevronDown className={cn('w-3 h-3 text-muted transition-transform', !open && '-rotate-90')} />
       <span className="text-xs font-semibold text-muted group-hover:text-muted-foreground flex-1 text-left">

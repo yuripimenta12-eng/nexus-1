@@ -978,3 +978,28 @@
   pointer-events: none;
   animation: nxPulse 5.5s ease-in-out infinite;
 }
+
+/* ── Celular ───────────────────────────────────────────────── */
+/* Faixa rolável sem barra visível (abas no topo das configurações) */
+.nx-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.nx-no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* iPhone dá zoom automático ao tocar em campos com fonte < 16px.
+   No celular, todo campo de texto usa 16px — sem zoom, sem "tela torta". */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Áreas seguras (notch, Dynamic Island, barra de gestos) */
+.nx-safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.nx-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.nx-safe-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+/* Evita o "pulo"/destaque azul ao tocar em botões no celular */
+button, a { -webkit-tap-highlight-color: transparent; }

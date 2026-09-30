@@ -10,6 +10,7 @@ import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/sock
 import { useAuthStore } from '@/stores/auth.store';
 import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { MemberList } from '@/components/servers/member-list';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
@@ -391,7 +392,8 @@ export default function ChannelPage() {
     <div className="flex h-full nx-page-bg">
     <div className="flex flex-col flex-1 min-w-0 h-full">
       {/* Header do canal */}
-      <div className="h-[70px] flex items-center gap-3 px-5 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur shrink-0">
+      <div className="h-[60px] md:h-[70px] flex items-center gap-2 md:gap-3 px-3 md:px-5 border-b border-[var(--th-line)] bg-[var(--th-side)] backdrop-blur shrink-0">
+        <MobileMenuButton />
         <span className="text-[#b05cff] text-2xl font-bold leading-none">#</span>
         <div className="min-w-0">
           <h2 className="font-semibold text-white text-[15px] truncate">
@@ -421,9 +423,9 @@ export default function ChannelPage() {
             <motion.div
               initial={{ x: 280 }} animate={{ x: 0 }} exit={{ x: 280 }}
               transition={{ type: 'tween', duration: 0.2 }}
-              className="lg:hidden fixed right-0 top-0 bottom-0 z-50 shadow-2xl"
+              className="lg:hidden fixed right-0 top-0 bottom-0 z-50 shadow-2xl max-w-[88vw] nx-safe-top nx-safe-bottom bg-[var(--th-side)]"
             >
-              <MemberList serverId={serverId} variant="drawer" />
+              <MemberList serverId={serverId} variant="drawer" onClose={() => setMembersDrawer(false)} />
             </motion.div>
           </>
         )}
@@ -568,7 +570,7 @@ export default function ChannelPage() {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFile}
             title="Enviar imagem ou arquivo"
-            className="text-muted hover:text-white p-1 rounded transition-colors disabled:opacity-50"
+            className="text-muted hover:text-white p-2 -m-1 md:p-1 md:m-0 rounded transition-colors disabled:opacity-50"
           >
             {uploadingFile ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
           </button>
@@ -620,7 +622,7 @@ export default function ChannelPage() {
           <div className="flex items-center gap-1 relative">
             <button
               onClick={() => setEmojiOpen(v => !v)}
-              className={cn('p-1 rounded transition-colors', emojiOpen ? 'text-warning' : 'text-muted hover:text-warning')}
+              className={cn('p-2 -m-1 md:p-1 md:m-0 rounded transition-colors', emojiOpen ? 'text-warning' : 'text-muted hover:text-warning')}
               title="Emoji"
             >
               <Smile className="w-5 h-5" />
@@ -737,13 +739,22 @@ function MessageRow({
 }: any) {
   const isEditing = editingId === msg.id;
   const mentioned = !msg.deleted && !isOwn && mentionsMe(msg.content, myNames || []);
+  // Celular (sem mouse): as ações aparecem ao TOCAR na mensagem, como no WhatsApp/Discord
+  const [touchOpen, setTouchOpen] = useState(false);
+  const onRowTap = (e: React.MouseEvent) => {
+    if (typeof window === 'undefined' || !window.matchMedia('(hover: none)').matches) return;
+    if ((e.target as HTMLElement).closest('button, a, img, video, textarea, input')) return;
+    setTouchOpen(v => !v);
+  };
 
   return (
     <div
+      onClick={onRowTap}
       className={cn(
         'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40',
         !isConsecutive && 'mt-4',
         mentioned && 'border-l-2',
+        touchOpen && 'bg-surface/40',
       )}
       style={mentioned ? { background: 'rgba(255,106,0,0.06)', borderLeftColor: '#ff6a00' } : undefined}
     >
@@ -861,7 +872,10 @@ function MessageRow({
 
       {/* Actions */}
       {!msg.deleted && (
-        <div className="message-actions flex items-start gap-0.5 mt-0.5 shrink-0">
+        <div
+          onClick={(e) => { e.stopPropagation(); setTouchOpen(false); }}
+          className={cn('message-actions flex items-start gap-0.5 mt-0.5 shrink-0', !touchOpen && '[@media(hover:none)]:hidden')}
+        >
           <ActionBtn onClick={onReply} title="Responder"><Reply className="w-3.5 h-3.5" /></ActionBtn>
           <ActionBtn onClick={() => onReaction('👍')} title="Reagir"><Smile className="w-3.5 h-3.5" /></ActionBtn>
           {isOwn && (
@@ -882,7 +896,7 @@ function ActionBtn({ children, onClick, title, danger }: any) {
       onClick={onClick}
       title={title}
       className={cn(
-        'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
+        'w-7 h-7 [@media(hover:none)]:w-9 [@media(hover:none)]:h-9 rounded-md flex items-center justify-center transition-colors',
         danger
           ? 'text-muted hover:bg-destructive/10 hover:text-destructive'
           : 'text-muted hover:bg-surface-raised hover:text-white',

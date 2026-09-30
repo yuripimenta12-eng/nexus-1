@@ -9,7 +9,7 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
-  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music,
+  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X,
 } from 'lucide-react';
 import { DjPanel } from '@/components/voice/dj-panel';
 import { DJ_IDENTITY } from '@/stores/voice.store';
@@ -26,6 +26,7 @@ import { cn, getInitials } from '@/lib/utils';
 import { getSocket } from '@/lib/socket';
 import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd } from '@/lib/sounds';
 import { Avatar } from '@/components/ui/avatar';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -139,6 +140,12 @@ export default function VoicePage() {
     };
   }, [isFullscreen]);
   const [panelOpen, setPanelOpen] = useState(false); // painel lateral no celular
+  // Celulares (iPhone e Android) não permitem compartilhar tela pelo navegador:
+  // o botão só aparece onde a função existe (computador).
+  const [canShareScreen, setCanShareScreen] = useState(true);
+  useEffect(() => {
+    setCanShareScreen(!!(navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia));
+  }, []);
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
   const djState = useVoiceStore(s => s.djState);
@@ -522,7 +529,8 @@ export default function VoicePage() {
 
   if (inLobby) {
     return (
-      <div className="flex-1 flex items-center justify-center nx-stage-bg p-4">
+      <div className="relative flex-1 flex items-center justify-center nx-stage-bg p-4">
+        <MobileMenuButton className="absolute top-3 left-3" />
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -580,7 +588,8 @@ export default function VoicePage() {
 
   if (isConnecting || isJoining) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--th-bg)]">
+      <div className="relative flex-1 flex items-center justify-center bg-[var(--th-bg)]">
+        <MobileMenuButton className="absolute top-3 left-3" />
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-white font-medium">Conectando à sala...</p>
@@ -594,7 +603,8 @@ export default function VoicePage() {
 
   if (displayError) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--th-bg)]">
+      <div className="relative flex-1 flex items-center justify-center bg-[var(--th-bg)] p-4">
+        <MobileMenuButton className="absolute top-3 left-3" />
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
             <WifiOff className="w-8 h-8 text-destructive" />
@@ -634,11 +644,12 @@ export default function VoicePage() {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
           <div className={cn(
-            'h-[70px] flex items-center px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
+            'h-[60px] md:h-[70px] flex items-center px-3 md:px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
             isFullscreen && 'absolute top-0 left-0 right-0 z-30 bg-black/55 border-transparent transition-all duration-300',
             isFullscreen && !uiVisible && 'opacity-0 -translate-y-3 pointer-events-none',
           )}>
-            <div className="w-[38px] h-[38px] grid place-items-center rounded-xl bg-[#22142f] text-[#c887ff] mr-3">
+            {!isFullscreen && <MobileMenuButton />}
+            <div className="hidden sm:grid w-[38px] h-[38px] place-items-center rounded-xl bg-[#22142f] text-[#c887ff] mr-3">
               <Volume2 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -683,7 +694,7 @@ export default function VoicePage() {
             {/* Abre o painel Pessoas/Chat/Áudio no celular */}
             <button
               onClick={() => { setPanelOpen(true); setChatUnread(0); }}
-              className="lg:hidden relative ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
+              className="lg:hidden relative ml-1 sm:ml-2 text-muted hover:text-white p-2.5 sm:p-1.5 rounded-lg transition-colors"
               title="Pessoas e chat"
             >
               <Users className="w-4 h-4" />
@@ -696,7 +707,7 @@ export default function VoicePage() {
             </button>
             <button
               onClick={toggleFullscreen}
-              className="ml-2 text-muted hover:text-white p-1.5 rounded-lg transition-colors"
+              className="ml-0.5 sm:ml-2 text-muted hover:text-white p-2.5 sm:p-1.5 rounded-lg transition-colors"
               title={isFullscreen ? 'Sair da tela cheia (Esc)' : 'Tela cheia'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -784,7 +795,7 @@ export default function VoicePage() {
               {!(primaryScreenSharer.participant instanceof LocalParticipant) && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity
+                  className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity
                              flex items-center gap-2 bg-[#09070d]/85 backdrop-blur px-3 py-2 rounded-xl"
                   title="Volume desta transmissão (só para você)"
                 >
@@ -1028,7 +1039,7 @@ export default function VoicePage() {
                         {!isLocal && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity
+                            className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity
                                        flex items-center gap-2 bg-[#09070d]/85 backdrop-blur px-2.5 py-1.5 rounded-lg cursor-default"
                             title="Volume desta transmissão (só para você)"
                           >
@@ -1141,10 +1152,14 @@ export default function VoicePage() {
 
           {/* Controles (em tela cheia viram overlay flutuante que some com o mouse parado) */}
           <div className={cn(
-            'h-[84px] flex items-center justify-center gap-1.5 sm:gap-2.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-2 sm:px-3 overflow-x-auto',
+            // Rolagem horizontal DE VERDADE quando não cabe: o miolo usa mx-auto + min-w-max
+            // (com justify-center puro, os botões das pontas ficavam cortados e inalcançáveis)
+            'h-[68px] sm:h-[84px] flex items-center gap-1.5 border-t border-[var(--th-line-2)] bg-[var(--th-rail)] shrink-0 px-2 sm:px-3',
             isFullscreen && 'absolute bottom-0 left-0 right-0 z-30 bg-black/55 border-transparent transition-all duration-300',
             isFullscreen && !uiVisible && 'opacity-0 translate-y-3 pointer-events-none',
           )}>
+           <div className="flex-1 min-w-0 overflow-x-auto nx-no-scrollbar">
+           <div className="mx-auto w-max flex items-center gap-1.5 sm:gap-2.5">
             <ControlButton
               onClick={toggleMic}
               danger={!localMicEnabled}
@@ -1235,6 +1250,7 @@ export default function VoicePage() {
               {localCamEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </ControlButton>
 
+            {(canShareScreen || localScreenSharing) && (
             <button
               onClick={handleScreenShare}
               title={localScreenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
@@ -1249,8 +1265,9 @@ export default function VoicePage() {
               <Monitor className="w-[17px] h-[17px]" />
               <span className="hidden md:inline">{localScreenSharing ? 'Parar tela' : 'Compartilhar tela'}</span>
             </button>
+            )}
 
-            {!localScreenSharing && askScreenQuality && (
+            {canShareScreen && !localScreenSharing && askScreenQuality && (
               <select
                 value={screenQuality}
                 onChange={(e) => setScreenQuality(e.target.value as any)}
@@ -1264,7 +1281,7 @@ export default function VoicePage() {
             )}
 
             {/* Dica: jogos em "Tela cheia" exclusiva não aparecem na lista de janelas */}
-            {!localScreenSharing && (
+            {canShareScreen && !localScreenSharing && (
               <div className="relative group/dica hidden md:block">
                 <button
                   type="button"
@@ -1289,8 +1306,21 @@ export default function VoicePage() {
             <button
               onClick={handleLeave}
               title="Sair da chamada"
-              className="w-[66px] h-12 rounded-[15px] bg-[#ff405b] hover:bg-red-600 text-white
-                         flex items-center justify-center transition-all active:scale-95 ml-2"
+              aria-label="Sair da chamada"
+              className="hidden sm:flex w-[66px] h-12 rounded-[15px] bg-[#ff405b] hover:bg-red-600 text-white
+                         items-center justify-center transition-all active:scale-95 ml-2"
+            >
+              <PhoneOff className="w-5 h-5" />
+            </button>
+           </div>
+           </div>
+            {/* Celular: desligar SEMPRE visível, fora da área que rola */}
+            <button
+              onClick={handleLeave}
+              title="Sair da chamada"
+              aria-label="Sair da chamada"
+              className="sm:hidden shrink-0 w-[56px] h-11 rounded-[14px] bg-[#ff405b] active:bg-red-600 text-white
+                         flex items-center justify-center transition-all active:scale-95"
             >
               <PhoneOff className="w-5 h-5" />
             </button>
@@ -1309,14 +1339,14 @@ export default function VoicePage() {
           'flex-col border-l border-[var(--th-line-2)] bg-[var(--th-side)] shrink-0',
           'lg:flex lg:static lg:w-[280px] lg:z-auto lg:shadow-none',
           panelOpen
-            ? 'flex fixed inset-y-0 right-0 z-50 w-[min(320px,85vw)] shadow-2xl'
+            ? 'flex fixed inset-y-0 right-0 z-50 w-[min(340px,88vw)] shadow-2xl nx-safe-top nx-safe-bottom'
             : 'hidden',
         )}>
-          <div className="h-[70px] flex items-end px-3.5 border-b border-[var(--th-line-2)] shrink-0">
+          <div className="h-[60px] lg:h-[70px] flex items-end px-2 lg:px-3.5 border-b border-[var(--th-line-2)] shrink-0">
             <button
               onClick={() => setSideTab('people')}
               className={cn(
-                'h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                'h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'people' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
@@ -1325,7 +1355,7 @@ export default function VoicePage() {
             <button
               onClick={() => { setSideTab('chat'); setChatUnread(0); }}
               className={cn(
-                'relative h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                'relative h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'chat' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
@@ -1340,11 +1370,20 @@ export default function VoicePage() {
             <button
               onClick={() => setSideTab('audio')}
               className={cn(
-                'h-[45px] flex-1 font-extrabold text-sm flex items-center justify-center gap-1.5 transition-colors',
+                'h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'audio' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
               <Sliders className="w-3.5 h-3.5" /> Áudio
+            </button>
+            {/* Fechar a gaveta (celular) */}
+            <button
+              onClick={() => setPanelOpen(false)}
+              aria-label="Fechar painel"
+              title="Fechar painel"
+              className="lg:hidden h-[45px] w-10 shrink-0 grid place-items-center text-[#a99cb8] hover:text-white"
+            >
+              <X className="w-5 h-5" />
             </button>
           </div>
 
@@ -1672,7 +1711,7 @@ export default function VoicePage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
-            className="fixed left-1/2 -translate-x-1/2 bottom-[100px] z-50 px-4 py-2.5 rounded-xl
+            className="fixed inset-x-0 mx-auto w-fit max-w-[calc(100vw-24px)] text-center bottom-[84px] sm:bottom-[100px] z-50 px-4 py-2.5 rounded-xl
                        bg-[#1a1024] border border-[#6f36a1] text-white text-sm shadow-2xl"
           >
             {toast}
@@ -1711,7 +1750,7 @@ function QuickAudioPopover({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}
         transition={{ duration: 0.15 }}
-        className="fixed bottom-[100px] left-1/2 -translate-x-1/2 z-50 w-[280px]
+        className="fixed bottom-[80px] sm:bottom-[100px] inset-x-0 mx-auto z-50 w-[min(280px,calc(100vw-24px))]
                    bg-[var(--th-panel-2)] border border-[var(--th-line-2)] rounded-2xl shadow-2xl p-4"
       >
         {/* Dispositivo de saída */}
@@ -2184,8 +2223,9 @@ function ControlButton({
     <button
       onClick={onClick}
       title={title}
+      aria-label={title}
       className={cn(
-        'min-w-[48px] h-12 rounded-[15px] border flex items-center justify-center transition-all',
+        'min-w-[44px] h-11 sm:min-w-[48px] sm:h-12 rounded-[14px] sm:rounded-[15px] border flex items-center justify-center transition-all',
         'hover:-translate-y-0.5 active:scale-95',
         danger
           ? 'bg-destructive/10 text-destructive border-destructive/40 hover:bg-destructive hover:text-white hover:border-destructive'

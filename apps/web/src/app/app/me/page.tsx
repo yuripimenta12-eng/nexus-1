@@ -7,6 +7,7 @@ import { Search, MessageSquare, UserPlus, X, Users, Check, UserMinus, Clock } fr
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocketStore } from '@/stores/socket.store';
 import { getSocket } from '@/lib/socket';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 
 /* ── Types ───────────────────────────────────── */
@@ -164,16 +165,17 @@ export default function MePage() {
       background: '#0d0a16', overflow: 'hidden', color: '#ede8f8',
     }}>
       {/* ── Header ─────────────────────────────── */}
-      <div style={{
+      <div className="!h-14 sm:!h-12 !px-3 sm:!px-5" style={{
         height: 48, display: 'flex', alignItems: 'center', gap: 12,
         padding: '0 20px', borderBottom: '1px solid #1e1630', flexShrink: 0,
         background: '#0f0c1a',
       }}>
-        <MessageSquare style={{ width: 18, height: 18, color: '#7c5af0' }} />
-        <span style={{ fontWeight: 800, fontSize: 15, color: '#ede8f8' }}>Mensagens Diretas</span>
+        <MobileMenuButton />
+        <MessageSquare className="hidden sm:block" style={{ width: 18, height: 18, color: '#7c5af0' }} />
+        <span className="hidden sm:inline" style={{ fontWeight: 800, fontSize: 15, color: '#ede8f8' }}>Mensagens Diretas</span>
 
         {/* Abas: Conversas · Amigos · Pedidos */}
-        <div style={{ display: 'flex', gap: 6, marginLeft: 16 }}>
+        <div className="!ml-0 sm:!ml-4" style={{ display: 'flex', gap: 6, marginLeft: 16 }}>
           {([
             { id: 'conversas', label: 'Conversas' },
             { id: 'amigos', label: `Amigos${friends.length ? ` · ${friends.length}` : ''}` },
@@ -182,6 +184,7 @@ export default function MePage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              className="[@media(hover:none)]:!py-2.5 [@media(hover:none)]:!text-[13px]"
               style={{
                 position: 'relative', border: 'none', cursor: 'pointer',
                 borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700,

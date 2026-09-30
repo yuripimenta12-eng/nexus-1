@@ -86,7 +86,7 @@ export function VoiceRoomModal({
       <div className="bg-surface border border-border rounded-xl p-5 w-[260px] shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-semibold text-sm">{editing ? 'Editar sala de voz' : 'Criar sala de voz'}</h3>
-          <button onClick={onClose} className="text-muted hover:text-white"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} aria-label="Fechar" className="text-muted hover:text-white -m-2 p-2"><X className="w-4 h-4" /></button>
         </div>
 
         <input

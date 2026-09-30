@@ -469,7 +469,7 @@ function RoleEditor({ serverId, role, notify, onBack }: {
 
       {/* Barra de salvar */}
       {dirty && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-2xl
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-wrap justify-center max-w-[calc(100vw-24px)] items-center gap-3 rounded-2xl
                         bg-[#120c1a] border border-[var(--th-line-2)] shadow-2xl px-4 py-3">
           <span className="text-[#cfc5d8] text-sm">Cuidado — você tem alterações não salvas!</span>
           <button

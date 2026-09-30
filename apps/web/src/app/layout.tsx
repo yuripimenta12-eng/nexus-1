@@ -15,6 +15,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#0a0713',
+  width: 'device-width',
+  initialScale: 1,
+  // Ocupa a tela inteira do iPhone (atrás do notch/Dynamic Island); as áreas
+  // seguras são respeitadas com env(safe-area-inset-*) no layout do app.
+  viewportFit: 'cover',
+  // Android: quando o teclado abre, a página encolhe junto — a caixa de
+  // mensagem continua visível acima do teclado.
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

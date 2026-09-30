@@ -88,7 +88,7 @@ function EditableField({
           <span className="text-white text-sm">{value || '—'}</span>
           <button
             onClick={() => setEditing(true)}
-            className="text-accent text-xs hover:underline"
+            className="text-accent text-xs hover:underline -my-2 -mr-2 px-3 py-2.5 md:m-0 md:p-0"
           >
             Editar
           </button>
@@ -153,21 +153,23 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex h-full nx-page-bg">
-      {/* Sidebar de configurações */}
-      <div className="w-60 bg-[var(--th-side)] border-r border-[var(--th-line)] flex flex-col p-3 gap-1 shrink-0">
-        <p className="text-xs font-semibold text-muted uppercase tracking-wider px-2 py-1 mt-2">
+    <div className="flex flex-col md:flex-row h-full nx-page-bg">
+      {/* Sidebar de configurações — no celular vira uma faixa de abas roláveis no topo */}
+      <div className="w-full md:w-60 bg-[var(--th-side)] border-b md:border-b-0 md:border-r border-[var(--th-line)]
+                      flex flex-row md:flex-col gap-1 shrink-0 p-2 pr-16 md:p-3
+                      overflow-x-auto md:overflow-x-visible nx-no-scrollbar">
+        <p className="hidden md:block text-xs font-semibold text-muted uppercase tracking-wider px-2 py-1 mt-2">
           Configurações de Usuário
         </p>
         {sections.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setActiveSection(id)}
-            className={`sidebar-item ${activeSection === id ? 'active' : ''}`}>
+          <button key={id} onClick={(e) => { setActiveSection(id); e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
+            className={`sidebar-item shrink-0 w-auto md:w-full whitespace-nowrap ${activeSection === id ? 'active' : ''}`}>
             <Icon size={16} /><span>{label}</span>
           </button>
         ))}
-        <div className="mt-auto pt-3 border-t border-border">
+        <div className="md:mt-auto md:pt-3 md:border-t border-border shrink-0">
           <button onClick={handleLogout}
-            className="sidebar-item w-full text-destructive hover:text-red-400 hover:bg-red-500/10">
+            className="sidebar-item w-auto md:w-full whitespace-nowrap text-destructive hover:text-red-400 hover:bg-red-500/10">
             <LogOut size={16} /><span>Sair</span>
           </button>
         </div>
@@ -206,7 +208,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Botão fechar (X · ESC) */}
-      <div className="fixed top-5 right-5 z-40 flex flex-col items-center gap-1">
+      <div className="fixed top-2 right-2 md:top-5 md:right-5 z-40 flex flex-col items-center gap-1">
         <button
           onClick={handleClose}
           title="Fechar configurações (Esc)"
@@ -216,11 +218,11 @@ export default function SettingsPage() {
         >
           <X className="w-5 h-5" />
         </button>
-        <span className="text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
+        <span className="hidden md:block text-[9px] font-extrabold text-[#5c5468] tracking-wider">ESC</span>
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 overflow-y-auto p-8 max-w-2xl relative">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 md:p-8 max-w-2xl relative">
         {/* Toast de sucesso */}
         {saveSuccess && (
           <div className="fixed top-4 right-4 bg-success/90 text-white px-4 py-2 rounded-lg

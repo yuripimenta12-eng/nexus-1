@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { connectSocket } from '@/lib/socket';
@@ -43,7 +43,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    // 100dvh = altura REAL visível no celular (100vh esconde o rodapé atrás da
+    // barra do navegador). As áreas seguras evitam o notch e a barra de gestos.
+    <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-background nx-safe-top nx-safe-bottom nx-safe-x">
       {/* Áudio da chamada — global: continua tocando em qualquer tela do app */}
       <GlobalCallAudio />
 
@@ -51,7 +53,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           'md:static md:flex md:translate-x-0',
-          'fixed inset-y-0 left-0 z-50 flex transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-50 flex transition-transform duration-200 max-w-[92vw]',
+          'nx-safe-top nx-safe-bottom md:pt-0 md:pb-0 bg-background',
           mobileNavOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         )}
       >
@@ -71,16 +74,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Botão flutuante de menu (só mobile) */}
-      <button
-        onClick={toggleMobileNav}
-        className="md:hidden fixed bottom-4 left-4 z-50 w-12 h-12 rounded-2xl text-white
-                   bg-gradient-to-br from-orange to-accent shadow-[0_8px_24px_rgba(0,0,0,0.5)]
-                   flex items-center justify-center active:scale-95 transition-transform"
-        title={mobileNavOpen ? 'Fechar menu' : 'Abrir menu'}
-      >
-        {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
+      {/* Fechar a gaveta (só mobile) — o botão ☰ de abrir fica no cabeçalho de cada tela */}
+      {mobileNavOpen && (
+        <button
+          onClick={toggleMobileNav}
+          className="md:hidden fixed top-3 right-3 z-50 w-11 h-11 rounded-2xl text-white nx-safe-top
+                     bg-[#1a1224] border border-[#3a2a4d] shadow-[0_8px_24px_rgba(0,0,0,0.5)]
+                     flex items-center justify-center active:scale-95 transition-transform"
+          title="Fechar menu"
+          aria-label="Fechar menu"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Conteúdo principal */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">

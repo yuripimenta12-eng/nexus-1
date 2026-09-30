@@ -6,6 +6,7 @@ import { Users, Server, Flag, Activity, Shield, Search, Ban, CheckCircle } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { cn, formatRelativeDate } from '@/lib/utils';
 
 export default function AdminPage() {
@@ -74,20 +75,22 @@ export default function AdminPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="h-12 flex items-center gap-3 px-6 border-b border-border bg-background-secondary shrink-0">
+      <div className="h-14 md:h-12 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-border bg-background-secondary shrink-0">
+        <MobileMenuButton />
         <Shield className="w-5 h-5 text-accent" />
         <h1 className="text-white font-semibold">Painel Administrativo</h1>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Nav lateral */}
-        <div className="w-48 border-r border-border p-3 space-y-0.5 shrink-0">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Nav lateral — no celular vira faixa de abas roláveis */}
+        <div className="w-full md:w-48 border-b md:border-b-0 md:border-r border-border p-2 md:p-3 shrink-0
+                        flex md:block gap-1 md:space-y-0.5 overflow-x-auto nx-no-scrollbar">
           {TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id as any)}
+              onClick={(e) => { setTab(t.id as any); e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
               className={cn(
-                'sidebar-item w-full',
+                'sidebar-item shrink-0 w-auto md:w-full whitespace-nowrap',
                 tab === t.id && 'active',
               )}
             >
@@ -98,7 +101,7 @@ export default function AdminPage() {
         </div>
 
         {/* Conteúdo */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 min-h-0 overflow-auto p-3 md:p-6">
           {/* Métricas */}
           {tab === 'metrics' && metrics && (
             <div>
@@ -125,7 +128,7 @@ export default function AdminPage() {
                       <div className="flex items-end gap-1.5 h-28">
                         {metrics.signupsByDay.map((d: any) => (
                           <div key={d.date} className="flex-1 flex flex-col items-center gap-1 min-w-0 group">
-                            <span className="text-[10px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
+                            <span className={cn('text-[10px] text-white font-bold transition-opacity tabular-nums sm:opacity-0 sm:group-hover:opacity-100', d.count === 0 && 'opacity-0')}>
                               {d.count}
                             </span>
                             <div
@@ -133,7 +136,7 @@ export default function AdminPage() {
                               style={{ height: `${Math.max(3, (d.count / max) * 100)}%`, opacity: d.count === 0 ? 0.18 : 1 }}
                               title={`${d.date}: ${d.count} cadastro(s)`}
                             />
-                            <span className="text-[9px] text-muted tabular-nums">{d.date.slice(8, 10)}/{d.date.slice(5, 7)}</span>
+                            <span className="text-[9px] text-muted tabular-nums">{d.date.slice(8, 10)}<span className="hidden sm:inline">/{d.date.slice(5, 7)}</span></span>
                           </div>
                         ))}
                       </div>
@@ -159,8 +162,8 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead className="bg-surface-raised">
                     <tr>
                       <th className="text-left text-muted px-4 py-3 font-medium">Usuário</th>
@@ -219,8 +222,8 @@ export default function AdminPage() {
           {tab === 'servers' && (
             <div>
               <h2 className="text-white font-semibold text-lg mb-4">Servidores</h2>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead className="bg-surface-raised">
                     <tr>
                       <th className="text-left text-muted px-4 py-3 font-medium">Servidor</th>

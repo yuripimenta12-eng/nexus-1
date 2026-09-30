@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
+import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { MessageSquare, Hash, Users } from 'lucide-react';
 
 export default function AppHomePage() {
@@ -26,7 +27,8 @@ export default function AppHomePage() {
   }, [router]);
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-background">
+    <div className="relative flex-1 flex items-center justify-center bg-background p-4">
+      <MobileMenuButton className="absolute top-3 left-3" />
       <div className="text-center max-w-md">
         <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-6">
           <MessageSquare className="w-10 h-10 text-white" />
@@ -35,7 +37,7 @@ export default function AppHomePage() {
           Bem-vindo ao Nexus, {user?.profile?.displayName}!
         </h2>
         <p className="text-muted mb-6">
-          Selecione um servidor na barra lateral para começar a conversar.
+          Selecione um servidor na barra lateral (no celular, toque em ☰) para começar a conversar.
         </p>
         <div className="grid grid-cols-3 gap-3 text-sm">
           <FeatureCard icon={<Hash className="w-5 h-5" />} label="Chat em tempo real" />
