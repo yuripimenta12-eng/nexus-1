@@ -34,7 +34,7 @@ export interface VoiceParticipant {
 
 // ── DJ Nexus (bot de música) ─────────────────────────────────────
 export const DJ_IDENTITY = 'dj-nexus';
-export const DJ_URL = process.env.NEXT_PUBLIC_DJ_URL || 'https://dj.76-13-167-166.sslip.io';
+export const DJ_URL = process.env.NEXT_PUBLIC_DJ_URL || 'https://dj.nexuslink.art';
 export interface DjTrack {
   id: string; title: string; duration: number; url: string; thumbnail: string | null;
   uploader: string; requestedBy: string; positionSec?: number;
