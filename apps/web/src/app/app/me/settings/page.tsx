@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { VoiceVideoSettings } from '@/components/settings/voice-video-settings';
 import { AppearanceSettings, NotificationSettings, PrivacySettings } from '@/components/settings/prefs-settings';
 import { ProfileCard } from '@/components/settings/profile-card';
+import { ChangePassword } from '@/components/settings/change-password';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
@@ -286,6 +287,8 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+
+            <ChangePassword />
           </div>
         )}
 

@@ -210,6 +210,39 @@ export class AuthService {
     return { message: 'Senha alterada com sucesso' };
   }
 
+  // ── Troca de senha (usuário logado) ───────────────────────────
+  // Exige a senha atual. Mantém a sessão deste aparelho e encerra as demais
+  // (se alguém tinha a senha antiga, perde o acesso).
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentRefreshToken?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    const valid = await argon2.verify(user.passwordHash, currentPassword);
+    if (!valid) throw new BadRequestException('Senha atual incorreta');
+
+    if (await argon2.verify(user.passwordHash, newPassword)) {
+      throw new BadRequestException('A nova senha precisa ser diferente da atual');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.session.deleteMany({
+        where: {
+          userId,
+          ...(currentRefreshToken ? { NOT: { refreshToken: currentRefreshToken } } : {}),
+        },
+      }),
+    ]);
+
+    return { message: 'Senha alterada com sucesso' };
+  }
+
   // ── Validação (passport-local) ────────────────────────────────
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({

@@ -3,12 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MemberRole } from '@prisma/client';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private prisma: PrismaService,
     private serversService: ServersService,
+    private push: PushService,
   ) {}
 
   async getMessages(channelId: string, userId: string, cursor?: string, limit?: number) {
@@ -61,7 +63,43 @@ export class MessagesService {
       },
     });
 
+    // Quem foi mencionado (@usuario ou @Nome) e está com o Nexus fechado
+    // recebe notificação no celular. Não atrasa o envio da mensagem.
+    if (message.content.includes('@')) {
+      void this.notifyMentions(channel, message).catch(() => { /* push é opcional */ });
+    }
+
     return message;
+  }
+
+  // Mesma regra do front (mentionsMe): o texto contém "@" + username ou nome de exibição
+  private async notifyMentions(
+    channel: { id: string; name: string; serverId: string },
+    message: { authorId: string; content: string; author: any },
+  ) {
+    const low = message.content.toLowerCase();
+    const members = await this.prisma.serverMember.findMany({
+      where: { serverId: channel.serverId, banned: false, userId: { not: message.authorId } },
+      select: {
+        userId: true,
+        user: { select: { username: true, profile: { select: { displayName: true } } } },
+      },
+    });
+    const mentioned = members.filter(m => {
+      const names = [m.user.username, m.user.profile?.displayName]
+        .filter(Boolean)
+        .map(n => (n as string).toLowerCase());
+      return names.some(n => low.includes('@' + n));
+    });
+    if (!mentioned.length) return;
+
+    const author = message.author?.profile?.displayName || message.author?.username || 'Alguém';
+    this.push.notifyUsers(mentioned.map(m => m.userId), {
+      title: `${author} mencionou você em #${channel.name}`,
+      body: message.content,
+      url: `/app/servers/${channel.serverId}/channels/${channel.id}`,
+      tag: `channel:${channel.id}`,
+    });
   }
 
   async update(messageId: string, userId: string, content: string) {

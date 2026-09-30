@@ -5,6 +5,7 @@ import { Check, BellRing, Loader2, ShieldOff, Volume2 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { usePrefsStore, ACCENT_THEMES, AccentTheme } from '@/stores/prefs.store';
 import { playPing, showDesktopNotification } from '@/lib/notify';
+import { pushSupport, isPushEnabled, enablePush, disablePush, type PushSupport } from '@/lib/push';
 import api from '@/lib/api';
 
 /* ── Aparência ─────────────────────────────────────────────────── */
@@ -174,7 +175,72 @@ export function NotificationSettings() {
           <BellRing className="w-4 h-4" /> Testar notificação
         </button>
       </section>
+
+      <PushSettings />
     </div>
+  );
+}
+
+/* ── Notificações com o Nexus fechado (Web Push) ───────────────── */
+function PushSettings() {
+  const [support, setSupport] = useState<PushSupport>('ok');
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    setSupport(pushSupport());
+    isPushEnabled().then(setEnabled).catch(() => setEnabled(false));
+  }, []);
+
+  const toggle = async (on: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      if (on) {
+        const r = await enablePush();
+        if (r === 'ok') { setEnabled(true); setMsg('Pronto! Este aparelho vai receber os avisos.'); }
+        else if (r === 'denied') setMsg('A permissão foi negada. Libere as notificações do Nexus nas configurações do navegador/celular.');
+        else setMsg('Este navegador não suporta notificações com o app fechado.');
+      } else {
+        await disablePush();
+        setEnabled(false);
+      }
+    } catch {
+      setMsg('Não foi possível ativar agora. Tente de novo em instantes.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section>
+      <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px] mb-3">
+        Com o Nexus fechado
+      </p>
+      {support === 'ok' ? (
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)]">
+          <ToggleRow
+            label={busy ? 'Ativando…' : 'Notificações neste aparelho'}
+            desc="Avisa mensagens diretas e quando alguém te menciona (@você), mesmo com o Nexus fechado. Vale só para este aparelho/navegador."
+            checked={enabled}
+            onChange={toggle}
+          />
+        </div>
+      ) : support === 'ios-needs-install' ? (
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4 text-sm text-[#cfc6dd] space-y-1">
+          <b className="block">No iPhone, instale o Nexus primeiro</b>
+          <span className="block text-xs text-[#92879f]">
+            Abra www.nexuslink.art no Safari, toque em Compartilhar → “Adicionar à Tela de Início”,
+            abra o Nexus pelo ícone novo e volte aqui para ativar.
+          </span>
+        </div>
+      ) : (
+        <p className="text-xs text-[#92879f]">Este navegador não suporta notificações com o app fechado.</p>
+      )}
+      {msg && <p className="text-xs text-[#cfc6dd] mt-2">{msg}</p>}
+    </section>
   );
 }
 

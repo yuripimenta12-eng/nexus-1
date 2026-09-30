@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NexusGateway } from '../gateway/nexus.gateway';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class DmsService {
   constructor(
     private prisma: PrismaService,
     private gateway: NexusGateway,
+    private push: PushService,
   ) {}
 
   // ── Helper: formata DM para o cliente ───────────────────────
@@ -136,6 +138,17 @@ export class DmsService {
     // Emite em tempo real para remetente e destinatário
     this.gateway.emitToUser(receiverId, 'dm:new', formatted);
     this.gateway.emitToUser(senderId,   'dm:new', formatted);
+
+    // Nexus fechado no aparelho do destinatário → notificação no celular
+    if (receiverId !== senderId) {
+      this.push.notifyUsers([receiverId], {
+        title: formatted.sender.displayName || 'Nova mensagem',
+        body: content,
+        url: `/app/dms/${senderId}`,
+        tag: `dm:${senderId}`,
+        icon: formatted.sender.avatarUrl || undefined,
+      });
+    }
 
     return formatted;
   }

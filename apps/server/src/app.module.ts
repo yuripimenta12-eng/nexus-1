@@ -20,6 +20,7 @@ import { RolesModule } from './roles/roles.module';
 import { MailModule } from './mail/mail.module';
 import { DmsModule } from './dms/dms.module';
 import { FriendsModule } from './friends/friends.module';
+import { PushModule } from './push/push.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -47,6 +48,7 @@ import { HealthController } from './health.controller';
     FriendsModule,
     RolesModule,
     MailModule,
+    PushModule,
   ],
   controllers: [HealthController],
   providers: [

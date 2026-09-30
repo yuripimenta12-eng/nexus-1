@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { connectSocket } from '@/lib/socket';
+import { syncPush } from '@/lib/push';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -34,6 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (hasHydrated && isAuthenticated) {
       connectSocket('');
       refreshUser();
+      syncPush();
     }
   }, [hasHydrated, isAuthenticated, refreshUser]);
 

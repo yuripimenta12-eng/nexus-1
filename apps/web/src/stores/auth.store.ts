@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
+import { detachPushFromAccount } from '@/lib/push';
 
 export interface User {
   id: string;
@@ -82,6 +83,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
+          await detachPushFromAccount();
           await api.post('/auth/logout');
         } finally {
           localStorage.removeItem('nexus_access_token');

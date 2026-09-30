@@ -40,6 +40,7 @@ model User {
   directMessagesReceived DirectMessage[] @relation("DMReceiver")
   friendRequestsSent     Friendship[]   @relation("FriendRequester")
   friendRequestsReceived Friendship[]   @relation("FriendAddressee")
+  pushSubscriptions      PushSubscription[]
 
   @@index([email])
   @@index([username])
@@ -519,4 +520,32 @@ model AuditLog {
   @@index([serverId, createdAt(sort: Desc)])
   @@index([actorId])
   @@map("audit_logs")
+}
+
+// ── Notificações no celular (Web Push) ──────────────────────────
+// Cada navegador/aparelho que ativou as notificações vira uma inscrição.
+// O endpoint é único: se outra conta entrar no mesmo aparelho, a inscrição
+// passa para ela.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Configurações internas do app (ex.: chaves VAPID do Web Push, geradas no
+// primeiro uso e guardadas aqui para não depender de variável de ambiente).
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
 }

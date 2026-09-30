@@ -9,6 +9,18 @@ const nextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
+  // Endereço antigo aposentado: quem abrir o link/atalho velho cai no domínio
+  // novo, na mesma página.
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'nexus-eight-kohl.vercel.app' }],
+        destination: 'https://www.nexuslink.art/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
