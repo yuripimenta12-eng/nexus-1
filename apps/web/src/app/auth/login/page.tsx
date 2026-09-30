@@ -376,7 +376,7 @@ export default function LoginPage() {
         >
           {/* Aviso de convite */}
           {invited && (
-            <div style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 12, background: 'rgba(122,44,255,0.12)', border: '1px solid rgba(122,44,255,0.4)', color: '#eee6f7', fontSize: 13 }}>
+            <div style={{ marginBottom: 20, marginTop: 44, padding: '12px 14px', borderRadius: 12, background: 'rgba(122,44,255,0.12)', border: '1px solid rgba(122,44,255,0.4)', color: '#eee6f7', fontSize: 13 }}>
               🎉 Você foi convidado! Entre com sua conta para participar — ou{' '}
               <Link href="/auth/register" style={{ color: '#ff9650', fontWeight: 700 }}>crie uma agora</Link>.
             </div>
