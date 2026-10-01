@@ -220,8 +220,27 @@ let deafened = false;
 export const MUSIC_TRACK_NAME = 'musica-aba';
 let musicStream: MediaStream | null = null;
 let musicTrack: LocalAudioTrack | null = null;
+// App de PC: o Electron DESVIA o som da janela capturada (ela fica muda para
+// quem transmite). Este player devolve o som para o próprio usuário ouvir.
+let musicMonitor: HTMLAudioElement | null = null;
+
+function startMusicMonitor(track: MediaStreamTrack) {
+  try {
+    const el = new Audio();
+    el.srcObject = new MediaStream([track]);
+    el.autoplay = true;
+    const sinkId = useMediaStore.getState().audioOutputId;
+    if (sinkId) (el as any).setSinkId?.(sinkId)?.catch?.(() => {});
+    el.play().catch(() => { /* toca no próximo gesto */ });
+    musicMonitor = el;
+  } catch { /* sem retorno local: os outros continuam ouvindo */ }
+}
 
 function releaseMusicCapture() {
+  if (musicMonitor) {
+    try { musicMonitor.pause(); musicMonitor.srcObject = null; } catch { /* ok */ }
+    musicMonitor = null;
+  }
   musicStream?.getTracks().forEach(t => { try { t.stop(); } catch { /* ok */ } });
   musicStream = null;
   musicTrack = null;
@@ -730,6 +749,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       releaseMusicCapture();
       throw e;
     }
+
+    // No app de PC a janela de música fica muda ao ser capturada: devolve o som
+    // para quem está transmitindo (no navegador a aba continua tocando sozinha)
+    if (desktop?.musicArm) startMusicMonitor(audio);
 
     // Fechou a aba/janela ou clicou "Parar compartilhamento" na barra do Chrome
     const onEnded = () => { get().stopTabMusic().catch(() => {}); };
