@@ -64,12 +64,15 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
       {/* clique fora fecha */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
     <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 12, scale: 0.98 }}
-      transition={{ duration: 0.18 }}
-      className="fixed bottom-[80px] sm:bottom-[100px] inset-x-0 mx-auto w-[min(440px,calc(100vw-24px))] max-h-[calc(100dvh-160px)] overflow-y-auto z-50
-                 rounded-2xl border border-[var(--th-line-2)] bg-[#14101a]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 24 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+      // Celular: cartão acima da barra de controles. Computador: gaveta na
+      // lateral direita, sem cobrir o quadro de ninguém.
+      className="fixed bottom-[80px] inset-x-0 mx-auto w-[min(440px,calc(100vw-24px))] max-h-[calc(100dvh-160px)]
+                 sm:inset-x-auto sm:mx-0 sm:right-3 sm:top-[72px] sm:bottom-[92px] sm:w-[380px] sm:max-h-none
+                 overflow-y-auto z-50 rounded-2xl border border-[var(--th-line-2)] bg-[#14101a]/95 backdrop-blur-xl shadow-2xl"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Cabeçalho */}

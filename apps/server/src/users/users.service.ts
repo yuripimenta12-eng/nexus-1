@@ -17,6 +17,26 @@ export class UsersService {
     return safe;
   }
 
+  // Perfil de OUTRA pessoa: só o que é público (sem e-mail, admin, suspensão etc.)
+  async findPublicProfile(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        createdAt: true,
+        profile: {
+          select: {
+            displayName: true, avatarUrl: true, bannerUrl: true, bannerColor: true,
+            bio: true, status: true, customStatus: true,
+          },
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    return user;
+  }
+
   async findByUsername(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username: username.toLowerCase() },

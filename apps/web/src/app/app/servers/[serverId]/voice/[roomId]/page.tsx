@@ -12,7 +12,7 @@ import {
   Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X,
 } from 'lucide-react';
 import { DjPanel, useAnyTabMusic } from '@/components/voice/dj-panel';
-import { DJ_IDENTITY } from '@/stores/voice.store';
+import { DJ_IDENTITY, MUSIC_TRACK_NAME } from '@/stores/voice.store';
 import {
   Track,
   ConnectionQuality,
@@ -1120,12 +1120,16 @@ export default function VoicePage() {
           ) : (
             /* Grid de participantes */
             <div className="flex-1 overflow-auto p-[18px]">
+              {/* Grade que se ajusta ao número de pessoas: lado a lado, sem
+                  quadros gigantes vazios (3 pessoas = 3 colunas, 4 = 2×2...) */}
               <div className={cn(
-                'grid gap-3 h-full content-stretch',
-                participantsList.length === 1 && 'grid-cols-1 max-w-2xl mx-auto',
-                participantsList.length === 2 && 'grid-cols-1 sm:grid-cols-2',
-                participantsList.length > 2 && participantsList.length <= 4 && 'grid-cols-1 sm:grid-cols-2',
-                participantsList.length > 4 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+                'grid gap-3 min-h-full content-center mx-auto',
+                participantsList.length === 1 && 'grid-cols-1 max-w-3xl',
+                participantsList.length === 2 && 'grid-cols-1 sm:grid-cols-2 max-w-5xl',
+                participantsList.length === 3 && 'grid-cols-1 sm:grid-cols-3 max-w-6xl',
+                participantsList.length === 4 && 'grid-cols-1 sm:grid-cols-2 max-w-5xl',
+                participantsList.length > 4 && participantsList.length <= 6 && 'grid-cols-2 lg:grid-cols-3',
+                participantsList.length > 6 && 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
               )}>
                 <AnimatePresence mode="popLayout">
                   {participantsList.map(p => (
@@ -1136,7 +1140,9 @@ export default function VoicePage() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.88 }}
                       transition={{ duration: 0.22, ease: 'easeOut' }}
-                      className="min-h-0"
+                      // Proporção do quadro conforme o número de pessoas: cabem
+                      // todos na tela sem quadros altos e finos
+                      className={cn('min-h-0', tileAspect(participantsList.length))}
                     >
                       <ParticipantTile
                         voiceParticipant={p}
@@ -2019,6 +2025,14 @@ function VideoTrackRenderer({
   );
 }
 
+function tileAspect(count: number): string {
+  if (count <= 1) return 'aspect-video';
+  if (count === 2) return 'aspect-[4/3] sm:aspect-[4/5] lg:aspect-[1/1]';
+  if (count === 3) return 'aspect-[4/3] sm:aspect-[4/5]';
+  if (count === 4) return 'aspect-video';
+  return 'aspect-[4/3]';
+}
+
 // ── Tile de participante ──────────────────────────────────────────
 function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean }) {
   const hasCam = voiceParticipant.camEnabled;
@@ -2083,14 +2097,20 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedU
     );
   }
 
+  // Está transmitindo música de uma aba? (selo no nome)
+  const playingMusic = Array.from(voiceParticipant.participant.trackPublications.values())
+    .some((pub: any) => pub.trackName === MUSIC_TRACK_NAME);
+  const micOff = !voiceParticipant.micEnabled;
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.85, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       className={cn(
         'relative h-full rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
         speaking
-          ? 'border-[#8f42ff] shadow-[inset_0_0_0_2px_rgba(255,106,0,0.4),0_0_32px_rgba(122,44,255,0.2)] -translate-y-px'
+          ? 'border-[#ff8a3d]/70 shadow-[0_0_32px_rgba(122,44,255,0.25)]'
           : 'border-[var(--th-line-2)]',
       )}
       style={{ background: `radial-gradient(circle at 50% 38%, ${glow} 0, #14101a 53%, #100c15 100%)` }}
@@ -2102,70 +2122,74 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedU
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 grid place-content-center text-center">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              draggable={false}
-              className={cn(
-                'w-[82px] h-[82px] mx-auto rounded-[28px] object-cover select-none',
-                'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
-                speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
-              )}
-            />
-          ) : (
+        <>
+          {/* Fundo: a própria foto (ou as cores da pessoa) bem desfocada */}
+          <div
+            aria-hidden
+            className="absolute -inset-6 bg-cover bg-center scale-110"
+            style={avatarUrl
+              ? { backgroundImage: `url(${avatarUrl})`, filter: 'blur(26px) saturate(1.35) brightness(0.5)' }
+              : { background: `linear-gradient(145deg, ${c1}, ${c2})`, filter: 'blur(40px) brightness(0.45)' }}
+          />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#05030a]/85" />
+
+          <div className="absolute inset-0 grid place-content-center">
+            {/* Anel: gradiente laranja→roxo pulsando quando fala */}
             <div
               className={cn(
-                'w-[82px] h-[82px] mx-auto grid place-items-center rounded-[28px] text-[25px] font-black text-white',
-                'shadow-[0_12px_30px_rgba(0,0,0,0.45)] transition-shadow',
-                speaking && 'ring-1 ring-[#b565ff] ring-offset-4 ring-offset-transparent shadow-[0_0_22px_rgba(255,106,0,0.4)]',
+                'rounded-full p-[4px] transition-all duration-300',
+                speaking ? 'bg-gradient-to-br from-[#ff6a00] to-[#7a2cff]' : 'bg-white/10',
               )}
-              style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+              style={speaking ? { animation: 'nx-fala 1.1s ease-out infinite' } : undefined}
             >
-              {getInitials(name)}
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  draggable={false}
+                  className="w-[clamp(84px,9vw,120px)] h-[clamp(84px,9vw,120px)] rounded-full object-cover select-none border-[3px] border-[#0a0713] bg-[#1d1428]"
+                />
+              ) : (
+                <div
+                  className="w-[clamp(84px,9vw,120px)] h-[clamp(84px,9vw,120px)] rounded-full grid place-items-center text-[clamp(26px,3vw,38px)] font-black text-white border-[3px] border-[#0a0713]"
+                  style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
+                >
+                  {getInitials(name)}
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Ondas de voz */}
-          <div className={cn(
-            'h-7 mt-2.5 flex items-center justify-center gap-[3px] transition-opacity',
-            speaking ? 'opacity-100' : 'opacity-20',
-          )}>
-            {[0, 1, 2, 3, 4, 5, 6].map(i => (
-              <span
-                key={i}
-                className="block w-[3px] h-[5px] rounded"
-                style={{
-                  background: 'linear-gradient(#ff6a00, #7a2cff)',
-                  animation: speaking ? `nx-voice 0.72s ease-in-out infinite` : 'none',
-                  animationDelay: `${[0, 0.12, 0.24, 0.36, 0.24, 0.12, 0][i]}s`,
-                }}
-              />
-            ))}
           </div>
-        </div>
+        </>
       )}
 
-      {/* Selo "falando agora" */}
-      {speaking && (
-        <span className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-[#100b16]/85 border border-[#6c35a2]
-                         text-[#d8aefe] text-[9px] uppercase tracking-wider font-black">
-          Falando agora
+      {/* Canto superior: barrinhas de quem fala / selo de microfone desligado */}
+      {speaking && !micOff && (
+        <span aria-label="Falando" className="absolute right-3 top-3 flex items-end gap-[2px] h-[14px]">
+          {[0, 0.15, 0.3, 0.45].map(d => (
+            <i key={d} className="block w-[3px] rounded-sm bg-[#ffb070]"
+               style={{ height: 3, animation: 'nx-eq 0.9s ease-in-out infinite', animationDelay: `${d}s` }} />
+          ))}
+        </span>
+      )}
+      {micOff && (
+        <span title="Microfone desligado"
+              className="absolute right-3 top-3 w-7 h-7 rounded-[9px] bg-[#ed4245]/90 grid place-items-center shadow-[0_4px_14px_rgba(237,66,69,0.35)]">
+          <MicOff className="w-3.5 h-3.5 text-white" />
         </span>
       )}
 
       {/* Nameplate */}
       <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
-                      bg-[#09070d]/75 backdrop-blur font-bold text-white text-sm">
-        <span className="truncate max-w-[140px]">{name}</span>
-        {inFocusMode && <FocusBadge small />}
-        {voiceParticipant.micEnabled ? (
-          <Mic className="w-3 h-3 text-[#a89cb4]" />
-        ) : (
-          <MicOff className="w-3 h-3 text-[#ff6b7f]" />
+                      bg-[#09070d]/70 backdrop-blur font-bold text-white text-sm max-w-[calc(100%-56px)]">
+        <span className="truncate max-w-[160px]">{name}</span>
+        {speaking && <span className="text-[11px] font-semibold text-[#ffb070] shrink-0">falando</span>}
+        {playingMusic && (
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-[#c9a6ff] shrink-0">
+            <Music className="w-3 h-3" /> música
+          </span>
         )}
+        {inFocusMode && <FocusBadge small />}
         {isDeafenedUser && <HeadphoneOff className="w-3 h-3 text-[#ff6b7f]" />}
         {voiceParticipant.screenSharing && (
           <span className="flex items-center gap-1">

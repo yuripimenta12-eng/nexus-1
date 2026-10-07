@@ -32,14 +32,15 @@ export class UsersController {
     return this.usersService.searchUsers(query ?? '', currentUserId);
   }
 
+  // Antes devolvia o usuário inteiro (com e-mail) para qualquer pessoa logada
   @Get(':id/profile')
   getUserProfile(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.findPublicProfile(id);
   }
 
   @Get(':id')
   getUser(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.findPublicProfile(id);
   }
 
   @Patch('@me/profile')

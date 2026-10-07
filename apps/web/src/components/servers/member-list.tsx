@@ -255,6 +255,28 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
     ROLE_RANK[member.role] > ROLE_RANK[myRole];
   const topColor = nameColorOf(member) || '#7a2cff';
 
+  // Perfil público completo (banner, bio, frase, desde quando está no Nexus)
+  const [pub, setPub] = useState<{
+    createdAt?: string;
+    profile?: { bannerUrl?: string | null; bannerColor?: string | null; bio?: string | null; customStatus?: string | null } | null;
+  } | null>(null);
+  useEffect(() => {
+    api.get(`/users/${member.userId}/profile`).then(({ data }) => setPub(data)).catch(() => {});
+  }, [member.userId]);
+
+  const bannerUrl = pub?.profile?.bannerUrl;
+  const [bc1, bc2] = (pub?.profile?.bannerColor || '').split(',');
+  const bannerBg = bannerUrl
+    ? `center / cover no-repeat url(${bannerUrl})`
+    : bc1 && bc2
+      ? `linear-gradient(120deg, ${bc1}, ${bc2})`
+      : `linear-gradient(120deg, ${topColor}, #ff6a00)`;
+  const customStatus = pub?.profile?.customStatus ?? member.user.profile?.customStatus;
+  const bio = pub?.profile?.bio;
+  const since = pub?.createdAt
+    ? new Date(pub.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '')
+    : null;
+
   const act = async (kind: 'mute' | 'kick' | 'ban') => {
     setBusy(kind);
     try {
@@ -273,34 +295,48 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
   return (
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-xs rounded-2xl overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)] shadow-2xl"
+        className="relative w-full max-w-[320px] rounded-[18px] overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)]
+                   shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
-        {/* Banner na cor do cargo mais alto */}
-        <div className="h-16" style={{ background: `linear-gradient(120deg, ${topColor}66, ${topColor}22)` }} />
-        <div className="px-4 pb-4 -mt-7">
+        {/* Banner: imagem do perfil, o gradiente escolhido ou a cor do cargo */}
+        <div className="relative h-[92px]" style={{ background: bannerBg }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--th-panel)]/70" />
+        </div>
+        <div className="px-4 pb-4 -mt-11">
           <div className="relative inline-block">
-            <Avatar src={member.user.profile?.avatarUrl} name={name} size="lg" className="ring-4 ring-[var(--th-panel)]" />
+            <Avatar src={member.user.profile?.avatarUrl} name={name} size="xl"
+                    className="!w-[84px] !h-[84px] ring-[5px] ring-[var(--th-panel)]" />
             <span
-              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[var(--th-panel)]"
+              className="absolute bottom-0.5 right-0.5 w-[18px] h-[18px] rounded-full border-[3px] border-[var(--th-panel)]"
               style={{ background: STATUS_COLOR[member.status] }}
             />
           </div>
 
           <div className="mt-2 flex items-center gap-1.5">
-            <b className="text-white text-base truncate" style={{ color: nameColorOf(member) || '#fff' }}>{name}</b>
+            <b className="text-lg font-extrabold truncate" style={{ color: nameColorOf(member) || '#fff' }}>{name}</b>
             <RoleIcon role={member.role} />
           </div>
-          <p className="text-[#8a8095] text-xs">@{member.user.username}</p>
+          <p className="text-[#8a8095] text-[12.5px]">
+            @{member.user.username}{since ? ` · no Nexus desde ${since}` : ''}
+          </p>
+
+          {/* Frase de status e bio */}
+          {(customStatus || bio) && (
+            <div className="mt-3 rounded-xl bg-[var(--th-panel-2)] px-3 py-2.5 space-y-1">
+              {customStatus && <p className="text-[13px] text-[#e3dbeb] break-words">{customStatus}</p>}
+              {bio && <p className="text-[12px] text-[#a99cb8] whitespace-pre-line break-words">{bio}</p>}
+            </div>
+          )}
 
           {/* Cargos personalizados */}
           {(member.roles?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {member.roles!.map(r => (
                 <span key={r.id}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-[#d7cfe0] rounded-full px-2 py-0.5
-                             bg-[var(--th-panel-2)] border border-[var(--th-line-2)]">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                  className="flex items-center gap-1.5 text-[11.5px] font-bold rounded-full px-2.5 py-[3px] border"
+                  style={{ color: r.color, background: `${r.color}1f`, borderColor: `${r.color}59` }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: r.color }} />
                   {r.name}
                 </span>
               ))}
@@ -312,8 +348,9 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
             <div className="mt-4 space-y-1.5">
               <button
                 onClick={() => router.push(`/app/dms/${member.userId}`)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold
-                           text-white bg-accent hover:bg-accent-hover active:scale-95 transition-all"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold
+                           text-white bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] hover:-translate-y-0.5 active:scale-95 transition-all
+                           shadow-[0_8px_22px_rgba(122,44,255,0.28)]"
               >
                 <MessageSquare className="w-4 h-4" /> Mensagem
               </button>

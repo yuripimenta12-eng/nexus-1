@@ -9,6 +9,8 @@ import {
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocketStore, type DmMessage } from '@/stores/socket.store';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
+import { MessageSkeleton } from '@/components/ui/message-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import api from '@/lib/api';
 
 /* ── Types ───────────────────────────────────── */
@@ -70,6 +72,7 @@ export default function DmPage() {
   const [menuMsgId,  setMenuMsgId ] = useState<string | null>(null);
   const [loadingMore,setLoadingMore] = useState(false);
   const [hasMore,    setHasMore   ] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false); // primeira carga (mostra silhuetas)
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef   = useRef<HTMLDivElement>(null);
@@ -88,6 +91,7 @@ export default function DmPage() {
   // ── Load message history ──────────────────────
   useEffect(() => {
     if (!partnerId) return;
+    setHistoryLoaded(false);
     api.get(`/dms/${partnerId}/messages?limit=50`)
       .then(({ data }) => {
         const msgs: DmMessage[] = Array.isArray(data) ? data : [];
@@ -96,7 +100,8 @@ export default function DmPage() {
         // Mark as read
         markDmRead(partnerId);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setHistoryLoaded(true));
   }, [partnerId]);
 
   // ── Scroll to bottom on new messages ──────────
@@ -255,11 +260,20 @@ export default function DmPage() {
           <p style={{ color: '#4a4560', fontSize: 12, textAlign: 'center', margin: '8px 0' }}>Carregando mais…</p>
         )}
 
-        {messages.length === 0 && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-            {partner && <UserAvatar name={name} avatarUrl={partner.profile?.avatarUrl} size={64} />}
-            <p style={{ color: '#ede8f8', fontWeight: 800, fontSize: 18, margin: 0 }}>{name}</p>
-            <p style={{ color: '#4a4560', fontSize: 13, margin: 0 }}>Início da sua conversa com {name}.</p>
+        {messages.length === 0 && !historyLoaded && <MessageSkeleton />}
+
+        {messages.length === 0 && historyLoaded && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyState
+              image="/mascote-notif.webp"
+              title={`Início da sua conversa com ${name}`}
+              text="Mande a primeira mensagem — só vocês dois veem esta conversa."
+              actionLabel="Dizer oi 👋"
+              onAction={() => {
+                setInput('Oi! 👋');
+                setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+            />
           </div>
         )}
 

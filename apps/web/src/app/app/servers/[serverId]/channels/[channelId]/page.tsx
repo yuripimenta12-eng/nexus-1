@@ -12,6 +12,8 @@ import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils'
 import { Avatar } from '@/components/ui/avatar';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { MemberList } from '@/components/servers/member-list';
+import { MessageSkeleton } from '@/components/ui/message-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -456,26 +458,19 @@ export default function ChannelPage() {
       {/* Mensagens */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-0.5">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          </div>
+          <MessageSkeleton />
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <div
-              className="w-full max-w-2xl border border-[#392454] rounded-[18px] p-6 flex items-center gap-5"
-              style={{ background: 'radial-gradient(circle at 82% 20%, rgba(122,44,255,0.24), transparent 26%), linear-gradient(135deg, #1c1128, #120d1c)' }}
-            >
-              <div className="w-[55px] h-[55px] rounded-[18px] grid place-items-center text-2xl font-black text-white shrink-0
-                              bg-gradient-to-br from-orange to-accent">
-                #
-              </div>
-              <div>
-                <h3 className="text-white font-bold text-xl mb-1">Bem-vindo a #{channelName || 'este canal'}</h3>
-                <p className="text-[#afa4bb] text-sm">
-                  Este é o começo da conversa. Diga um oi e chame seus amigos! 🟠🟣
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              image="/mascote-voz.webp"
+              title={`Comece a conversa no #${channelName || 'canal'}`}
+              text="Seja o primeiro a mandar uma mensagem. Dá até para chamar alguém com @."
+              actionLabel="Mandar um oi 👋"
+              onAction={() => {
+                setContent('Oi, pessoal! 👋');
+                setTimeout(() => textareaRef.current?.focus(), 0);
+              }}
+            />
           </div>
         ) : (
           messages.map((msg, i) => {
