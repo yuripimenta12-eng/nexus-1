@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { AccountDeletionService } from './account-deletion.service';
-import { UploadModule } from '../upload/upload.module';
+import { UploadService } from '../upload/upload.service';
 
 @Module({
-  imports: [UploadModule],
   controllers: [UsersController],
-  providers: [UsersService, AccountDeletionService],
+  // UploadService entra direto (ele só depende do ConfigService): importar o
+  // UploadModule criaria o ciclo Auth → Users → Upload → Gateway → Auth.
+  providers: [UsersService, AccountDeletionService, UploadService],
   exports: [UsersService],
 })
 export class UsersModule {}
