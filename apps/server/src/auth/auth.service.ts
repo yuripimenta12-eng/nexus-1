@@ -338,7 +338,9 @@ export class AuthService {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES', '15m'),
       }),
-      this.jwtService.signAsync(payload, {
+      // jti aleatório: dois logins no mesmo segundo geravam o MESMO refresh
+      // token (mesmo payload + mesmo iat) e o 2º falhava na unicidade do banco
+      this.jwtService.signAsync({ ...payload, jti: uuidv4() }, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRES', '30d'),
       }),
