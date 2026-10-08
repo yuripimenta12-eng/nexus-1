@@ -36,10 +36,56 @@ export class RolesService {
     return perms.has('administrator') || perms.has(perm);
   }
 
-  async requirePermission(serverId: string, userId: string, perm: PermissionKey) {
+  async requirePermission(serverId: string, userId: string, perm: PermissionKey, message?: string) {
     if (!(await this.hasPermission(serverId, userId, perm))) {
-      throw new ForbiddenException('Permissão insuficiente');
+      throw new ForbiddenException(message || 'Permissão insuficiente');
     }
+  }
+
+  // Cargo fixo antigo (OWNER/ADMIN/MODERATOR) OU a permissão do cargo
+  // personalizado: quem já podia continua podendo, e o cargo passa a valer.
+  async allowed(serverId: string, userId: string, perm: PermissionKey, legacy: MemberRole[] = []) {
+    if (legacy.length) {
+      const m = await this.prisma.serverMember.findUnique({
+        where: { serverId_userId: { serverId, userId } }, select: { role: true, banned: true },
+      });
+      if (m && !m.banned && legacy.includes(m.role)) return true;
+    }
+    return this.hasPermission(serverId, userId, perm);
+  }
+
+  async requireAllowed(serverId: string, userId: string, perm: PermissionKey, legacy: MemberRole[] = [], message?: string) {
+    if (!(await this.allowed(serverId, userId, perm, legacy))) {
+      throw new ForbiddenException(message || 'Seu cargo não permite isso neste servidor');
+    }
+  }
+
+  // Lista do que a pessoa pode fazer: cargo fixo antigo + cargos personalizados.
+  // Espelha allowed()/hasPermission() (o servidor continua conferindo cada ação).
+  async effectivePermissions(serverId: string, userId: string) {
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: { server: { select: { ownerId: true } }, roleAssignments: { include: { role: true } } },
+    });
+    if (!member || member.banned) throw new ForbiddenException('Sem acesso ao servidor');
+    const isOwner = member.server.ownerId === userId;
+    if (isOwner || member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN) {
+      return { role: isOwner ? 'OWNER' : member.role, permissions: [...ALL_PERMISSIONS].filter(p => p !== 'block_watch_streams') };
+    }
+    const everyone = await this.ensureDefaultRole(serverId);
+    const perms = new Set<string>(JSON.parse(everyone.permissions));
+    for (const a of member.roleAssignments) for (const p of JSON.parse(a.role.permissions)) perms.add(p);
+    if (perms.has('administrator')) {
+      const blocked = perms.has('block_watch_streams');
+      ALL_PERMISSIONS.forEach(p => perms.add(p));
+      if (!blocked) perms.delete('block_watch_streams');
+    }
+    if (member.role === MemberRole.MODERATOR) {
+      ['kick_members', 'ban_members', 'mute_members', 'manage_messages', 'pin_messages', 'create_invite', 'move_members']
+        .forEach(p => perms.add(p));
+    }
+    const valid = new Set<string>(ALL_PERMISSIONS);
+    return { role: member.role, permissions: [...perms].filter(p => valid.has(p)) };
   }
 
   // Cargo @everyone: criado sob demanda no primeiro acesso

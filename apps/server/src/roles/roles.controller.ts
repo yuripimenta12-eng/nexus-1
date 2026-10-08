@@ -10,6 +10,12 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class RolesController {
   constructor(private rolesService: RolesService) {}
 
+  // Permissões efetivas de quem está logado (o site usa para mostrar/ocultar botões)
+  @Get('@me')
+  mine(@Param('serverId') serverId: string, @CurrentUser('id') userId: string) {
+    return this.rolesService.effectivePermissions(serverId, userId);
+  }
+
   @Get()
   list(@Param('serverId') serverId: string, @CurrentUser('id') userId: string) {
     return this.rolesService.list(serverId, userId);

@@ -30,6 +30,15 @@ export class MessagesController {
     return this.messagesService.create(channelId, userId, dto);
   }
 
+  // Mensagens fixadas do canal
+  @Get('pinned')
+  getPinned(
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.messagesService.getPinned(channelId, userId);
+  }
+
   @Patch(':messageId')
   update(
     @Param('messageId') messageId: string,

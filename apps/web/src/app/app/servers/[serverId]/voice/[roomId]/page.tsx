@@ -28,6 +28,7 @@ import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd } from '@/lib/s
 import { Avatar } from '@/components/ui/avatar';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
+import { useServerPerms } from '@/lib/perms';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -60,6 +61,7 @@ export default function VoicePage() {
   const router = useRouter();
   const roomId = params.roomId as string;
   const serverId = params.serverId as string;
+  const { can: canDo } = useServerPerms(serverId);
   const { user } = useAuthStore();
 
   const {
@@ -385,7 +387,7 @@ export default function VoicePage() {
     setIsJoining(true);
     try {
       const { data } = await api.post(`/voice/rooms/${roomId}/join`);
-      await connect(data.livekitUrl, data.token, roomId, data.voiceRoom.name, serverId);
+      await connect(data.livekitUrl, data.token, roomId, data.voiceRoom.name, serverId, data.permissions);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Erro ao conectar';
       setJoinError(friendlyError(msg));
@@ -1599,14 +1601,14 @@ export default function VoicePage() {
               );
               })()}
 
-              <button
+              {canDo('create_invite') && <button
                 onClick={handleInvite}
                 className="w-full mt-4 border border-dashed border-[#4d3560] rounded-[13px] p-3 text-[#b99dcf]
                            text-sm text-center bg-[var(--th-panel-2)] hover:border-accent hover:text-white transition-colors
                            flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4" /> Convidar amigos
-              </button>
+              </button>}
 
               {/* Mascote segurando a logo, preso ao pé do painel, com luz pulsando atrás */}
               <div className="relative mt-auto pt-10 pb-1 flex justify-center pointer-events-none" aria-hidden>

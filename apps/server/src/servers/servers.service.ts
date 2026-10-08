@@ -105,9 +105,12 @@ export class ServersService {
   async setMyNickname(serverId: string, userId: string, nickname: string | null) {
     const member = await this.checkMembership(serverId, userId);
     if (!member) throw new ForbiddenException('Você não é membro deste servidor');
+    await this.rolesService.requirePermission(serverId, userId, 'change_nickname', 'Seu cargo não pode trocar o apelido neste servidor');
+    if (nickname != null && typeof nickname !== 'string') throw new ForbiddenException('Apelido inválido');
+    const clean = nickname ? nickname.trim().slice(0, 64) : '';
     return this.prisma.serverMember.update({
       where: { serverId_userId: { serverId, userId } },
-      data: { nickname: nickname ? nickname.slice(0, 64) : null },
+      data: { nickname: clean || null },
       select: { nickname: true },
     });
   }

@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { RolesService } from '../roles/roles.service';
 import { MemberRole } from '@prisma/client';
 
 @Injectable()
@@ -8,11 +9,20 @@ export class ModerationService {
   constructor(
     private prisma: PrismaService,
     private serversService: ServersService,
+    private roles: RolesService,
   ) {}
+
+  // Moderador antigo (OWNER/ADMIN/MODERATOR) OU cargo com a permissão
+  private async requester(serverId: string, userId: string, perm: 'kick_members' | 'ban_members' | 'mute_members', legacy: MemberRole[]) {
+    await this.roles.requireAllowed(serverId, userId, perm, legacy);
+    const m = await this.serversService.checkMembership(serverId, userId);
+    if (!m) throw new ForbiddenException('Você não é membro deste servidor');
+    return m;
+  }
 
   // ── Kick ──────────────────────────────────────────────────────
   async kick(serverId: string, targetUserId: string, requesterId: string, reason?: string) {
-    const requester = await this.serversService.requireRole(serverId, requesterId, [
+    const requester = await this.requester(serverId, requesterId, 'kick_members', [
       MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR,
     ]);
 
@@ -32,7 +42,7 @@ export class ModerationService {
 
   // ── Ban ───────────────────────────────────────────────────────
   async ban(serverId: string, targetUserId: string, requesterId: string, reason?: string) {
-    const requester = await this.serversService.requireRole(serverId, requesterId, [
+    const requester = await this.requester(serverId, requesterId, 'ban_members', [
       MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR,
     ]);
 
@@ -62,9 +72,7 @@ export class ModerationService {
 
   // ── Unban ─────────────────────────────────────────────────────
   async unban(serverId: string, targetUserId: string, requesterId: string) {
-    await this.serversService.requireRole(serverId, requesterId, [
-      MemberRole.OWNER, MemberRole.ADMIN,
-    ]);
+    await this.requester(serverId, requesterId, 'ban_members', [MemberRole.OWNER, MemberRole.ADMIN]);
 
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId: targetUserId } },
@@ -75,9 +83,12 @@ export class ModerationService {
 
   // ── Mute no servidor (silencia globalmente na voz) ────────────
   async mute(serverId: string, targetUserId: string, requesterId: string, muted: boolean) {
-    await this.serversService.requireRole(serverId, requesterId, [
+    await this.requester(serverId, requesterId, 'mute_members', [
       MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR,
     ]);
+    const target = await this.serversService.checkMembership(serverId, targetUserId);
+    if (!target) throw new NotFoundException('Usuário não é membro');
+    if (target.role === MemberRole.OWNER) throw new ForbiddenException('Não pode silenciar o dono');
 
     await this.prisma.serverMember.update({
       where: { serverId_userId: { serverId, userId: targetUserId } },

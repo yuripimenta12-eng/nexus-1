@@ -117,15 +117,24 @@ export class UploadController {
     @Body('content') content: string,
     @CurrentUser('id') userId: string,
   ) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado');
+    // Confere acesso + cargo ANTES de gravar o arquivo
+    await this.messagesService.assertCanAttach(channelId, userId);
+    // Anexar a uma mensagem existente: só na PRÓPRIA mensagem, no mesmo canal
+    if (messageId) {
+      const target = await this.prisma.message.findUnique({ where: { id: messageId }, select: { authorId: true, channelId: true, deleted: true } });
+      if (!target || target.channelId !== channelId || target.authorId !== userId || target.deleted) {
+        throw new BadRequestException('Só é possível anexar à sua própria mensagem neste canal');
+      }
+    }
+
     const { url } = await this.uploadService.uploadFile(file, 'attachments');
 
     // Sem messageId: cria a mensagem junto com o anexo e transmite ao canal
-    // (fluxo do botão de anexo no chat — a validação de acesso ao canal
-    // acontece dentro do MessagesService.create)
     if (!messageId) {
       const message = await this.messagesService.create(channelId, userId, {
         content: content ?? '',
-      } as any);
+      } as any, { allowEmpty: true });
 
       await this.prisma.attachment.create({
         data: {

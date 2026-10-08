@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { RolesService } from '../roles/roles.service';
 import { RedisService } from '../redis/redis.service';
 import {
   canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE,
@@ -18,6 +19,7 @@ export class VoiceService {
     private config: ConfigService,
     private serversService: ServersService,
     private redis: RedisService,
+    private roles: RolesService,
   ) {
     this.roomService = new RoomServiceClient(
       this.config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
@@ -86,16 +88,20 @@ export class VoiceService {
       },
     );
 
+    // Cargo decide o que pode transmitir: "Falar" = microfone;
+    // "Vídeo" = câmera e compartilhar tela (com o áudio da tela)
+    const canSpeak = await this.roles.hasPermission(voiceRoom.serverId, userId, 'speak');
+    const canVideo = await this.roles.hasPermission(voiceRoom.serverId, userId, 'video');
+    const sources: TrackSource[] = [];
+    if (canSpeak) sources.push(TrackSource.MICROPHONE);
+    if (canVideo) sources.push(TrackSource.CAMERA, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO);
+
     at.addGrant({
       room: voiceRoom.livekitRoom,
       roomJoin: true,
-      canPublish: !member.mutedBy,         // silenciado pelo admin não pode publicar
-      canPublishSources: [
-        TrackSource.MICROPHONE,
-        TrackSource.CAMERA,
-        TrackSource.SCREEN_SHARE,
-        TrackSource.SCREEN_SHARE_AUDIO,
-      ],
+      // silenciado pelo admin não publica; lista vazia no LiveKit = "tudo", então desliga
+      canPublish: !member.mutedBy && sources.length > 0,
+      canPublishSources: sources,
       canSubscribe: true,
     });
 
@@ -108,6 +114,7 @@ export class VoiceService {
       roomName: voiceRoom.livekitRoom,
       voiceRoom,
       callSessionId: callSession.id,
+      permissions: { speak: canSpeak && !member.mutedBy, video: canVideo && !member.mutedBy },
     };
   }
 
@@ -332,10 +339,14 @@ export class VoiceService {
   async kickParticipant(voiceRoomId: string, targetUserId: string, requesterId: string) {
     const voiceRoom = await this.prisma.voiceRoom.findUnique({
       where: { id: voiceRoomId },
+      include: { server: { select: { ownerId: true } } },
     });
     if (!voiceRoom) throw new NotFoundException();
+    if (targetUserId === voiceRoom.server.ownerId && requesterId !== voiceRoom.server.ownerId) {
+      throw new ForbiddenException('Não é possível desconectar o dono do servidor');
+    }
 
-    await this.serversService.requireRole(voiceRoom.serverId, requesterId, ['OWNER', 'ADMIN', 'MODERATOR'] as any);
+    await this.roles.requireAllowed(voiceRoom.serverId, requesterId, 'move_members', ['OWNER', 'ADMIN', 'MODERATOR'] as any, 'Seu cargo não pode desconectar membros');
 
     await this.roomService.removeParticipant(voiceRoom.livekitRoom, targetUserId);
   }

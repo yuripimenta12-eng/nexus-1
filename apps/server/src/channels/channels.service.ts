@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { RolesService } from '../roles/roles.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { MemberRole } from '@prisma/client';
 
@@ -9,12 +10,11 @@ export class ChannelsService {
   constructor(
     private prisma: PrismaService,
     private serversService: ServersService,
+    private roles: RolesService,
   ) {}
 
   async create(serverId: string, userId: string, dto: CreateChannelDto) {
-    await this.serversService.requireRole(serverId, userId, [
-      MemberRole.OWNER, MemberRole.ADMIN,
-    ]);
+    await this.roles.requireAllowed(serverId, userId, 'manage_channels', [MemberRole.OWNER, MemberRole.ADMIN]);
 
     return this.prisma.channel.create({
       data: {
@@ -41,9 +41,7 @@ export class ChannelsService {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } });
     if (!channel) throw new NotFoundException();
 
-    await this.serversService.requireRole(channel.serverId, userId, [
-      MemberRole.OWNER, MemberRole.ADMIN,
-    ]);
+    await this.roles.requireAllowed(channel.serverId, userId, 'manage_channels', [MemberRole.OWNER, MemberRole.ADMIN]);
 
     return this.prisma.channel.delete({ where: { id: channelId } });
   }

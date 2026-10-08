@@ -17,6 +17,8 @@ import { MessagesService } from '../messages/messages.service';
 import { PresenceService } from '../presence/presence.service';
 import { RedisService } from '../redis/redis.service';
 import { CreateMessageDto } from '../messages/dto/create-message.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { canAccessVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
 
 // Mapa em memória: userId → socketId
 // NOTA: funciona apenas com instância única. Para escalar horizontalmente,
@@ -61,7 +63,36 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     private messagesService: MessagesService,
     private presenceService: PresenceService,
     private redis: RedisService,
+    private prisma: PrismaService,
   ) {}
+
+  // ── Autorização das salas de tempo real ──────────────────────
+  // Antes qualquer pessoa logada entrava em qualquer sala (canal, servidor,
+  // voz) só sabendo o id — e recebia as mensagens em tempo real.
+  private async memberOf(serverId: string | undefined, userId: string) {
+    if (!serverId || !userId) return null;
+    const m = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } }, include: MEMBER_WITH_ROLES_INCLUDE,
+    });
+    return m && !m.banned ? m : null;
+  }
+
+  private async voiceRoomFor(voiceRoomId: string | undefined, userId: string) {
+    if (!voiceRoomId) return null;
+    const room = await this.prisma.voiceRoom.findUnique({
+      where: { id: voiceRoomId },
+      include: { allowedRoles: { select: { id: true } }, server: { select: { ownerId: true } } },
+    });
+    if (!room) return null;
+    const member = await this.memberOf(room.serverId, userId);
+    if (!member) return null;
+    return canAccessVoiceRoom(room, member as any, room.server.ownerId) ? room : null;
+  }
+
+  // Só age em sala de voz em que o socket entrou (pelo voice:join autorizado)
+  private inVoice(client: Socket, voiceRoomId?: string) {
+    return !!voiceRoomId && client.rooms.has(`voice:${voiceRoomId}`);
+  }
 
   afterInit(server: Server) {
     this.logger.log('WebSocket Gateway inicializado');
@@ -148,6 +179,13 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { channelId: string },
   ) {
+    const ch = data?.channelId
+      ? await this.prisma.channel.findUnique({ where: { id: data.channelId }, select: { serverId: true } })
+      : null;
+    if (!ch || !(await this.memberOf(ch.serverId, client.data.userId))) {
+      client.emit('error', { message: 'Sem acesso a este canal' });
+      return;
+    }
     await client.join(`channel:${data.channelId}`);
     client.emit('channel:joined', { channelId: data.channelId });
   }
@@ -166,6 +204,10 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { serverId: string },
   ) {
+    if (!(await this.memberOf(data?.serverId, client.data.userId))) {
+      client.emit('error', { message: 'Sem acesso a este servidor' });
+      return;
+    }
     await client.join(`server:${data.serverId}`);
 
     // Anuncia presença para os membros do servidor
@@ -225,6 +267,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { messageId: string; content: string },
   ) {
     const userId = client.data.userId;
+    if (!userId) throw new WsException('Não autenticado');
     const message = await this.messagesService.update(data.messageId, userId, data.content);
 
     // Descobre o canal via Prisma (já está no service)
@@ -239,9 +282,11 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { messageId: string; channelId: string },
   ) {
     const userId = client.data.userId;
-    await this.messagesService.delete(data.messageId, userId);
+    if (!userId) throw new WsException('Não autenticado');
+    const deleted = await this.messagesService.delete(data.messageId, userId);
 
-    this.server.to(`channel:${data.channelId}`).emit('message:deleted', {
+    // Canal real da mensagem (não o informado pelo navegador)
+    this.server.to(`channel:${deleted.channelId}`).emit('message:deleted', {
       messageId: data.messageId,
     });
   }
@@ -253,9 +298,10 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { messageId: string; channelId: string; emoji: string },
   ) {
     const userId = client.data.userId;
-    await this.messagesService.addReaction(data.messageId, userId, data.emoji);
+    if (!userId) throw new WsException('Não autenticado');
+    const { channelId } = await this.messagesService.addReaction(data.messageId, userId, data.emoji);
 
-    this.server.to(`channel:${data.channelId}`).emit('reaction:added', {
+    this.server.to(`channel:${channelId}`).emit('reaction:added', {
       messageId: data.messageId,
       userId,
       emoji: data.emoji,
@@ -268,13 +314,27 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { messageId: string; channelId: string; emoji: string },
   ) {
     const userId = client.data.userId;
-    await this.messagesService.removeReaction(data.messageId, userId, data.emoji);
+    if (!userId) throw new WsException('Não autenticado');
+    const { channelId } = await this.messagesService.removeReaction(data.messageId, userId, data.emoji);
 
-    this.server.to(`channel:${data.channelId}`).emit('reaction:removed', {
+    this.server.to(`channel:${channelId}`).emit('reaction:removed', {
       messageId: data.messageId,
       userId,
       emoji: data.emoji,
     });
+  }
+
+  // ── Fixar / desafixar ─────────────────────────────────────────
+  @SubscribeMessage('message:pin')
+  async handlePinMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string; pinned: boolean },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) throw new WsException('Não autenticado');
+    const res = await this.messagesService.setPinned(data.messageId, userId, data.pinned !== false);
+    this.server.to(`channel:${res.channelId}`).emit('message:pinned', { ...res, pinnedById: res.pinned ? userId : null });
+    return res;
   }
 
   // ── Typing ────────────────────────────────────────────────────
@@ -284,6 +344,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { channelId: string },
   ) {
     const userId = client.data.userId;
+    if (!client.rooms.has(`channel:${data?.channelId}`)) return;
     await this.redis.setTyping(data.channelId, userId);
 
     client.to(`channel:${data.channelId}`).emit('typing:update', {
@@ -299,6 +360,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { channelId: string },
   ) {
     const userId = client.data.userId;
+    if (!client.rooms.has(`channel:${data?.channelId}`)) return;
 
     client.to(`channel:${data.channelId}`).emit('typing:update', {
       channelId: data.channelId,
@@ -337,6 +399,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
 
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:state_changed', {
       userId,
@@ -351,12 +414,19 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; serverId?: string },
   ) {
     const userId = client.data.userId;
+    // Sala existe, é membro e (se restrita) tem o cargo — o servidor vem do banco
+    const room = await this.voiceRoomFor(data?.voiceRoomId, userId);
+    if (!room) {
+      client.emit('error', { message: 'Sem acesso a esta sala de voz' });
+      return;
+    }
+    data.serverId = room.serverId;
     await client.join(`voice:${data.voiceRoomId}`);
     await this.redis.addToVoiceRoom(data.voiceRoomId, userId);
 
     // Guarda para limpar/anunciar na desconexão abrupta
     client.data.voiceRoomId = data.voiceRoomId;
-    client.data.voiceServerId = data.serverId;
+    client.data.voiceServerId = room.serverId;
 
     const members = await this.redis.getVoiceRoomMembers(data.voiceRoomId);
 
@@ -385,6 +455,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; serverId?: string },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
+    data.serverId = client.data.voiceServerId; // servidor da sala (do banco), não o enviado
     if (!userId || !data.serverId) return;
     this.server.to(`server:${data.serverId}`).emit('voice:presence', {
       serverId: data.serverId,
@@ -403,6 +475,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; targetUserId: string; watching: boolean },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
     if (!userId || !data.voiceRoomId || !data.targetUserId) return;
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:watch', {
       userId,                       // quem está assistindo (ou parou)
@@ -419,6 +492,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   ) {
     const userId = client.data.userId;
     if (!userId || !data.voiceRoomId) return;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
+    data.serverId = client.data.voiceServerId;
     await this.redis.setVoiceDeafened(userId, !!data.deafened).catch(() => {});
     // Para quem está NA sala (badge em tempo real)
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:deafen', {
@@ -443,6 +518,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; focused: boolean },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
     if (!userId || !data.voiceRoomId) return;
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:focus', {
       userId,
@@ -457,6 +533,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; content: string },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
     if (!userId) throw new WsException('Não autenticado');
 
     const content = (data.content || '').trim().slice(0, 1000);
@@ -482,6 +559,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { voiceRoomId: string; serverId?: string },
   ) {
     const userId = client.data.userId;
+    if (!this.inVoice(client, data?.voiceRoomId)) return;
+    data.serverId = client.data.voiceServerId;
     await client.leave(`voice:${data.voiceRoomId}`);
     await this.redis.removeFromVoiceRoom(data.voiceRoomId, userId);
 

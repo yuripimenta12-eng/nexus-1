@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu, Users } from 'lucide-react';
+import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu, Users, Pin, PinOff } from 'lucide-react';
+import { useServerPerms } from '@/lib/perms';
 import { playMention } from '@/lib/sounds';
 import api from '@/lib/api';
 import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/socket';
@@ -74,6 +75,7 @@ interface Message {
   createdAt: string;
   edited: boolean;
   deleted: boolean;
+  pinned?: boolean;
   authorId: string;
   clientMsgId?: string; // ID de cliente para deduplicação (mensagens otimistas)
   pending?: boolean;    // mensagem ainda não confirmada pelo servidor
@@ -117,6 +119,33 @@ export default function ChannelPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<NodeJS.Timeout>();
   const socket = getSocket();
+
+  // O que meu cargo permite (só para mostrar botões; o servidor confere de novo)
+  const { can } = useServerPerms(serverId);
+  const canPin = can('pin_messages') || can('manage_messages');
+  const canManageMessages = can('manage_messages');
+
+  // Mensagens fixadas (painel no topo do canal)
+  const [pinsOpen, setPinsOpen] = useState(false);
+  const [pins, setPins] = useState<Message[]>([]);
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const pinsOpenRef = useRef(false);
+  pinsOpenRef.current = pinsOpen;
+  const loadPins = useCallback(() => {
+    if (!channelId) return;
+    setPinsLoading(true);
+    api.get(`/channels/${channelId}/messages/pinned`)
+      .then(({ data }) => setPins(Array.isArray(data) ? data : []))
+      .catch(() => setPins([]))
+      .finally(() => setPinsLoading(false));
+  }, [channelId]);
+  useEffect(() => { setPinsOpen(false); setPins([]); }, [channelId]);
+
+  // Aviso curto quando o servidor recusa algo (ex.: cargo sem permissão)
+  const flash = useCallback((msg: string) => {
+    setUploadError(msg);
+    setTimeout(() => setUploadError(''), 4500);
+  }, []);
 
   // Emojis customizados do servidor (:nome: → imagem)
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
@@ -248,6 +277,21 @@ export default function ChannelPage() {
       }));
     });
 
+    socket.on('message:pinned', ({ messageId, pinned }: { messageId: string; pinned: boolean }) => {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, pinned } : m));
+      if (!pinned) setPins(prev => prev.filter(p => p.id !== messageId));
+      else if (pinsOpenRef.current) loadPins();
+    });
+
+    // Recusa do servidor no tempo real: tira o "enviando…" e explica o motivo
+    const onException = (err: any) => {
+      const msg = typeof err?.message === 'string' && err.message !== 'Internal server error'
+        ? err.message : 'Não foi possível concluir a ação';
+      setMessages(prev => prev.filter(m => !m.pending));
+      flash(msg);
+    };
+    socket.on('exception', onException);
+
     socket.on('typing:update', ({ userId, typing }: { userId: string; typing: boolean; channelId: string }) => {
       setTypingUsers(prev => {
         if (typing) {
@@ -266,6 +310,8 @@ export default function ChannelPage() {
       socket.off('message:deleted');
       socket.off('reaction:added');
       socket.off('reaction:removed');
+      socket.off('message:pinned');
+      socket.off('exception', onException);
       socket.off('typing:update');
     };
   }, [channelId]);
@@ -368,6 +414,11 @@ export default function ChannelPage() {
     setDeleteConfirmId(null);
   };
 
+  // ── Fixar ─────────────────────────────────────────────────────
+  const handlePin = (msg: Message) => {
+    socket.emit('message:pin', { messageId: msg.id, pinned: !msg.pinned });
+  };
+
   // ── Reação ────────────────────────────────────────────────────
   const handleReaction = (messageId: string, emoji: string) => {
     const message = messages.find(m => m.id === messageId);
@@ -403,10 +454,73 @@ export default function ChannelPage() {
           </h2>
           <p className="text-[#9188a2] text-[11px]">Canal de texto da comunidade</p>
         </div>
+        {/* Mensagens fixadas */}
+        <div className="ml-auto relative">
+          <button
+            onClick={() => { if (!pinsOpen) loadPins(); setPinsOpen(!pinsOpen); }}
+            className={cn('p-2 rounded-lg transition-colors', pinsOpen ? 'text-white bg-surface-raised' : 'text-muted hover:text-white')}
+            title="Mensagens fixadas"
+          >
+            <Pin className="w-5 h-5" />
+          </button>
+          <AnimatePresence>
+            {pinsOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setPinsOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-11 z-40 w-[min(380px,calc(100vw-24px))] max-h-[60vh] overflow-y-auto rounded-xl border border-[var(--th-line)] bg-[var(--th-side)] shadow-2xl"
+                >
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--th-line)] sticky top-0 bg-[var(--th-side)]">
+                    <Pin className="w-4 h-4 text-[#b05cff]" />
+                    <span className="text-white text-sm font-semibold">Mensagens fixadas</span>
+                    <button onClick={() => setPinsOpen(false)} className="ml-auto text-muted hover:text-white" title="Fechar"><X className="w-4 h-4" /></button>
+                  </div>
+                  {pinsLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted" /></div>
+                  ) : pins.length === 0 ? (
+                    <p className="text-muted text-sm text-center px-6 py-8">
+                      Nenhuma mensagem fixada ainda.{canPin ? ' Passe o mouse numa mensagem e toque no alfinete.' : ''}
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-[var(--th-line)]">
+                      {pins.map(p => (
+                        <li key={p.id} className="px-4 py-3 flex gap-3 group/pin">
+                          <Avatar src={p.author.profile.avatarUrl} name={p.author.profile.displayName} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-white text-sm font-medium truncate">{p.author.profile.displayName}</span>
+                              <span className="text-muted text-[11px] shrink-0">{formatMessageDate(p.createdAt)}</span>
+                            </div>
+                            <p className="text-sm text-[#d6d0e0] break-words line-clamp-4">
+                              {p.content
+                                ? renderRich(p.content, emojiMap, myNames)
+                                : (p.attachments?.length ? `📎 ${p.attachments[0].fileName}` : '')}
+                            </p>
+                          </div>
+                          {canPin && (
+                            <button
+                              onClick={() => socket.emit('message:pin', { messageId: p.id, pinned: false })}
+                              className="text-muted hover:text-white self-start opacity-0 group-hover/pin:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+                              title="Desafixar"
+                            >
+                              <PinOff className="w-4 h-4" />
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
         {/* Membros no celular (a lista lateral some em telas pequenas) */}
         <button
           onClick={() => setMembersDrawer(true)}
-          className="ml-auto lg:hidden text-muted hover:text-white p-2 rounded-lg transition-colors"
+          className="lg:hidden text-muted hover:text-white p-2 rounded-lg transition-colors"
           title="Membros do servidor"
         >
           <Users className="w-5 h-5" />
@@ -487,6 +601,9 @@ export default function ChannelPage() {
                 onReply={() => setReplyTo(msg)}
                 onEdit={() => startEdit(msg)}
                 onDelete={() => handleDelete(msg)}
+                onPin={() => handlePin(msg)}
+                canPin={canPin}
+                canManage={canManageMessages}
                 onReaction={(emoji) => handleReaction(msg.id, emoji)}
                 editingId={editingId}
                 editContent={editContent}
@@ -728,7 +845,7 @@ export default function ChannelPage() {
 
 // ── Componente de mensagem ─────────────────────────────────────
 function MessageRow({
-  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction,
+  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction, onPin, canPin, canManage,
   editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
   groupedReactions, currentUserId, emojiMap, myNames, onImageClick,
 }: any) {
@@ -771,8 +888,10 @@ function MessageRow({
           <div className="flex items-baseline gap-2 mb-0.5">
             <span className="font-medium text-white text-sm">{msg.author.profile.displayName}</span>
             <span className="text-muted text-xs">{formatMessageDate(msg.createdAt)}</span>
+            {msg.pinned && !msg.deleted && <PinnedBadge />}
           </div>
         )}
+        {isConsecutive && msg.pinned && !msg.deleted && <div className="mb-0.5"><PinnedBadge /></div>}
 
         {/* Reply preview */}
         {msg.replyTo && (
@@ -873,15 +992,31 @@ function MessageRow({
         >
           <ActionBtn onClick={onReply} title="Responder"><Reply className="w-3.5 h-3.5" /></ActionBtn>
           <ActionBtn onClick={() => onReaction('👍')} title="Reagir"><Smile className="w-3.5 h-3.5" /></ActionBtn>
+          {canPin && !msg.pending && (
+            <ActionBtn onClick={onPin} title={msg.pinned ? 'Desafixar' : 'Fixar'}>
+              {msg.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+            </ActionBtn>
+          )}
           {isOwn && (
-            <>
-              <ActionBtn onClick={onEdit} title="Editar"><Edit2 className="w-3.5 h-3.5" /></ActionBtn>
-              <ActionBtn onClick={onDelete} title="Deletar" danger><Trash2 className="w-3.5 h-3.5" /></ActionBtn>
-            </>
+            <ActionBtn onClick={onEdit} title="Editar"><Edit2 className="w-3.5 h-3.5" /></ActionBtn>
+          )}
+          {(isOwn || canManage) && !msg.pending && (
+            <ActionBtn onClick={onDelete} title="Deletar" danger><Trash2 className="w-3.5 h-3.5" /></ActionBtn>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+function PinnedBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-[1px] text-[10px] font-medium"
+      style={{ background: 'rgba(176,92,255,0.16)', color: '#c9a8ff' }}
+    >
+      <Pin className="w-2.5 h-2.5" /> Fixada
+    </span>
   );
 }
 

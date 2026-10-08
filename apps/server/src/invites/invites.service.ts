@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { RolesService } from '../roles/roles.service';
 import { nanoid } from 'nanoid';
 import { MemberRole } from '@prisma/client';
 
@@ -9,6 +10,7 @@ export class InvitesService {
   constructor(
     private prisma: PrismaService,
     private serversService: ServersService,
+    private roles: RolesService,
   ) {}
 
   async create(serverId: string, userId: string, opts: {
@@ -16,10 +18,10 @@ export class InvitesService {
     expiresInHours?: number;
     guestAccess?: boolean;
   }) {
-    // Apenas admins e acima podem criar convites
-    await this.serversService.requireRole(serverId, userId, [
-      MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR,
-    ]);
+    // Dono/admin/moderador ou cargo com "Criar convite" (o @everyone não tem por padrão:
+    // convite também serve para pular o código de cadastro)
+    await this.roles.requireAllowed(serverId, userId, 'create_invite',
+      [MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR], 'Seu cargo não pode criar convites');
 
     const expiresAt = opts.expiresInHours
       ? new Date(Date.now() + opts.expiresInHours * 3600 * 1000)
@@ -78,9 +80,8 @@ export class InvitesService {
   }
 
   async getForServer(serverId: string, userId: string) {
-    await this.serversService.requireRole(serverId, userId, [
-      MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR,
-    ]);
+    await this.roles.requireAllowed(serverId, userId, 'create_invite',
+      [MemberRole.OWNER, MemberRole.ADMIN, MemberRole.MODERATOR]);
 
     return this.prisma.invite.findMany({
       where: { serverId },

@@ -62,6 +62,9 @@ interface VoiceStore {
   localMicEnabled: boolean;
   localCamEnabled: boolean;
   localScreenSharing: boolean;
+  // O que o cargo permite transmitir nesta sala (vem do token do servidor)
+  canSpeak: boolean;
+  canVideo: boolean;
   isConnected: boolean;
   // true enquanto o LiveKit tenta retomar a conexão sozinho (internet piscou)
   reconnecting: boolean;
@@ -73,7 +76,8 @@ interface VoiceStore {
   liveEndedNotice: string | null;
   clearLiveEndedNotice: () => void;
 
-  connect: (url: string, token: string, voiceRoomId: string, roomName: string, serverId?: string) => Promise<void>;
+  connect: (url: string, token: string, voiceRoomId: string, roomName: string, serverId?: string,
+    perms?: { speak?: boolean; video?: boolean }) => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMic: () => Promise<void>;
   toggleCam: () => Promise<void>;
@@ -384,6 +388,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   serverId: null,
   participants: new Map(),
   localMicEnabled: true,
+  canSpeak: true,
+  canVideo: true,
   localCamEnabled: false,
   localScreenSharing: false,
   localMusicSharing: false,
@@ -395,13 +401,17 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   liveEndedNotice: null,
   clearLiveEndedNotice: () => set({ liveEndedNotice: null }),
 
-  connect: async (url, token, voiceRoomId, roomName, serverId) => {
+  connect: async (url, token, voiceRoomId, roomName, serverId, perms) => {
     // Trocar de sala SEM sair da anterior deixava um "fantasma" conectado
     // na sala antiga (aparecia em 2-3 calls ao mesmo tempo).
     if (get().room) {
       try { await get().disconnect(); } catch { /* segue para a nova sala */ }
     }
-    set({ isConnecting: true, error: null });
+    set({
+      isConnecting: true, error: null,
+      canSpeak: perms?.speak !== false,
+      canVideo: perms?.video !== false,
+    });
 
     try {
       const ms = useMediaStore.getState();
@@ -567,11 +577,15 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       } catch { /* socket indisponível não impede a chamada */ }
 
       // Ativa microfone automaticamente; sem permissão, entra como ouvinte
-      try {
-        await buildAndPublishMic(room);
-        set({ localMicEnabled: true });
-      } catch {
-        set({ localMicEnabled: false });
+      if (!get().canSpeak) {
+        set({ localMicEnabled: false, liveEndedNotice: 'Seu cargo não permite falar neste servidor — você está só ouvindo.' });
+      } else {
+        try {
+          await buildAndPublishMic(room);
+          set({ localMicEnabled: true });
+        } catch {
+          set({ localMicEnabled: false });
+        }
       }
 
     } catch (err: any) {
@@ -622,6 +636,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   toggleMic: async () => {
     const { room, localMicEnabled } = get();
     if (!room) return;
+    if (!localMicEnabled && !get().canSpeak) {
+      set({ liveEndedNotice: 'Seu cargo não permite falar neste servidor — você está só ouvindo.' });
+      return;
+    }
     try {
       if (localMicEnabled) {
         await teardownMic(room);
@@ -647,6 +665,10 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     const { room } = get();
     if (!room) return;
     const newState = !room.localParticipant.isCameraEnabled;
+    if (newState && !get().canVideo) {
+      set({ liveEndedNotice: 'Seu cargo não permite câmera nem transmitir a tela neste servidor.' });
+      return;
+    }
     try {
       await room.localParticipant.setCameraEnabled(newState);
       set({ localCamEnabled: newState });
@@ -661,6 +683,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     if (get().localMusicSharing) {
       throw new Error('Pare a música da aba antes de transmitir a tela.');
     }
+    if (!get().canVideo) throw new Error('Seu cargo não permite câmera nem transmitir a tela neste servidor.');
     if (!quality) quality = useMediaStore.getState().screenQuality;
 
     // Configurações de qualidade para screen share
@@ -705,6 +728,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   startTabMusic: async () => {
     const { room, localScreenSharing, localMusicSharing } = get();
     if (!room || localMusicSharing) return;
+    if (!get().canVideo) throw new Error("Seu cargo não permite transmitir neste servidor.");
     // Uma "fonte de áudio de transmissão" por vez: a live já leva o som dela
     if (localScreenSharing) {
       throw new Error('Pare a transmissão de tela antes (ou marque "Compartilhar áudio" na própria live).');
@@ -852,7 +876,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   switchAudioInput: async (deviceId) => {
     useMediaStore.getState().setAudioInputId(deviceId);
     const { room, localMicEnabled } = get();
-    if (room && localMicEnabled) {
+    if (room && localMicEnabled && get().canSpeak) {
       // Reconstrói o pipeline do microfone com o novo dispositivo
       await teardownMic(room);
       try {

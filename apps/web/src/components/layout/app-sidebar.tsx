@@ -24,6 +24,7 @@ import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useVoiceStore } from '@/stores/voice.store';
 import api from '@/lib/api';
+import { useServerPerms } from '@/lib/perms';
 import { getSocket, joinServer } from '@/lib/socket';
 import { Avatar } from '@/components/ui/avatar';
 
@@ -42,6 +43,7 @@ export function AppSidebar() {
   const speakingIds = new Set<string>();
   voiceParticipants.forEach((p: any) => { if (p.isSpeaking) speakingIds.add(p.identity); });
   const serverId = params?.serverId as string;
+  const { can: canDo } = useServerPerms(serverId);
   const activeChannelId = params?.channelId as string;
   const activeRoomId = params?.roomId as string;
   const [server, setServer] = useState<Server | null>(null);
@@ -213,7 +215,7 @@ export function AppSidebar() {
               className="absolute left-2 right-2 top-[68px] z-50 rounded-xl border border-[var(--th-line-2)]
                          bg-[var(--th-panel)] shadow-2xl p-1.5 space-y-0.5"
             >
-              <ServerMenuItem
+              {canDo('create_invite') && <ServerMenuItem
                 icon={<UserPlus className="w-4 h-4" />}
                 label="Convidar para o servidor"
                 onClick={async () => {
@@ -227,7 +229,7 @@ export function AppSidebar() {
                   }
                   setTimeout(() => setMenuToast(null), 2500);
                 }}
-              />
+              />}
               <ServerMenuItem
                 icon={<Settings className="w-4 h-4" />}
                 label="Config. do servidor"
