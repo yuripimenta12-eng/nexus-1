@@ -55,25 +55,51 @@ export class MailService {
   }
 
   async sendPasswordReset(email: string, resetLink: string) {
-    const subject = 'Nexus — redefinição de senha';
-    const text = `Você pediu para redefinir sua senha no Nexus.\n\nAbra este link (válido por 1 hora):\n${resetLink}\n\nSe não foi você, ignore este e-mail.`;
-    // Mascote servido pelo próprio site (mesmo domínio do link de redefinição)
-    const mascote = `${new URL(resetLink).origin}/email/mascote-senha.png?v=2`;
-    // Tabela em vez de flex/grid: é o que os clientes de e-mail (Gmail, Outlook) respeitam
+    await this.sendBranded(email, {
+      subject: 'Nexus — redefinição de senha',
+      text: `Você pediu para redefinir sua senha no Nexus.\n\nAbra este link (válido por 1 hora):\n${resetLink}\n\nSe não foi você, ignore este e-mail.`,
+      lead: 'Você pediu para redefinir sua senha.',
+      button: 'Redefinir minha senha',
+      link: resetLink,
+      foot: 'O link vale por 1 hora. Se não foi você, ignore este e-mail.',
+      kind: 'reset',
+    });
+  }
+
+  async sendEmailVerification(email: string, verifyLink: string, name: string) {
+    await this.sendBranded(email, {
+      subject: 'Nexus — confirme seu e-mail',
+      text: `Oi, ${name}! Falta só confirmar seu e-mail para usar o Nexus.\n\nAbra este link (válido por 24 horas):\n${verifyLink}\n\nSe não foi você quem criou a conta, ignore este e-mail.`,
+      lead: `Oi, ${escapeHtml(name)}! Falta só confirmar seu e-mail para começar a usar o Nexus.`,
+      button: 'Confirmar meu e-mail',
+      link: verifyLink,
+      foot: 'O link vale por 24 horas. Se não foi você quem criou a conta, ignore este e-mail.',
+      kind: 'verificação',
+    });
+  }
+
+  // Modelo único dos e-mails do Nexus: texto + botão à esquerda, mascote à direita.
+  // Tabela em vez de flex/grid: é o que os clientes de e-mail (Gmail, Outlook) respeitam.
+  private async sendBranded(
+    email: string,
+    o: { subject: string; text: string; lead: string; button: string; link: string; foot: string; kind: string },
+  ) {
+    // Mascote servido pelo próprio site (mesmo domínio do link)
+    const mascote = `${new URL(o.link).origin}/email/mascote-senha.png?v=2`;
     const html = `
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
              style="max-width:540px;margin:0 auto;background:#120d1c;border-radius:16px;font-family:Arial,sans-serif;color:#e8e0f0">
         <tr>
           <td valign="middle" style="padding:24px 8px 24px 24px">
             <h2 style="margin:0 0 4px;color:#fff">Nexus <span style="color:#ff6a00">Link</span></h2>
-            <p style="color:#b3a8bf">Você pediu para redefinir sua senha.</p>
+            <p style="color:#b3a8bf">${o.lead}</p>
             <p style="margin:24px 0">
-              <a href="${resetLink}"
+              <a href="${o.link}"
                  style="display:inline-block;padding:13px 26px;border-radius:12px;background:#ff6a00;background:linear-gradient(110deg,#ff6a00,#7a2cff);color:#fff;text-decoration:none;font-weight:bold">
-                Redefinir minha senha
+                ${o.button}
               </a>
             </p>
-            <p style="color:#8a8095;font-size:12px;margin:0">O link vale por 1 hora. Se não foi você, ignore este e-mail.</p>
+            <p style="color:#8a8095;font-size:12px;margin:0">${o.foot}</p>
           </td>
           <td width="138" valign="bottom" align="right" style="padding:10px 16px 0 0">
             <img src="${mascote}" width="122" height="250" alt=""
@@ -83,13 +109,13 @@ export class MailService {
       </table>`;
 
     if (!this.configured) {
-      this.logger.warn(`[sem e-mail] Link de reset para ${email}: ${resetLink}`);
+      this.logger.warn(`[sem e-mail] Link de ${o.kind} para ${email}: ${o.link}`);
       return;
     }
     try {
-      if (this.brevoKey) await this.sendViaBrevo(email, subject, text, html);
-      else await this.sendViaSmtp(email, subject, text, html);
-      this.logger.log(`E-mail de reset enviado para ${email}`);
+      if (this.brevoKey) await this.sendViaBrevo(email, o.subject, o.text, html);
+      else await this.sendViaSmtp(email, o.subject, o.text, html);
+      this.logger.log(`E-mail de ${o.kind} enviado para ${email}`);
     } catch (err: any) {
       // Falha de envio não pode quebrar o fluxo (nem revelar nada ao cliente)
       this.logger.error(`Falha ao enviar e-mail para ${email}: ${err?.message}`);
@@ -141,4 +167,9 @@ function parseFrom(raw: string): { name: string; email: string } {
   const m = raw.match(/^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/);
   if (m) return { name: (m[1] || 'Nexus').trim(), email: m[2].trim() };
   return { name: 'Nexus', email: raw.trim() };
+}
+
+// Nomes escolhidos pelo usuário vão para o HTML do e-mail
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }

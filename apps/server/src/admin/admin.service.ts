@@ -1,4 +1,5 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
+import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -37,7 +38,7 @@ export class AdminService {
     ]);
 
     return {
-      users: users.map(u => { const { passwordHash, ...s } = u; return s; }),
+      users: users.map(u => toSafeUser(u)),
       total,
       page,
       pages: Math.ceil(total / limit),

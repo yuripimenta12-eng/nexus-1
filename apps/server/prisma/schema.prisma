@@ -12,34 +12,42 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  username     String   @unique
-  passwordHash String
-  isVerified   Boolean  @default(false)
-  isSuspended  Boolean  @default(false)
-  isAdmin      Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  email             String   @unique
+  username          String   @unique
+  passwordHash      String
+  isVerified        Boolean  @default(false)
+  isSuspended       Boolean  @default(false)
+  isAdmin           Boolean  @default(false)
+  // Verificação em duas etapas (TOTP). O segredo fica cifrado; os códigos de
+  // recuperação ficam só como hash (cada um vale uma vez).
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  twoFactorRecovery String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  profile         Profile?
-  sessions        Session[]
-  memberships     ServerMember[]
-  messages        Message[]
-  reactions       Reaction[]
-  sentInvites     Invite[]       @relation("InviteCreator")
-  blockedBy       Block[]        @relation("BlockedUser")
-  blocking        Block[]        @relation("BlockingUser")
-  reportsCreated  Report[]       @relation("Reporter")
-  reportsReceived Report[]       @relation("ReportedUser")
-  auditLogs       AuditLog[]     @relation("AuditActor")
-  callParticipants CallParticipant[]
-  passwordResets  PasswordReset[]
-  attachments     Attachment[]
-  directMessagesSent    DirectMessage[] @relation("DMSender")
-  directMessagesReceived DirectMessage[] @relation("DMReceiver")
-  friendRequestsSent     Friendship[]   @relation("FriendRequester")
-  friendRequestsReceived Friendship[]   @relation("FriendAddressee")
+  profile                Profile?
+  emailVerifications     EmailVerification[]
+  dmReactions            DirectMessageReaction[]
+  notificationMutes      NotificationMute[]
+  sessions               Session[]
+  memberships            ServerMember[]
+  messages               Message[]
+  reactions              Reaction[]
+  sentInvites            Invite[]                @relation("InviteCreator")
+  blockedBy              Block[]                 @relation("BlockedUser")
+  blocking               Block[]                 @relation("BlockingUser")
+  reportsCreated         Report[]                @relation("Reporter")
+  reportsReceived        Report[]                @relation("ReportedUser")
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  callParticipants       CallParticipant[]
+  passwordResets         PasswordReset[]
+  attachments            Attachment[]
+  directMessagesSent     DirectMessage[]         @relation("DMSender")
+  directMessagesReceived DirectMessage[]         @relation("DMReceiver")
+  friendRequestsSent     Friendship[]            @relation("FriendRequester")
+  friendRequestsReceived Friendship[]            @relation("FriendAddressee")
   pushSubscriptions      PushSubscription[]
 
   @@index([email])
@@ -66,16 +74,16 @@ model Friendship {
 }
 
 model Profile {
-  id          String      @id @default(cuid())
-  userId      String      @unique
-  displayName String
-  avatarUrl   String?
-  bannerUrl   String?
-  bannerColor String?     // gradiente hex "de,para" usado quando não há imagem de banner
-  bio         String?     @db.VarChar(300)
-  status      UserStatus  @default(ONLINE)
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  displayName  String
+  avatarUrl    String?
+  bannerUrl    String?
+  bannerColor  String? // gradiente hex "de,para" usado quando não há imagem de banner
+  bio          String?    @db.VarChar(300)
+  status       UserStatus @default(ONLINE)
   customStatus String?    @db.VarChar(128)
-  updatedAt   DateTime    @updatedAt
+  updatedAt    DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -106,12 +114,12 @@ model Session {
 }
 
 model PasswordReset {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -159,8 +167,8 @@ model Role {
   color       String   @default("#99aab5") @db.VarChar(16)
   hoist       Boolean  @default(false) // exibir membros separadamente
   mentionable Boolean  @default(false) // qualquer um pode @mencionar
-  permissions String   @default("[]")  @db.VarChar(4000)
-  position    Int      @default(0)     // maior = mais alto na hierarquia
+  permissions String   @default("[]") @db.VarChar(4000)
+  position    Int      @default(0) // maior = mais alto na hierarquia
   isDefault   Boolean  @default(false) // cargo @everyone (não deletável)
   createdAt   DateTime @default(now())
 
@@ -216,19 +224,19 @@ model RoleAssignment {
 }
 
 model ServerMember {
-  id       String     @id @default(cuid())
-  serverId String
-  userId   String
-  role     MemberRole @default(MEMBER)
-  nickname String?    @db.VarChar(64)
-  joinedAt DateTime   @default(now())
-  mutedBy  Boolean    @default(false)  // silenciado por admin (global na sala)
-  banned   Boolean    @default(false)
-  bannedAt DateTime?
+  id           String     @id @default(cuid())
+  serverId     String
+  userId       String
+  role         MemberRole @default(MEMBER)
+  nickname     String?    @db.VarChar(64)
+  joinedAt     DateTime   @default(now())
+  mutedBy      Boolean    @default(false) // silenciado por admin (global na sala)
+  banned       Boolean    @default(false)
+  bannedAt     DateTime?
   bannedReason String?
 
-  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server          Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleAssignments RoleAssignment[]
 
   @@unique([serverId, userId])
@@ -245,16 +253,16 @@ enum MemberRole {
 }
 
 model Channel {
-  id          String      @id @default(cuid())
-  serverId    String
-  name        String      @db.VarChar(64)
-  description String?     @db.VarChar(256)
-  type        ChannelType @default(TEXT)
-  position    Int         @default(0)
-  isPrivate   Boolean     @default(false)
-  slowModeSeconds Int     @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  serverId        String
+  name            String      @db.VarChar(64)
+  description     String?     @db.VarChar(256)
+  type            ChannelType @default(TEXT)
+  position        Int         @default(0)
+  isPrivate       Boolean     @default(false)
+  slowModeSeconds Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   server   Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
   messages Message[]
@@ -269,21 +277,21 @@ enum ChannelType {
 }
 
 model VoiceRoom {
-  id           String   @id @default(cuid())
-  serverId     String
-  name         String   @db.VarChar(64)
-  position     Int      @default(0)
-  maxUsers     Int      @default(25)
-  bitrate      Int      @default(64000)    // bps
-  livekitRoom  String   @unique            // nome da room no LiveKit
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  serverId    String
+  name        String   @db.VarChar(64)
+  position    Int      @default(0)
+  maxUsers    Int      @default(25)
+  bitrate     Int      @default(64000) // bps
+  livekitRoom String   @unique // nome da room no LiveKit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  server       Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  server       Server        @relation(fields: [serverId], references: [id], onDelete: Cascade)
   callSessions CallSession[]
   // Sala restrita: só quem tem um destes cargos (ou dono/admin) vê e entra.
   // Lista vazia = sala aberta a todos os membros.
-  allowedRoles Role[]         @relation("VoiceRoomAllowedRoles")
+  allowedRoles Role[]        @relation("VoiceRoomAllowedRoles")
 
   @@index([serverId])
   @@map("voice_rooms")
@@ -294,47 +302,101 @@ model VoiceRoom {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Message {
-  id        String      @id @default(cuid())
-  channelId String
-  authorId  String
-  content   String      @db.VarChar(4000)
-  replyToId String?
-  edited    Boolean     @default(false)
-  editedAt  DateTime?
-  deleted   Boolean     @default(false)
-  deletedAt DateTime?
-  createdAt DateTime    @default(now())
+  id         String    @id @default(cuid())
+  channelId  String
+  authorId   String
+  content    String    @db.VarChar(4000)
+  replyToId  String?
+  edited     Boolean   @default(false)
+  editedAt   DateTime?
+  deleted    Boolean   @default(false)
+  deletedAt  DateTime?
+  // Mensagem fixada no canal (permissão "Fixar mensagens")
+  pinned     Boolean   @default(false)
+  pinnedAt   DateTime?
+  pinnedById String?
+  createdAt  DateTime  @default(now())
 
-  channel     Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
-  replies     Message[]   @relation("MessageReplies")
+  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo     Message?     @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]    @relation("MessageReplies")
   reactions   Reaction[]
   attachments Attachment[]
 
   @@index([channelId, createdAt(sort: Desc)])
   @@index([authorId])
+  @@index([channelId, pinned])
   @@map("messages")
 }
 
 model DirectMessage {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   senderId   String
   receiverId String
-  content    String   @db.VarChar(4000)
-  read       Boolean  @default(false)
+  content    String    @db.VarChar(4000)
+  read       Boolean   @default(false)
   readAt     DateTime?
-  edited     Boolean  @default(false)
+  edited     Boolean   @default(false)
   editedAt   DateTime?
-  deleted    Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  deleted    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
 
-  sender   User @relation("DMSender",   fields: [senderId],   references: [id], onDelete: Cascade)
-  receiver User @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender      User                      @relation("DMSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User                      @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   attachments DirectMessageAttachment[]
+  reactions   DirectMessageReaction[]
 
   @@index([senderId, receiverId, createdAt(sort: Desc)])
   @@map("direct_messages")
+}
+
+// Reações (emoji) em mensagens diretas
+model DirectMessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String   @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  message DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("direct_message_reactions")
+}
+
+// Link de confirmação de e-mail (vale 24h, uso único)
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verifications")
+}
+
+// Silenciar um servidor inteiro ou um canal: sem som/aviso/notificação no celular
+// (o contador de não lidas continua). Exatamente um dos dois alvos é preenchido.
+model NotificationMute {
+  id        String   @id @default(cuid())
+  userId    String
+  serverId  String?
+  channelId String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serverId])
+  @@unique([userId, channelId])
+  @@index([userId])
+  @@map("notification_mutes")
 }
 
 model DirectMessageAttachment {
@@ -367,16 +429,16 @@ model Reaction {
 }
 
 model Attachment {
-  id        String   @id @default(cuid())
-  messageId String
+  id         String   @id @default(cuid())
+  messageId  String
   uploaderId String
-  url       String
-  fileName  String
-  fileSize  Int      // bytes
-  mimeType  String
-  width     Int?     // para imagens
-  height    Int?
-  createdAt DateTime @default(now())
+  url        String
+  fileName   String
+  fileSize   Int // bytes
+  mimeType   String
+  width      Int? // para imagens
+  height     Int?
+  createdAt  DateTime @default(now())
 
   message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   uploader User    @relation(fields: [uploaderId], references: [id])
@@ -394,13 +456,13 @@ model Invite {
   serverId    String
   creatorId   String
   code        String    @unique
-  maxUses     Int?      // null = ilimitado
+  maxUses     Int? // null = ilimitado
   uses        Int       @default(0)
   expiresAt   DateTime?
-  guestAccess Boolean   @default(false)  // permite entrar sem conta
+  guestAccess Boolean   @default(false) // permite entrar sem conta
   createdAt   DateTime  @default(now())
 
-  server  Server @relation(fields: [serverId],  references: [id], onDelete: Cascade)
+  server  Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
   creator User   @relation("InviteCreator", fields: [creatorId], references: [id])
 
   @@index([code])
@@ -418,7 +480,7 @@ model CallSession {
   startedAt   DateTime  @default(now())
   endedAt     DateTime?
 
-  voiceRoom    VoiceRoom        @relation(fields: [voiceRoomId], references: [id], onDelete: Cascade)
+  voiceRoom    VoiceRoom         @relation(fields: [voiceRoomId], references: [id], onDelete: Cascade)
   participants CallParticipant[]
 
   @@index([voiceRoomId])
@@ -429,7 +491,7 @@ model CallParticipant {
   id              String    @id @default(cuid())
   callSessionId   String
   userId          String
-  livekitIdentity String    // identidade no LiveKit
+  livekitIdentity String // identidade no LiveKit
   joinedAt        DateTime  @default(now())
   leftAt          DateTime?
   micEnabled      Boolean   @default(true)
@@ -449,34 +511,34 @@ model CallParticipant {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Block {
-  id          String   @id @default(cuid())
-  blockerId   String
-  blockedId   String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
 
   blocker User @relation("BlockingUser", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked User @relation("BlockedUser",  fields: [blockedId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
   @@map("blocks")
 }
 
 model Report {
-  id             String       @id @default(cuid())
-  reporterId     String
-  targetUserId   String?
+  id              String       @id @default(cuid())
+  reporterId      String
+  targetUserId    String?
   targetMessageId String?
-  targetServerId String?
-  reason         ReportReason
-  description    String?      @db.VarChar(1000)
-  status         ReportStatus @default(PENDING)
-  resolvedById   String?
-  resolvedAt     DateTime?
-  resolution     String?      @db.VarChar(500)
-  createdAt      DateTime     @default(now())
+  targetServerId  String?
+  reason          ReportReason
+  description     String?      @db.VarChar(1000)
+  status          ReportStatus @default(PENDING)
+  resolvedById    String?
+  resolvedAt      DateTime?
+  resolution      String?      @db.VarChar(500)
+  createdAt       DateTime     @default(now())
 
-  reporter   User    @relation("Reporter",     fields: [reporterId],   references: [id])
-  targetUser User?   @relation("ReportedUser", fields: [targetUserId], references: [id])
+  reporter     User    @relation("Reporter", fields: [reporterId], references: [id])
+  targetUser   User?   @relation("ReportedUser", fields: [targetUserId], references: [id])
   targetServer Server? @relation("ServerReports", fields: [targetServerId], references: [id])
 
   @@index([status])
@@ -508,14 +570,14 @@ model AuditLog {
   id         String   @id @default(cuid())
   serverId   String?
   actorId    String
-  action     String   // ex: "MEMBER_KICK", "CHANNEL_CREATE", "MESSAGE_DELETE"
-  targetType String?  // "USER" | "CHANNEL" | "MESSAGE" | ...
+  action     String // ex: "MEMBER_KICK", "CHANNEL_CREATE", "MESSAGE_DELETE"
+  targetType String? // "USER" | "CHANNEL" | "MESSAGE" | ...
   targetId   String?
-  meta       Json?    // dados extras (reason, before/after state)
+  meta       Json? // dados extras (reason, before/after state)
   createdAt  DateTime @default(now())
 
-  server Server?    @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  actor  User       @relation("AuditActor", fields: [actorId], references: [id])
+  server Server? @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  actor  User    @relation("AuditActor", fields: [actorId], references: [id])
 
   @@index([serverId, createdAt(sort: Desc)])
   @@index([actorId])

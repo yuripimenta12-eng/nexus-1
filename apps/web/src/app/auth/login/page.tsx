@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Loader2, LogIn, User, Mail, Download } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
+import { TwoFactorStep } from '@/components/auth/two-factor-step';
 
 // Instalador publicado nas Releases do GitHub; "latest" sempre aponta para a versão mais nova
 const DESKTOP_DOWNLOAD_URL =
@@ -27,8 +28,12 @@ export default function LoginPage() {
   const [error,    setError]    = useState('');
   const [invited,  setInvited]  = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const [notice, setNotice] = useState('');
   useEffect(() => {
     setInvited(!!localStorage.getItem('nexus_pending_invite'));
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('conta') === 'excluida') setNotice('Sua conta foi excluída. Seus dados foram apagados do Nexus.');
+    if (q.get('email') === 'confirmado') setNotice('E-mail confirmado! Agora é só entrar.');
     // Botão de download só fora do app de PC (depois de montar, sem divergir do HTML do servidor)
     setShowDownload(!isDesktopApp());
   }, []);
@@ -50,17 +55,24 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
   });
 
+  const [twoFactorTicket, setTwoFactorTicket] = useState<string | null>(null);
+
+  const goAfterLogin = () => {
+    const pending = localStorage.getItem('nexus_pending_invite');
+    if (pending) {
+      localStorage.removeItem('nexus_pending_invite');
+      router.push(`/invite/${pending}`);
+    } else {
+      router.push('/app');
+    }
+  };
+
   async function onSubmit(data: FormData) {
     setError('');
     try {
-      await login(data.email, data.password);
-      const pending = localStorage.getItem('nexus_pending_invite');
-      if (pending) {
-        localStorage.removeItem('nexus_pending_invite');
-        router.push(`/invite/${pending}`);
-      } else {
-        router.push('/app');
-      }
+      const r = await login(data.email, data.password);
+      if (r.twoFactorRequired && r.ticket) { setTwoFactorTicket(r.ticket); return; }
+      goAfterLogin();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao entrar. Tente novamente.');
     }
@@ -382,8 +394,15 @@ export default function LoginPage() {
             boxShadow: '0 35px 90px #0008, 0 0 40px #7a2cff22, 0 0 0 1px #ffffff05 inset',
           }}
         >
+          {/* Aviso depois de excluir a conta / confirmar o e-mail */}
+          {notice && (
+            <div style={{ marginBottom: 20, marginTop: 44, padding: '12px 14px', borderRadius: 12, background: 'rgba(66,230,164,0.10)', border: '1px solid rgba(66,230,164,0.35)', color: '#d9f5ea', fontSize: 13 }}>
+              {notice}
+            </div>
+          )}
+
           {/* Aviso de convite */}
-          {invited && (
+          {invited && !notice && (
             <div style={{ marginBottom: 20, marginTop: 44, padding: '12px 14px', borderRadius: 12, background: 'rgba(122,44,255,0.12)', border: '1px solid rgba(122,44,255,0.4)', color: '#eee6f7', fontSize: 13 }}>
               🎉 Você foi convidado! Entre com sua conta para participar — ou{' '}
               <Link href="/auth/register" style={{ color: '#ff9650', fontWeight: 700 }}>crie uma agora</Link>.
@@ -570,6 +589,14 @@ export default function LoginPage() {
           </p>
         </form>
       </section>
+
+      {twoFactorTicket && (
+        <TwoFactorStep
+          ticket={twoFactorTicket}
+          onDone={goAfterLogin}
+          onCancel={() => setTwoFactorTicket(null)}
+        />
+      )}
     </div>
   );
 }

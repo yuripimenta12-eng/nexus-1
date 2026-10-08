@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserStatus } from '@prisma/client';
@@ -13,8 +14,7 @@ export class UsersService {
       include: { profile: true },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
-    const { passwordHash, ...safe } = user;
-    return safe;
+    return toSafeUser(user);
   }
 
   // Perfil de OUTRA pessoa: só o que é público (sem e-mail, admin, suspensão etc.)
@@ -43,8 +43,7 @@ export class UsersService {
       include: { profile: true },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
-    const { passwordHash, ...safe } = user;
-    return safe;
+    return toSafeUser(user);
   }
 
   async searchUsers(query: string, excludeUserId: string) {
@@ -62,7 +61,7 @@ export class UsersService {
       include: { profile: { select: { displayName: true, avatarUrl: true, status: true } } },
     });
 
-    return users.map(({ passwordHash, ...u }) => u);
+    return users.map(u => toSafeUser(u));
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

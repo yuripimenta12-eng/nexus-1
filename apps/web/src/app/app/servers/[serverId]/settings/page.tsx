@@ -123,7 +123,7 @@ export default function ServerSettingsPage() {
   }, [serverId]);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
-  const [confirm, setConfirm] = useState<{ action: 'kick' | 'ban'; member: ServerMember } | null>(null);
+  const [confirm, setConfirm] = useState<{ action: 'kick' | 'ban' | 'transfer'; member: ServerMember } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const myRole: MemberRole = members.find(m => m.userId === user?.id)?.role || 'MEMBER';
@@ -189,6 +189,13 @@ export default function ServerSettingsPage() {
     const { action, member } = confirm;
     setBusy(member.userId);
     try {
+      if (action === 'transfer') {
+        await api.patch(`/servers/${serverId}/owner`, { newOwnerId: member.userId });
+        setMembers(prev => prev.map(x =>
+          x.userId === member.userId ? { ...x, role: 'OWNER' } : x.userId === user?.id ? { ...x, role: 'ADMIN' } : x));
+        notify(`${member.user.profile?.displayName || member.user.username} agora é o dono do servidor`);
+        return;
+      }
       await api.post(`/moderation/servers/${serverId}/${action}/${member.userId}`, {});
       setMembers(prev => prev.filter(x => x.userId !== member.userId));
       notify(action === 'kick' ? 'Membro expulso do servidor' : 'Membro banido do servidor');
@@ -438,6 +445,17 @@ export default function ServerSettingsPage() {
                       >
                         <Ban className="w-4 h-4" />
                       </button>
+                      {myRole === 'OWNER' && (
+                        <button
+                          onClick={() => setConfirm({ action: 'transfer', member: m })}
+                          disabled={isBusy}
+                          title="Tornar dono do servidor"
+                          className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#92879f]
+                                     hover:text-[#ffb648] hover:bg-[#21152c] transition-colors"
+                        >
+                          <Crown className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => { navigator.clipboard.writeText(m.userId); notify('ID copiado'); }}
                         title="Copiar ID do usuário"
@@ -479,13 +497,15 @@ export default function ServerSettingsPage() {
               className="bg-[var(--th-panel)] border border-[#392454] rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl"
             >
               <h3 className="font-bold text-lg mb-1">
-                {confirm.action === 'kick' ? 'Expulsar' : 'Banir'}{' '}
+                {confirm.action === 'kick' ? 'Expulsar' : confirm.action === 'ban' ? 'Banir' : 'Tornar dono'}{' '}
                 {confirm.member.user.profile?.displayName || confirm.member.user.username}?
               </h3>
               <p className="text-[#92879f] text-sm mb-6">
                 {confirm.action === 'kick'
                   ? 'A pessoa sai do servidor mas pode voltar com um novo convite.'
-                  : 'A pessoa é removida e não consegue mais entrar, mesmo com convite.'}
+                  : confirm.action === 'ban'
+                    ? 'A pessoa é removida e não consegue mais entrar, mesmo com convite.'
+                    : 'Essa pessoa vira a dona do servidor e você passa a ser admin. Só ela poderá devolver a posse.'}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -496,9 +516,10 @@ export default function ServerSettingsPage() {
                 </button>
                 <button
                   onClick={doConfirmedAction}
-                  className="px-4 py-2 rounded-xl bg-destructive hover:bg-red-600 text-white text-sm font-bold transition-colors"
+                  className={cn('px-4 py-2 rounded-xl text-white text-sm font-bold transition-colors',
+                    confirm.action === 'transfer' ? 'bg-[#c27c12] hover:bg-[#d98b14]' : 'bg-destructive hover:bg-red-600')}
                 >
-                  {confirm.action === 'kick' ? 'Expulsar' : 'Banir'}
+                  {confirm.action === 'kick' ? 'Expulsar' : confirm.action === 'ban' ? 'Banir' : 'Tornar dono'}
                 </button>
               </div>
             </motion.div>

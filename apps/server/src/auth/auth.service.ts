@@ -13,6 +13,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
+import { toSafeUser } from '../common/safe-user';
+import { TwoFactorService } from './two-factor.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -24,6 +26,7 @@ export class AuthService {
     private config: ConfigService,
     private redis: RedisService,
     private mailService: MailService,
+    private twoFactor: TwoFactorService,
   ) {}
 
   // ── Registro ─────────────────────────────────────────────────
@@ -80,7 +83,43 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
+    // Conta nova começa sem confirmação: manda o link (sem atrasar o cadastro)
+    void this.sendVerification(user.id).catch(() => { /* reenvio disponível no app */ });
+
     return { user: this.sanitizeUser(user), ...tokens };
+  }
+
+  // ── Confirmação de e-mail ─────────────────────────────────────
+  async sendVerification(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+    if (!user || user.isVerified) return { message: 'E-mail já confirmado' };
+
+    // Só o link mais recente vale
+    await this.prisma.emailVerification.deleteMany({ where: { userId, usedAt: null } });
+    const token = uuidv4() + uuidv4().replace(/-/g, '');
+    await this.prisma.emailVerification.create({
+      data: { userId, token, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+    });
+
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    await this.mailService.sendEmailVerification(
+      user.email,
+      `${appUrl}/auth/verify-email?token=${token}`,
+      user.profile?.displayName || user.username,
+    );
+    return { message: 'Enviamos um novo link para o seu e-mail' };
+  }
+
+  async verifyEmail(token: string) {
+    const v = await this.prisma.emailVerification.findUnique({ where: { token } });
+    if (!v || v.usedAt || v.expiresAt < new Date()) {
+      throw new BadRequestException('Link inválido ou expirado. Peça um novo no Nexus.');
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: v.userId }, data: { isVerified: true } }),
+      this.prisma.emailVerification.update({ where: { id: v.id }, data: { usedAt: new Date() } }),
+    ]);
+    return { message: 'E-mail confirmado' };
   }
 
   // ── Login ─────────────────────────────────────────────────────
@@ -96,10 +135,44 @@ export class AuthService {
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) throw new UnauthorizedException('Credenciais inválidas');
 
+    // 2FA ligado: a senha certa vira só um "bilhete" de 5 min; a sessão sai
+    // depois do código do app autenticador (loginWithTwoFactor)
+    if (user.twoFactorEnabled) {
+      const ticket = await this.jwtService.signAsync(
+        { sub: user.id, purpose: '2fa' },
+        { secret: this.twoFactorTicketSecret(), expiresIn: '5m' },
+      );
+      return { twoFactorRequired: true as const, ticket };
+    }
+
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     return { user: this.sanitizeUser(user), ...tokens };
+  }
+
+  async loginWithTwoFactor(ticket: string, code: string) {
+    let userId: string;
+    try {
+      const payload = await this.jwtService.verifyAsync(ticket, { secret: this.twoFactorTicketSecret() });
+      if (payload.purpose !== '2fa') throw new Error();
+      userId = payload.sub;
+    } catch {
+      throw new UnauthorizedException('O tempo para digitar o código acabou. Entre de novo com a senha.');
+    }
+    if (!(await this.twoFactor.verifyLoginCode(userId, code))) {
+      throw new UnauthorizedException('Código incorreto');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+    if (!user || user.isSuspended) throw new UnauthorizedException('Conta suspensa');
+
+    const tokens = await this.generateTokens(user.id, user.email);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+    return { user: this.sanitizeUser(user), ...tokens };
+  }
+
+  private twoFactorTicketSecret() {
+    return `${this.config.get<string>('JWT_ACCESS_SECRET')}:2fa-ticket`;
   }
 
   // ── Refresh de token ─────────────────────────────────────────
@@ -283,7 +356,6 @@ export class AuthService {
   }
 
   private sanitizeUser(user: any) {
-    const { passwordHash, ...safe } = user;
-    return safe;
+    return toSafeUser(user);
   }
 }

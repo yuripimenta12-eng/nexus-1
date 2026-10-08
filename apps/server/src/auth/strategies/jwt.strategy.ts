@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { toSafeUser } from '../../common/safe-user';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -22,7 +23,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     if (!user || user.isSuspended) throw new UnauthorizedException();
 
-    const { passwordHash, ...safeUser } = user;
-    return safeUser;
+    return toSafeUser(user);
   }
 }

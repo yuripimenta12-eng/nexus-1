@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { connectSocket } from '@/lib/socket';
 import { syncPush } from '@/lib/push';
+import { VerifyEmailGate } from '@/components/layout/verify-email-gate';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, hasHydrated, refreshUser } = useAuthStore();
+  const { isAuthenticated, isLoading, hasHydrated, refreshUser, user } = useAuthStore();
   const { mobileNavOpen, closeMobileNav, toggleMobileNav } = useUiStore();
 
   useEffect(() => {
@@ -43,6 +44,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => { closeMobileNav(); }, [pathname, closeMobileNav]);
 
   if (!isAuthenticated) return null;
+
+  // Conta nova sem e-mail confirmado (=== false: usuário salvo antigo sem o
+  // campo não é bloqueado; o refreshUser acima traz o valor real)
+  if (user && user.isVerified === false) return <VerifyEmailGate email={user.email} />;
 
   return (
     // 100dvh = altura REAL visível no celular (100vh esconde o rodapé atrás da

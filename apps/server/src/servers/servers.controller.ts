@@ -33,6 +33,15 @@ export class ServersController {
     return this.serversService.delete(id, userId);
   }
 
+  @Patch(':id/owner')
+  transferOwnership(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { newOwnerId: string },
+  ) {
+    return this.serversService.transferOwnership(id, userId, String(body?.newOwnerId || ''));
+  }
+
   @Delete(':id/leave')
   @HttpCode(HttpStatus.NO_CONTENT)
   leave(@Param('id') id: string, @CurrentUser('id') userId: string) {

@@ -9,6 +9,8 @@ export interface User {
   email: string;
   username: string;
   isAdmin: boolean;
+  isVerified?: boolean;        // e-mail confirmado
+  twoFactorEnabled?: boolean;  // verificação em duas etapas ligada
   profile: {
     displayName: string;
     avatarUrl: string | null;
@@ -29,7 +31,8 @@ interface AuthState {
   // guards de rota devem esperar por isso antes de redirecionar
   hasHydrated: boolean;
 
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ twoFactorRequired: boolean; ticket?: string }>;
+  loginTwoFactor: (ticket: string, code: string) => Promise<void>;
   register: (data: {
     displayName: string;
     username: string;
@@ -40,6 +43,14 @@ interface AuthState {
   refreshUser: () => Promise<void>;
   setUser: (user: User) => void;
   setAccessToken: (token: string) => void;
+}
+
+// Guarda os tokens e liga o socket depois de um login completo
+function startSession(set: (s: Partial<AuthState>) => void, data: any) {
+  localStorage.setItem('nexus_access_token', data.accessToken);
+  if (data.refreshToken) localStorage.setItem('nexus_refresh_token', data.refreshToken);
+  set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
+  connectSocket(data.accessToken);
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -55,12 +66,20 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const { data } = await api.post('/auth/login', { email, password });
-          localStorage.setItem('nexus_access_token', data.accessToken);
-          if (data.refreshToken) {
-            localStorage.setItem('nexus_refresh_token', data.refreshToken);
-          }
-          set({ user: data.user, accessToken: data.accessToken, isAuthenticated: true });
-          connectSocket(data.accessToken);
+          // 2FA ligado: ainda não há sessão, só o bilhete para a etapa do código
+          if (data?.twoFactorRequired) return { twoFactorRequired: true, ticket: data.ticket as string };
+          startSession(set, data);
+          return { twoFactorRequired: false };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      loginTwoFactor: async (ticket, code) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.post('/auth/login/2fa', { ticket, code });
+          startSession(set, data);
         } finally {
           set({ isLoading: false });
         }

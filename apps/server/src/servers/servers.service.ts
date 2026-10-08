@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from '../presence/presence.service';
@@ -130,6 +131,25 @@ export class ServersService {
     await this.requireRole(serverId, userId, [MemberRole.OWNER]);
 
     return this.prisma.server.delete({ where: { id: serverId } });
+  }
+
+  // Passa a posse do servidor para outro membro (o antigo dono vira admin)
+  async transferOwnership(serverId: string, userId: string, newOwnerId: string) {
+    await this.requireRole(serverId, userId, [MemberRole.OWNER]);
+    if (newOwnerId === userId) throw new BadRequestException('Você já é o dono');
+    const target = await this.checkMembership(serverId, newOwnerId);
+    if (!target || (target as any).banned) throw new NotFoundException('Essa pessoa não é membro do servidor');
+
+    await this.prisma.$transaction([
+      this.prisma.server.update({ where: { id: serverId }, data: { ownerId: newOwnerId } }),
+      this.prisma.serverMember.update({
+        where: { serverId_userId: { serverId, userId: newOwnerId } }, data: { role: MemberRole.OWNER },
+      }),
+      this.prisma.serverMember.update({
+        where: { serverId_userId: { serverId, userId } }, data: { role: MemberRole.ADMIN },
+      }),
+    ]);
+    return { message: 'Posse transferida' };
   }
 
   async leave(serverId: string, userId: string) {
