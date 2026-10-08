@@ -392,6 +392,7 @@ export default function DmPage() {
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#2a1f40]">
               <Search className="w-4 h-4 text-[#8a82a3]" />
               <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') setSearchOpen(false); }}
                 placeholder={`Buscar na conversa com ${name}`} maxLength={100}
                 className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#5d5674]" />
               <button onClick={() => setSearchOpen(false)} className="text-[#8a82a3] hover:text-white" title="Fechar"><X className="w-4 h-4" /></button>

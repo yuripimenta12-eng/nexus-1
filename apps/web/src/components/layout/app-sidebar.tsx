@@ -7,6 +7,7 @@ import {
   UserPlus, Bell, BellOff, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock,
 } from 'lucide-react';
 import { useMutes } from '@/lib/mutes';
+import { useSocketStore } from '@/stores/socket.store';
 import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
 // Fone mutado (ensurdecido): fone com risco, estilo Discord
@@ -662,13 +663,81 @@ function SectionHeader({
 
 function DMSidebar() {
   const { user } = useAuthStore();
+  const router = useRouter();
+  const params = useParams();
+  const activePartner = params?.partnerId as string | undefined;
+  const dmUnread = useSocketStore(s => s.dmUnread);
+  const markDmRead = useSocketStore(s => s.markDmRead);
+  const [convs, setConvs] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Conversas recentes (recarrega quando chega/sai mensagem)
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.get('/dms/conversations')
+      .then(({ data }) => { if (alive) setConvs(Array.isArray(data) ? data : []); })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoaded(true); });
+    load();
+    const socket = getSocket();
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const again = () => { clearTimeout(t); t = setTimeout(load, 400); };
+    socket.on('dm:new', again);
+    socket.on('dm:deleted', again);
+    return () => { alive = false; clearTimeout(t); socket.off('dm:new', again); socket.off('dm:deleted', again); };
+  }, []);
+
+  // Abrir a conversa zera o contador dela
+  useEffect(() => { if (activePartner) markDmRead(activePartner); }, [activePartner, markDmRead]);
+
   return (
     <div className="w-60 flex flex-col bg-background-secondary h-full shrink-0">
       <div className="h-12 flex items-center px-4 border-b border-border">
         <p className="text-white font-semibold text-sm">Mensagens Diretas</p>
       </div>
-      <div className="flex-1 overflow-y-auto py-2 px-2">
-        <p className="text-muted text-xs px-2 py-1">Nenhuma conversa ainda</p>
+      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+        <button
+          onClick={() => router.push('/app/me')}
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium text-[#cfc5d8] hover:bg-white/5 hover:text-white transition-colors"
+        >
+          <Users className="w-4 h-4" /> Amigos
+        </button>
+        <p className="text-[11px] font-bold tracking-[1.2px] text-[#a89cb4] px-2 pt-3 pb-1">CONVERSAS</p>
+        {loaded && convs.length === 0 && (
+          <p className="text-muted text-xs px-2 py-1">Nenhuma conversa ainda</p>
+        )}
+        {convs.map((c) => {
+          const p = c.partner;
+          const name = p?.profile?.displayName || p?.username || '?';
+          const unreadN = activePartner === p.id ? 0 : Math.max(dmUnread.get(p.id) ?? 0, c.unread ?? 0);
+          return (
+            <button
+              key={p.id}
+              onClick={() => router.push(`/app/dms/${p.id}`)}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors',
+                activePartner === p.id ? 'bg-white/10' : 'hover:bg-white/5',
+              )}
+            >
+              <div className="relative shrink-0">
+                <Avatar src={p?.profile?.avatarUrl} name={name} size="sm" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--th-side)]"
+                  style={{ background: STATUS_COLORS[p?.profile?.status || 'OFFLINE'] || '#4a4560' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-[13px] truncate', unreadN > 0 ? 'text-white font-bold' : 'text-[#d6d0e0] font-medium')}>{name}</p>
+                <p className="text-[11px] text-muted truncate">
+                  {c.lastMessage?.fromSelf ? 'Você: ' : ''}{c.lastMessage?.content}
+                </p>
+              </div>
+              {unreadN > 0 && (
+                <span className="shrink-0 text-[10px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center bg-[#ed4245] text-white">
+                  {unreadN > 99 ? '99+' : unreadN}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
       <div className="border-t border-border p-2 flex items-center gap-2">
         <Avatar src={user?.profile?.avatarUrl} name={user?.profile?.displayName || '?'} size="sm" />

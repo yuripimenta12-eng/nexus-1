@@ -1110,7 +1110,7 @@ function MessageRow({
       {!msg.deleted && (
         <div
           onClick={(e) => { e.stopPropagation(); setTouchOpen(false); }}
-          className={cn('message-actions flex items-start gap-0.5 mt-0.5 shrink-0', !touchOpen && '[@media(hover:none)]:hidden')}
+          className={cn('message-actions flex items-start gap-0.5 mt-0.5 shrink-0 transition-opacity', '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100', !touchOpen && '[@media(hover:none)]:hidden')}
         >
           <ActionBtn onClick={onReply} title="Responder"><Reply className="w-3.5 h-3.5" /></ActionBtn>
           <ActionBtn onClick={() => onReaction('👍')} title="Reagir"><Smile className="w-3.5 h-3.5" /></ActionBtn>
