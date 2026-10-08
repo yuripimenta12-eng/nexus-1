@@ -9,7 +9,8 @@ import { RolesModule } from '../roles/roles.module';
 
 @Module({
   imports: [
-    MulterModule.register({ storage: memoryStorage() }),
+    // Teto no recebimento: sem isso um envio gigante ia inteiro para a memória
+    MulterModule.register({ storage: memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1 } }),
     MessagesModule,
     GatewayModule,
     RolesModule,

@@ -21,6 +21,8 @@ import { MailModule } from './mail/mail.module';
 import { DmsModule } from './dms/dms.module';
 import { FriendsModule } from './friends/friends.module';
 import { PushModule } from './push/push.module';
+import { MutesModule } from './mutes/mutes.module';
+import { GifsModule } from './gifs/gifs.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -44,6 +46,8 @@ import { HealthController } from './health.controller';
     UploadModule,
     PresenceModule,
     GatewayModule,
+    MutesModule,
+    GifsModule,
     DmsModule,
     FriendsModule,
     RolesModule,

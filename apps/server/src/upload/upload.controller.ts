@@ -119,7 +119,8 @@ export class UploadController {
   ) {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
     // Confere acesso + cargo ANTES de gravar o arquivo
-    await this.messagesService.assertCanAttach(channelId, userId);
+    const isVoice = (file.mimetype || '').startsWith('audio/');
+    await this.messagesService.assertCanAttach(channelId, userId, isVoice);
     // Anexar a uma mensagem existente: só na PRÓPRIA mensagem, no mesmo canal
     if (messageId) {
       const target = await this.prisma.message.findUnique({ where: { id: messageId }, select: { authorId: true, channelId: true, deleted: true } });

@@ -46,9 +46,14 @@ export class UploadService {
     file: Express.Multer.File,
     folder: 'avatars' | 'attachments' | 'banners' | 'server-icons' | 'emojis',
   ): Promise<{ url: string; key: string }> {
+    if (!file?.buffer) throw new BadRequestException('Nenhum arquivo enviado');
+    // "audio/webm;codecs=opus" (gravador do navegador) → "audio/webm"
+    file.mimetype = (file.mimetype || '').split(';')[0].trim().toLowerCase();
     this.validateFile(file, folder);
 
-    const ext = file.originalname.split('.').pop();
+    // Extensão e nome vêm do usuário: só letras/números (nada de "../" ou aspas no cabeçalho)
+    const ext = ((file.originalname || '').split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+    const safeName = (file.originalname || 'arquivo').replace(/[^\w.\- ()À-ÿ]/g, '_').slice(0, 120);
     const key = `${folder}/${uuidv4()}.${ext}`;
     let buffer = file.buffer;
 
@@ -101,7 +106,8 @@ export class UploadService {
       Body: buffer,
       ContentType: file.mimetype,
       ...(this.useAcl ? { ACL: 'public-read' } : {}),
-      ContentDisposition: `attachment; filename="${file.originalname}"`,
+      // "attachment": o navegador baixa em vez de abrir como página (evita HTML hospedado)
+      ContentDisposition: `attachment; filename="${safeName.replace(/[^ -~]/g, '_')}"`,
     }).promise();
 
     return { url: `${this.publicUrl}/${key}`, key };
@@ -148,6 +154,10 @@ export class UploadService {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // Mensagens de voz e áudios
+        'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+        // Vídeos curtos
+        'video/mp4', 'video/webm',
       ];
       if (!allowedTypes.includes(file.mimetype)) {
         throw new BadRequestException('Tipo de arquivo não suportado');

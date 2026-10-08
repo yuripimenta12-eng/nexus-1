@@ -6,6 +6,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed...');
 
+  // Em produção nunca cria contas com as senhas de exemplo deste arquivo (o repositório é público)
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+    throw new Error('Seed em produção exige ADMIN_PASSWORD (e não cria a conta demo).');
+  }
+
   // Admin
   const adminPass = await argon2.hash(process.env.ADMIN_PASSWORD || 'Admin@123456');
   const admin = await prisma.user.upsert({
@@ -109,8 +114,7 @@ async function main() {
   }
 
   console.log('✅ Seed concluído!');
-  console.log('📧 Admin: admin@nexus.local / Admin@123456');
-  console.log('📧 Demo:  demo@nexus.local / Demo@123456');
+  console.log('📧 Contas de desenvolvimento criadas (admin e demo). Senhas: ver este arquivo.');
 }
 
 main()

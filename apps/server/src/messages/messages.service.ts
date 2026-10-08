@@ -5,6 +5,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { MemberRole } from '@prisma/client';
 import { PushService } from '../push/push.service';
 import { RolesService } from '../roles/roles.service';
+import { MutesService } from '../mutes/mutes.service';
 
 // Mesmas regras do DTO, valendo também para o tempo real (socket não passa pelo ValidationPipe)
 function cleanContent(raw: unknown, allowEmpty = false): string {
@@ -24,6 +25,7 @@ export class MessagesService {
     private serversService: ServersService,
     private push: PushService,
     private roles: RolesService,
+    private mutes: MutesService,
   ) {}
 
   async getMessages(channelId: string, userId: string, cursor?: string, limit?: number) {
@@ -55,10 +57,15 @@ export class MessagesService {
   }
 
   // Checagem antes de subir um anexo (para não gravar arquivo de quem não pode)
-  async assertCanAttach(channelId: string, userId: string) {
+  // Áudio gravado (mensagem de voz) usa a permissão própria; o resto, "Anexar arquivos"
+  async assertCanAttach(channelId: string, userId: string, voice = false) {
     const channel = await this.findChannelAndCheckAccess(channelId, userId);
     await this.roles.requirePermission(channel.serverId, userId, 'send_messages', 'Seu cargo não pode enviar mensagens neste servidor');
-    await this.roles.requirePermission(channel.serverId, userId, 'attach_files', 'Seu cargo não pode enviar arquivos neste servidor');
+    if (voice) {
+      await this.roles.requirePermission(channel.serverId, userId, 'send_voice_messages', 'Seu cargo não pode enviar mensagens de voz neste servidor');
+    } else {
+      await this.roles.requirePermission(channel.serverId, userId, 'attach_files', 'Seu cargo não pode enviar arquivos neste servidor');
+    }
     return channel;
   }
 
@@ -125,9 +132,13 @@ export class MessagesService {
       return names.some(n => low.includes('@' + n));
     });
     if (!mentioned.length) return;
+    // Quem silenciou o servidor ou o canal não recebe aviso no celular
+    const muted = await this.mutes.mutedAmong(mentioned.map(m => m.userId), channel.serverId, channel.id);
+    const targets = mentioned.filter(m => !muted.has(m.userId));
+    if (!targets.length) return;
 
     const author = message.author?.profile?.displayName || message.author?.username || 'Alguém';
-    this.push.notifyUsers(mentioned.map(m => m.userId), {
+    this.push.notifyUsers(targets.map(m => m.userId), {
       title: `${author} mencionou você em #${channel.name}`,
       body: message.content,
       url: `/app/servers/${channel.serverId}/channels/${channel.id}`,
@@ -227,6 +238,30 @@ export class MessagesService {
     const member = await this.serversService.checkMembership(msg.channel.serverId, userId);
     if (!member || (member as any).banned) throw new ForbiddenException('Sem acesso a esta mensagem');
     return msg;
+  }
+
+  // ── Busca no servidor ─────────────────────────────────────────
+  async searchServer(serverId: string, userId: string, q: string, channelId?: string) {
+    const member = await this.serversService.checkMembership(serverId, userId);
+    if (!member || member.banned) throw new ForbiddenException('Sem acesso a este servidor');
+    const term = typeof q === 'string' ? q.trim().slice(0, 100) : '';
+    if (term.length < 2) throw new BadRequestException('Digite pelo menos 2 letras');
+    if (channelId !== undefined && typeof channelId !== 'string') throw new BadRequestException('Canal inválido');
+    return this.prisma.message.findMany({
+      where: {
+        deleted: false,
+        content: { contains: term, mode: 'insensitive' },
+        channel: { serverId },
+        ...(channelId ? { channelId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      include: {
+        author: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } } },
+        channel: { select: { id: true, name: true } },
+        attachments: { select: { id: true, fileName: true, mimeType: true, url: true } },
+      },
+    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────

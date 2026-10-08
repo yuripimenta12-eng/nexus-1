@@ -335,6 +335,36 @@ export class VoiceService {
     return presence;
   }
 
+  // ── Chamada direta 1:1 (DM) ───────────────────────────────────
+  // Sala própria da dupla ("dm-<idA>-<idB>", ids em ordem): só quem recebe
+  // token aqui entra, e o token só sai para os dois da conversa.
+  async dmCallToken(userId: string, partnerId: string) {
+    const roomName = 'dm-' + [userId, partnerId].sort().join('-');
+    try {
+      await this.roomService.createRoom({ name: roomName, maxParticipants: 2, emptyTimeout: 60 });
+    } catch {
+      // Sala já existe — ok
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+    const at = new AccessToken(
+      this.config.get<string>('LIVEKIT_API_KEY', 'devkey'),
+      this.config.get<string>('LIVEKIT_API_SECRET', 'devsecret'),
+      { identity: userId, name: user?.profile?.displayName || user?.username || userId, ttl: '4h' },
+    );
+    at.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: true,
+      canPublishSources: [TrackSource.MICROPHONE, TrackSource.CAMERA, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO],
+      canSubscribe: true,
+    });
+    return {
+      token: await at.toJwt(),
+      livekitUrl: this.config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
+      roomName,
+    };
+  }
+
   // ── Kick de participante (admin) ──────────────────────────────
   async kickParticipant(voiceRoomId: string, targetUserId: string, requesterId: string) {
     const voiceRoom = await this.prisma.voiceRoom.findUnique({

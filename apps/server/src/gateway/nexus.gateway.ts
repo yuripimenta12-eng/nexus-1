@@ -10,7 +10,8 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, UseFilters } from '@nestjs/common';
+import { WsHttpExceptionFilter } from './ws-http.filter';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MessagesService } from '../messages/messages.service';
@@ -42,6 +43,7 @@ function checkRateLimit(socketId: string): boolean {
   return true;
 }
 
+@UseFilters(new WsHttpExceptionFilter())
 @WebSocketGateway({
   cors: {
     // Lê das variáveis de ambiente; fallback para localhost em dev.
@@ -376,6 +378,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @MessageBody() data: { status: 'ONLINE' | 'AWAY' | 'BUSY' },
   ) {
     const userId = client.data.userId;
+    if (!userId) throw new WsException('Não autenticado');
+    if (!['ONLINE', 'AWAY', 'BUSY', 'INVISIBLE'].includes(data?.status as any)) return;
     await this.redis.setUserStatus(userId, data.status);
 
     // Anuncia para todos os servidores do usuário
@@ -383,6 +387,28 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     rooms.forEach(room => {
       if (room.startsWith('server:')) {
         client.to(room).emit('user:status_changed', { userId, status: data.status });
+      }
+    });
+  }
+
+  // ── "Jogando …" (app de PC detecta o jogo aberto) ─────────────
+  @SubscribeMessage('user:activity')
+  async handleActivity(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { name?: string | null },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) throw new WsException('Não autenticado');
+    const raw = typeof data?.name === 'string' ? data.name : '';
+    // Só texto simples e curto (nome do jogo)
+    const name = raw.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 64) || null;
+    const prev = client.data.activity ?? null;
+    await this.presenceService.setActivity(userId, name);
+    if (prev === name) return; // renovação periódica: não precisa anunciar
+    client.data.activity = name;
+    Array.from(client.rooms).forEach(room => {
+      if (room.startsWith('server:')) {
+        client.to(room).emit('user:activity_changed', { userId, activity: name });
       }
     });
   }

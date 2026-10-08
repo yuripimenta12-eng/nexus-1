@@ -195,9 +195,12 @@ export class ServersService {
       members.map((m) => m.userId),
     );
 
+    const activities = await this.presence.getBulkActivity(members.map((m) => m.userId));
+
     return members.map(({ roleAssignments, ...m }) => ({
       ...m,
       status: statuses[m.userId] ?? 'OFFLINE',
+      activity: statuses[m.userId] && statuses[m.userId] !== 'OFFLINE' ? activities[m.userId] ?? null : null,
       roles: roleAssignments
         .map((a) => a.role)
         .sort((a, b) => b.position - a.position), // mais alto primeiro
