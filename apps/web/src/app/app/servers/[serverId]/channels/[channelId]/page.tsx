@@ -14,7 +14,7 @@ import { playMention } from '@/lib/sounds';
 import api from '@/lib/api';
 import { getSocket, trackChannel, untrackChannel, trackServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
-import { formatMessageDate, cn, isImageMime, formatFileSize } from '@/lib/utils';
+import { formatMessageDate, cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { MemberList } from '@/components/servers/member-list';
