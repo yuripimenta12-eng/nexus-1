@@ -294,7 +294,7 @@ export function PrivacySettings() {
           Usuários bloqueados
         </p>
         <p className="text-[#92879f] text-sm mb-4">
-          Pessoas bloqueadas não podem te enviar mensagens diretas. Para bloquear alguém,
+          Pessoas bloqueadas não podem te enviar mensagens diretas nem te ligar. Para bloquear alguém,
           use o menu do participante em uma chamada ou o perfil da pessoa.
         </p>
 

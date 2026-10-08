@@ -180,7 +180,7 @@ export default function SettingsPage() {
 
       {/* Mascote da seção, com luzes pulsando atrás */}
       <div
-        className="hidden xl:block fixed right-[3vw] z-0 pointer-events-none"
+        className="hidden min-[1680px]:block fixed right-[3vw] z-0 pointer-events-none"
         // a arte da "Minha Conta" é cortada reta na barriga — afunda mais pra esconder o corte
         style={{ bottom: activeSection === 'profile' ? -46 : -16 }}
         aria-hidden
@@ -225,7 +225,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 md:p-8 max-w-2xl relative">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 md:p-8 max-w-2xl relative z-10">
         {/* Toast de sucesso */}
         {saveSuccess && (
           <div className="fixed top-4 right-4 bg-success/90 text-white px-4 py-2 rounded-lg
@@ -290,11 +290,10 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <ChangePassword />
-
-            <TwoFactorSettings />
-
-            <DeleteAccount />
+            <p className="text-[13px] text-[#92879f]">
+              Senha, verificação em duas etapas e exclusão da conta ficam em{' '}
+              <button onClick={() => setActiveSection('privacy')} className="text-[#c9a8ff] hover:underline font-medium">Privacidade &amp; Segurança</button>.
+            </p>
           </div>
         )}
 
@@ -326,8 +325,14 @@ export default function SettingsPage() {
 
         {activeSection === 'privacy' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white">Privacidade & Segurança</h2>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Privacidade & Segurança</h2>
+              <p className="text-[#92879f] text-sm mt-1">Proteja sua conta e controle quem fala com você.</p>
+            </div>
+            <ChangePassword />
+            <TwoFactorSettings />
             <PrivacySettings />
+            <DeleteAccount />
           </div>
         )}
       </div>

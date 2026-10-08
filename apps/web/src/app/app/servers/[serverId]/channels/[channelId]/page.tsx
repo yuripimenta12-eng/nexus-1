@@ -209,13 +209,21 @@ export default function ChannelPage() {
 
   // Nomes dos membros (para "Fulano está digitando..." e destacar menções)
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  const [memberColors, setMemberColors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}/members`)
       .then(({ data }) => {
         const map: Record<string, string> = {};
-        data.forEach((m: any) => { map[m.userId] = m.user?.profile?.displayName || m.user?.username || ''; });
+        const colors: Record<string, string> = {};
+        data.forEach((m: any) => {
+          map[m.userId] = m.user?.profile?.displayName || m.user?.username || '';
+          // Nome na cor do cargo mais alto (como na lista de membros)
+          const top = m.roles?.[0];
+          if (top?.color && top.color !== '#99aab5') colors[m.userId] = top.color;
+        });
         setMemberNames(map);
+        setMemberColors(colors);
       })
       .catch(() => {});
   }, [serverId]);
@@ -703,14 +711,27 @@ export default function ChannelPage() {
             />
           </div>
         ) : (
-          messages.map((msg, i) => {
+          <>
+          {messages.length < 50 && (
+            <div className="px-2 pt-6 pb-4 mb-2 border-b border-[var(--th-line)]">
+              <div className="w-14 h-14 rounded-2xl grid place-items-center text-3xl font-black text-white mb-3"
+                style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>#</div>
+              <h3 className="text-white text-2xl font-extrabold">Bem-vindo(a) ao #{channelName || 'canal'}!</h3>
+              <p className="text-[#a99cb8] text-sm mt-1">Este é o começo do canal #{channelName || 'canal'}.</p>
+            </div>
+          )}
+          {messages.map((msg, i) => {
             const isOwn = msg.authorId === user?.id;
-            const isConsecutive = i > 0 && messages[i - 1].authorId === msg.authorId &&
-              new Date(msg.createdAt).getTime() - new Date(messages[i - 1].createdAt).getTime() < 5 * 60 * 1000;
+            const prev = messages[i - 1];
+            const newDay = !prev || new Date(prev.createdAt).toDateString() !== new Date(msg.createdAt).toDateString();
+            const isConsecutive = !!prev && !newDay && prev.authorId === msg.authorId &&
+              new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000;
 
             return (
+              <div key={msg.id}>
+              {newDay && <DayDivider date={msg.createdAt} />}
               <MessageRow
-                key={msg.id}
+                nameColor={memberColors[msg.authorId]}
                 msg={msg}
                 isOwn={isOwn}
                 isConsecutive={isConsecutive}
@@ -733,8 +754,10 @@ export default function ChannelPage() {
                 myNames={myNames}
                 onImageClick={setLightbox}
               />
+              </div>
             );
-          })
+          })}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -978,7 +1001,7 @@ export default function ChannelPage() {
 
 // ── Componente de mensagem ─────────────────────────────────────
 function MessageRow({
-  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction, onPin, canPin, canManage, flash,
+  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction, onPin, canPin, canManage, flash, nameColor,
   editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
   groupedReactions, currentUserId, emojiMap, myNames, onImageClick,
 }: any) {
@@ -997,8 +1020,8 @@ function MessageRow({
       id={`msg-${msg.id}`}
       onClick={onRowTap}
       className={cn(
-        'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40 transition-colors duration-500',
-        !isConsecutive && 'mt-4',
+        'message-row group flex gap-3 px-2 py-[3px] rounded-lg hover:bg-white/[0.03] transition-colors duration-300',
+        !isConsecutive && 'mt-[14px]',
         mentioned && 'border-l-2',
         touchOpen && 'bg-surface/40',
         flash && '!bg-accent/15',
@@ -1021,8 +1044,10 @@ function MessageRow({
         {/* Autor + data */}
         {!isConsecutive && (
           <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="font-medium text-white text-sm">{msg.author.profile.displayName}</span>
-            <span className="text-muted text-xs">{formatMessageDate(msg.createdAt)}</span>
+            <span className="font-semibold text-[15px] hover:underline cursor-default" style={{ color: nameColor || '#f3eefa' }}>
+              {msg.author.profile.displayName}
+            </span>
+            <span className="text-[#7e7390] text-[11px]">{formatMessageDate(msg.createdAt)}</span>
             {msg.pinned && !msg.deleted && <PinnedBadge />}
           </div>
         )}
@@ -1030,10 +1055,10 @@ function MessageRow({
 
         {/* Reply preview */}
         {msg.replyTo && (
-          <div className="flex items-center gap-1.5 mb-1 text-muted text-xs">
-            <Reply className="w-3 h-3" />
-            <span className="text-accent font-medium">{msg.replyTo.author.profile.displayName}</span>
-            <span className="truncate">{msg.replyTo.content.slice(0, 60)}</span>
+          <div className="flex items-center gap-1.5 mb-1 text-[12.5px] text-[#a99cb8] min-w-0 max-w-full w-fit rounded-md pl-2 pr-2.5 py-0.5 border-l-2 border-[#7a2cff] bg-white/[0.03]">
+            <Reply className="w-3 h-3 shrink-0 text-[#7e7390]" />
+            <span className="font-semibold text-[#c9a8ff] shrink-0">@{msg.replyTo.author.profile.displayName}</span>
+            <span className="truncate opacity-90">{msg.replyTo.content.slice(0, 90)}</span>
           </div>
         )}
 
@@ -1061,7 +1086,7 @@ function MessageRow({
           <GifView url={msg.content.trim()} onClick={() => onImageClick?.(msg.content.trim())} />
         ) : !msg.deleted && !msg.content && msg.attachments?.length ? null : (
           <p className={cn(
-            'text-sm leading-relaxed break-words',
+            'text-[15px] leading-[1.45] text-[#e6dfee] break-words whitespace-pre-wrap',
             msg.deleted && 'text-muted italic',
             msg.pending && 'opacity-60',
           )}>
@@ -1127,6 +1152,23 @@ function MessageRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Divisória "Hoje / Ontem / 12 de outubro" entre dias diferentes
+function DayDivider({ date }: { date: string }) {
+  const d = new Date(date);
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  const label = d.toDateString() === today.toDateString() ? 'Hoje'
+    : d.toDateString() === yesterday.toDateString() ? 'Ontem'
+    : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  return (
+    <div className="flex items-center gap-3 my-4 px-2" role="separator">
+      <div className="flex-1 h-px bg-[var(--th-line)]" />
+      <span className="text-[11px] font-bold text-[#8a7f98] uppercase tracking-wider">{label}</span>
+      <div className="flex-1 h-px bg-[var(--th-line)]" />
     </div>
   );
 }

@@ -2,12 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Server, Flag, Activity, Shield, Search, Ban, CheckCircle } from 'lucide-react';
+import { Users, Server, Flag, Activity, Shield, Search, CheckCircle, Loader2, ShieldCheck, MailCheck } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { cn, formatRelativeDate } from '@/lib/utils';
+
+// Textos em português para status e motivos que vêm do servidor em inglês
+const REPORT_STATUS: Record<string, { label: string; cls: string }> = {
+  PENDING: { label: 'Pendente', cls: 'bg-warning/10 text-warning' },
+  RESOLVED: { label: 'Resolvida', cls: 'bg-success/10 text-success' },
+  DISMISSED: { label: 'Dispensada', cls: 'bg-white/5 text-muted' },
+  REVIEWING: { label: 'Em análise', cls: 'bg-accent/10 text-accent' },
+};
+const REPORT_REASON: Record<string, string> = {
+  SPAM: 'Spam', HARASSMENT: 'Assédio', HATE: 'Discurso de ódio', HATE_SPEECH: 'Discurso de ódio',
+  EXPLICIT_CONTENT: 'Conteúdo adulto', VIOLENCE: 'Violência', SCAM: 'Golpe', IMPERSONATION: 'Se passando por outra pessoa',
+  OTHER: 'Outro',
+};
+const isRemoved = (u: any) => typeof u?.email === 'string' && u.email.endsWith('@removido.nexus.invalid');
+
+function Loading() {
+  return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted" /></div>;
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -51,7 +69,7 @@ export default function AdminPage() {
   });
 
   const suspendMutation = useMutation({
-    mutationFn: ({ id, suspend }: { id: string; suspend: boolean }) =>
+    mutationFn: ({ id, suspend }: { id: string; suspend: boolean; name?: string }) =>
       api.post(`/admin/users/${id}/${suspend ? 'suspend' : 'unsuspend'}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
@@ -75,10 +93,16 @@ export default function AdminPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="h-14 md:h-12 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-border bg-background-secondary shrink-0">
+      <div className="h-14 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-border bg-background-secondary shrink-0">
         <MobileMenuButton />
-        <Shield className="w-5 h-5 text-accent" />
-        <h1 className="text-white font-semibold">Painel Administrativo</h1>
+        <span className="w-8 h-8 rounded-lg grid place-items-center text-white"
+          style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
+          <Shield className="w-4 h-4" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-white font-bold leading-tight">Painel do dono</h1>
+          <p className="text-[11px] text-muted leading-tight">Visão geral e moderação do Nexus</p>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -103,6 +127,7 @@ export default function AdminPage() {
         {/* Conteúdo */}
         <div className="flex-1 min-h-0 overflow-auto p-3 md:p-6">
           {/* Métricas */}
+          {tab === 'metrics' && !metrics && <Loading />}
           {tab === 'metrics' && metrics && (
             <div>
               <h2 className="text-white font-semibold text-lg mb-4">Visão Geral</h2>
@@ -174,32 +199,58 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
+                    {!users && (
+                      <tr><td colSpan={5}><Loading /></td></tr>
+                    )}
                     {users?.users?.map((u: any) => (
                       <tr key={u.id} className="hover:bg-surface/50 transition-colors">
                         <td className="px-4 py-3">
-                          <div>
-                            <p className="text-white font-medium">{u.profile?.displayName || u.username}</p>
-                            <p className="text-muted text-xs">@{u.username}</p>
+                          <div className="flex items-center gap-2.5">
+                            {u.profile?.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={u.profile.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <span className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-black text-white shrink-0"
+                                style={{ background: 'linear-gradient(135deg,#7c5af0,#b142f5)' }}>
+                                {(u.profile?.displayName || u.username || '?').slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-white font-medium flex items-center gap-1.5">
+                                {u.profile?.displayName || u.username}
+                                {u.twoFactorEnabled && <span title="Verificação em duas etapas ligada"><ShieldCheck className="w-3.5 h-3.5 text-success" /></span>}
+                                {u.isVerified && !isRemoved(u) && <span title="E-mail confirmado"><MailCheck className="w-3.5 h-3.5 text-accent-blue" /></span>}
+                              </p>
+                              <p className="text-muted text-xs">@{u.username}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted">{u.email}</td>
+                        <td className="px-4 py-3 text-muted">{isRemoved(u) ? '—' : u.email}</td>
                         <td className="px-4 py-3">
                           <span className={cn(
                             'text-xs px-2 py-0.5 rounded-full font-medium',
-                            u.isSuspended
+                            isRemoved(u)
+                              ? 'bg-white/5 text-muted'
+                              : u.isSuspended
                               ? 'bg-destructive/10 text-destructive'
                               : u.isAdmin
                                 ? 'bg-accent/10 text-accent'
                                 : 'bg-success/10 text-success',
                           )}>
-                            {u.isSuspended ? 'Suspenso' : u.isAdmin ? 'Admin' : 'Ativo'}
+                            {isRemoved(u) ? 'Conta excluída' : u.isSuspended ? 'Suspenso' : u.isAdmin ? 'Admin' : 'Ativo'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-muted">{u._count?.memberships ?? 0}</td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => suspendMutation.mutate({ id: u.id, suspend: !u.isSuspended })}
-                            disabled={u.id === user.id}
+                          {!isRemoved(u) && <button
+                            onClick={() => {
+                              const nome = u.profile?.displayName || u.username;
+                              const ok = window.confirm(u.isSuspended
+                                ? `Reativar a conta de ${nome}?`
+                                : `Suspender ${nome}? A pessoa não consegue mais entrar até ser reativada.`);
+                              if (ok) suspendMutation.mutate({ id: u.id, suspend: !u.isSuspended });
+                            }}
+                            disabled={u.id === user.id || suspendMutation.isPending}
                             className={cn(
                               'text-xs px-3 py-1 rounded-md transition-colors disabled:opacity-30',
                               u.isSuspended
@@ -208,12 +259,15 @@ export default function AdminPage() {
                             )}
                           >
                             {u.isSuspended ? 'Ativar' : 'Suspender'}
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {users && !users.users?.length && (
+                  <p className="text-muted text-sm text-center py-8">Ninguém encontrado</p>
+                )}
               </div>
             </div>
           )}
@@ -234,6 +288,9 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
+                    {!serversData && (
+                      <tr><td colSpan={5}><Loading /></td></tr>
+                    )}
                     {serversData?.servers?.map((s: any) => (
                       <tr key={s.id} className="hover:bg-surface/50 transition-colors">
                         <td className="px-4 py-3">
@@ -259,7 +316,7 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
-                {!serversData?.servers?.length && (
+                {serversData && !serversData.servers?.length && (
                   <p className="text-muted text-sm text-center py-8">Nenhum servidor ainda</p>
                 )}
               </div>
@@ -271,6 +328,7 @@ export default function AdminPage() {
             <div>
               <h2 className="text-white font-semibold text-lg mb-4">Auditoria</h2>
               <div className="space-y-2">
+                {!logsData && <Loading />}
                 {logsData?.logs?.map((l: any) => (
                   <div key={l.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border">
                     <Shield className="w-4 h-4 text-accent shrink-0" />
@@ -284,7 +342,7 @@ export default function AdminPage() {
                     <span className="text-muted text-xs shrink-0">{formatRelativeDate(l.createdAt)}</span>
                   </div>
                 ))}
-                {!logsData?.logs?.length && (
+                {logsData && !logsData.logs?.length && (
                   <p className="text-muted text-sm text-center py-8">
                     Nenhum registro ainda — ações de moderação (suspender, banir, kick) aparecem aqui.
                   </p>
@@ -298,6 +356,7 @@ export default function AdminPage() {
             <div>
               <h2 className="text-white font-semibold text-lg mb-4">Denúncias</h2>
               <div className="space-y-3">
+                {!reports && <Loading />}
                 {reports?.reports?.map((r: any) => (
                   <div key={r.id} className="p-4 rounded-xl bg-surface border border-border">
                     <div className="flex items-start justify-between gap-3">
@@ -305,17 +364,16 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className={cn(
                             'text-xs px-2 py-0.5 rounded-full font-medium',
-                            r.status === 'PENDING' ? 'bg-warning/10 text-warning' :
-                            r.status === 'RESOLVED' ? 'bg-success/10 text-success' :
-                            'bg-muted/10 text-muted',
+                            (REPORT_STATUS[r.status] || REPORT_STATUS.DISMISSED).cls,
                           )}>
-                            {r.status}
+                            {REPORT_STATUS[r.status]?.label || r.status}
                           </span>
-                          <span className="text-muted text-xs">{r.reason}</span>
+                          <span className="text-muted text-xs">{REPORT_REASON[r.reason] || r.reason}</span>
+                          <span className="text-muted text-xs">· {formatRelativeDate(r.createdAt)}</span>
                         </div>
                         <p className="text-white text-sm">{r.description || 'Sem descrição'}</p>
                         <p className="text-muted text-xs mt-1">
-                          Por <span className="text-muted-foreground">{r.reporter.profile?.displayName}</span>
+                          Por <span className="text-muted-foreground">{r.reporter?.profile?.displayName || r.reporter?.username || 'alguém'}</span>
                           {' '}→ <span className="text-muted-foreground">{r.targetUser?.profile?.displayName || 'Alvo desconhecido'}</span>
                         </p>
                       </div>
@@ -338,7 +396,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
-                {!reports?.reports?.length && (
+                {reports && !reports.reports?.length && (
                   <p className="text-muted text-sm text-center py-8">Nenhuma denúncia pendente</p>
                 )}
               </div>
@@ -352,9 +410,11 @@ export default function AdminPage() {
 
 function MetricCard({ label, value, icon, color }: any) {
   return (
-    <div className="p-5 rounded-xl bg-surface border border-border">
-      <div className={cn('mb-3', color)}>{icon}</div>
-      <p className="text-3xl font-bold text-white">{value?.toLocaleString()}</p>
+    <div className="relative p-5 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-[#4a3566] transition-colors">
+      <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-[0.07] group-hover:opacity-[0.12] transition-opacity"
+        style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }} />
+      <div className={cn('mb-3 w-9 h-9 rounded-xl grid place-items-center bg-white/5', color)}>{icon}</div>
+      <p className="text-3xl font-extrabold text-white tabular-nums">{(value ?? 0).toLocaleString('pt-BR')}</p>
       <p className="text-muted text-sm mt-1">{label}</p>
     </div>
   );
