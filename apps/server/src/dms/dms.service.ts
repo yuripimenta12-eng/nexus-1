@@ -333,13 +333,22 @@ export class DmsService {
     await this.assertCanMessage(userId, partnerId);
     const call = await this.voice.dmCallToken(userId, partnerId);
     const me = await this.prisma.user.findUnique({ where: { id: userId }, select: SENDER_SELECT.select });
+    const displayName = me?.profile?.displayName || me?.username || 'Alguém';
     this.gateway.emitToUser(partnerId, 'dm:call:ring', {
       from: {
         id: userId,
         username: me?.username,
-        displayName: me?.profile?.displayName || me?.username,
+        displayName,
         avatarUrl: me?.profile?.avatarUrl ?? null,
       },
+    });
+    // Nexus fechado no celular: aviso de chamada (abre a conversa)
+    this.push.notifyUsers([partnerId], {
+      title: `📞 ${displayName} está ligando`,
+      body: 'Toque para abrir a conversa e atender',
+      url: `/app/dms/${userId}`,
+      tag: `call:${userId}`,
+      icon: me?.profile?.avatarUrl || undefined,
     });
     return call;
   }

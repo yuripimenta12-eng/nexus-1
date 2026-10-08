@@ -573,7 +573,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       // permissão do navegador pode ficar pendente por tempo indeterminado
       // e não pode segurar a entrada na sala (chat/presença).
       try {
-        joinVoiceRoom(voiceRoomId, serverId);
+        // Chamada de DM ("dm:<id>") não é sala de servidor: sem presença por socket
+        if (!voiceRoomId.startsWith("dm:")) joinVoiceRoom(voiceRoomId, serverId);
       } catch { /* socket indisponível não impede a chamada */ }
 
       // Ativa microfone automaticamente; sem permissão, entra como ouvinte
@@ -601,7 +602,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     if (room) {
       await room.disconnect();
     }
-    if (voiceRoomId) {
+    if (voiceRoomId && !voiceRoomId.startsWith("dm:")) {
       try {
         leaveVoiceRoom();
       } catch { /* ok */ }
@@ -609,7 +610,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     // Desliga os amplificadores de transmissão (>100%) para não vazar nós órfãos
     streamBoosts.forEach((_, sid) => removeStreamBoost(sid));
     // Limpa o estado "ensurdecido" no servidor ao sair da sala
-    if (deafened && voiceRoomId) {
+    if (deafened && voiceRoomId && !voiceRoomId.startsWith("dm:")) {
       try { getSocket().emit('voice:deafen', { voiceRoomId, serverId: get().serverId, deafened: false }); } catch { /* ok */ }
     }
     deafened = false;
@@ -846,7 +847,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     get().applyOutputVolume();
     // Avisa a sala e as sidebars (ícone de fone mutado ao lado do nome)
     const { voiceRoomId, serverId } = get() as any;
-    if (voiceRoomId) {
+    if (voiceRoomId && serverId) {
       try {
         getSocket().emit('voice:deafen', { voiceRoomId, serverId, deafened });
       } catch { /* sem socket agora — o polling corrige depois */ }

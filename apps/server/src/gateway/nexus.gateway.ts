@@ -118,6 +118,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
       userSocketMap.set(payload.sub, client.id);
       await this.redis.setUserOnline(payload.sub, client.id);
+      // Sala pessoal: DMs, chamadas e avisos chegam a TODOS os aparelhos abertos
+      await client.join(`user:${payload.sub}`);
 
       this.logger.log(`Cliente conectado: ${payload.sub} (${client.id})`);
 
@@ -128,6 +130,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       client.on('disconnecting', () => {
         const uid = client.data.userId;
         if (!uid) return;
+        // Ainda tem outro aparelho conectado: continua online
+        if (this.otherDevices(uid, client.id).length) return;
         for (const room of client.rooms) {
           if (room !== client.id) {
             client.to(room).emit('user:offline', { userId: uid });
@@ -149,9 +153,15 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     const userId = client.data.userId;
     if (!userId) return;
 
-    userSocketMap.delete(userId);
     messageRateMap.delete(client.id);
-    await this.redis.setUserOffline(userId);
+    const others = this.otherDevices(userId, client.id);
+    if (others.length) {
+      // Fechou só um dos aparelhos: segue online pelos outros
+      userSocketMap.set(userId, others[0]);
+    } else {
+      userSocketMap.delete(userId);
+      await this.redis.setUserOffline(userId);
+    }
     await this.redis.setVoiceDeafened(userId, false).catch(() => {});
 
     // Se caiu no meio de uma chamada, limpa a presença de voz
@@ -625,9 +635,12 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   }
 
   emitToUser(userId: string, event: string, data: any) {
-    const socketId = userSocketMap.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, data);
-    }
+    this.server.to(`user:${userId}`).emit(event, data);
+  }
+
+  // Outros sockets (aparelhos) da mesma pessoa, além deste
+  private otherDevices(userId: string, exceptId: string): string[] {
+    const room = this.server.sockets.adapter.rooms.get(`user:${userId}`);
+    return room ? [...room].filter(id => id !== exceptId) : [];
   }
 }

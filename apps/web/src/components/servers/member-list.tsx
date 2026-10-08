@@ -25,6 +25,7 @@ interface Member {
   userId: string;
   role: Role;
   status: Status;
+  activity?: string | null; // "Jogando …" (app de PC)
   roles?: CustomRole[]; // cargos personalizados (mais alto primeiro)
   user: {
     id: string;
@@ -82,12 +83,21 @@ export function MemberList({ serverId, variant = 'sidebar', onClose }: { serverI
     const onOnline = ({ userId }: { userId: string }) => setStatus(userId, 'ONLINE');
     const onOffline = ({ userId }: { userId: string }) => setStatus(userId, 'OFFLINE');
     const onStatus = ({ userId, status }: { userId: string; status: Status }) => setStatus(userId, status);
+    const onActivity = ({ userId, activity }: { userId: string; activity: string | null }) =>
+      setMembers(prev => prev.map(m => (m.userId === userId ? { ...m, activity } : m)));
+    // Ficou offline: o "Jogando" some junto
+    const onOfflineAct = ({ userId }: { userId: string }) =>
+      setMembers(prev => prev.map(m => (m.userId === userId ? { ...m, activity: null } : m)));
 
     socket.on('user:online', onOnline);
     socket.on('user:offline', onOffline);
     socket.on('user:status_changed', onStatus);
+    socket.on('user:activity_changed', onActivity);
+    socket.on('user:offline', onOfflineAct);
 
     return () => {
+      socket.off('user:activity_changed', onActivity);
+      socket.off('user:offline', onOfflineAct);
       socket.off('user:online', onOnline);
       socket.off('user:offline', onOffline);
       socket.off('user:status_changed', onStatus);
@@ -222,7 +232,9 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
                   </span>
                   <RoleIcon role={m.role} />
                 </div>
-                {m.user.profile?.customStatus && (
+                {m.activity ? (
+                  <p className="text-[11px] text-[#43e3a3] truncate" title={`Jogando ${m.activity}`}>🎮 Jogando <b className="font-semibold">{m.activity}</b></p>
+                ) : m.user.profile?.customStatus && (
                   <p className="text-[11px] text-[#8a8095] truncate">{m.user.profile.customStatus}</p>
                 )}
               </div>
@@ -320,6 +332,16 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           <p className="text-[#8a8095] text-[12.5px]">
             @{member.user.username}{since ? ` · no Nexus desde ${since}` : ''}
           </p>
+
+          {member.activity && (
+            <div className="mt-3 rounded-xl px-3 py-2.5 flex items-center gap-2.5" style={{ background: 'rgba(67,227,163,0.08)', border: '1px solid rgba(67,227,163,0.25)' }}>
+              <span className="text-xl" aria-hidden>🎮</span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#43e3a3]">Jogando agora</p>
+                <p className="text-[13px] text-white font-semibold truncate">{member.activity}</p>
+              </div>
+            </div>
+          )}
 
           {/* Frase de status e bio */}
           {(customStatus || bio) && (

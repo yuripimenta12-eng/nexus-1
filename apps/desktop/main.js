@@ -8,6 +8,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { startGameWatcher } = require('./games');
 
 const APP_URL = 'https://www.nexuslink.art';
 const START_URL = `${APP_URL}/app`;
@@ -41,6 +42,22 @@ function saveState() {
     const b = win.getNormalBounds();
     fs.writeFileSync(stateFile(), JSON.stringify({ ...b, maximized: win.isMaximized() }));
   } catch { /* não é crítico */ }
+}
+
+// ── Preferências do app (separadas do tamanho da janela) ─────────
+const prefsFile = () => path.join(app.getPath('userData'), 'preferencias.json');
+function loadPrefs() {
+  try { return { mostrarJogo: true, ...JSON.parse(fs.readFileSync(prefsFile(), 'utf8')) }; } catch { return { mostrarJogo: true }; }
+}
+let prefs = { mostrarJogo: true };
+function savePrefs() {
+  try { fs.writeFileSync(prefsFile(), JSON.stringify(prefs)); } catch { /* não é crítico */ }
+}
+
+// ── "Jogando …" ──────────────────────────────────────────────────
+let gameWatcher = null;
+function sendGame(name) {
+  if (win && !win.isDestroyed()) win.webContents.send('activity:game', name);
 }
 
 const isAllowed = (url) => {
@@ -176,6 +193,16 @@ function buildTrayMenu() {
         app.setLoginItemSettings({ openAtLogin: item.checked, args: ['--oculto'] });
       },
     },
+    {
+      label: 'Mostrar o jogo que estou jogando',
+      type: 'checkbox',
+      checked: prefs.mostrarJogo,
+      click: (item) => {
+        prefs.mostrarJogo = item.checked;
+        savePrefs();
+        gameWatcher?.refresh();
+      },
+    },
     { label: 'Recarregar', click: () => { showWindow(); win.loadURL(START_URL); } },
     { type: 'separator' },
     { label: `Nexus Link ${VERSION}`, enabled: false },
@@ -301,6 +328,9 @@ ipcMain.handle('music:arm', () => {
   return true;
 });
 
+// O site pergunta o jogo atual (ao abrir/recarregar a página)
+ipcMain.handle('activity:get', () => (prefs.mostrarJogo ? gameWatcher?.current() ?? null : null));
+
 ipcMain.on('app:show', showWindow);
 ipcMain.on('app:flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });
 
@@ -308,9 +338,11 @@ app.on('second-instance', showWindow);
 app.on('before-quit', () => { quitting = true; saveState(); });
 
 app.whenReady().then(() => {
+  prefs = loadPrefs();
   setupPermissions();
   createWindow();
   createTray();
+  gameWatcher = startGameWatcher(sendGame, () => prefs.mostrarJogo);
 });
 
 app.on('window-all-closed', () => { /* continua na bandeja */ });

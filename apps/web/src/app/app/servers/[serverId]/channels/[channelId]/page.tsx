@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu, Users, Pin, PinOff } from 'lucide-react';
+import { Hash, Send, Paperclip, Smile, AtSign, X, Reply, Edit2, Trash2, Loader2, Menu, Users, Pin, PinOff, Search, Bell, BellOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AttachmentView, GifView, isGifUrl } from '@/components/chat/media';
+import { VoiceRecorderButton } from '@/components/chat/voice-recorder';
+import { GifButton } from '@/components/chat/gif-picker';
+import { useMutes } from '@/lib/mutes';
 import { useServerPerms } from '@/lib/perms';
 import { playMention } from '@/lib/sounds';
 import api from '@/lib/api';
@@ -124,6 +129,48 @@ export default function ChannelPage() {
   const { can } = useServerPerms(serverId);
   const canPin = can('pin_messages') || can('manage_messages');
   const canManageMessages = can('manage_messages');
+  const canVoiceMsg = can('send_voice_messages');
+  const router = useRouter();
+
+  // Silenciar este canal (sem som, aviso e contador)
+  const channelMuted = useMutes(s => s.channels.has(channelId));
+  const serverMuted = useMutes(s => s.servers.has(serverId));
+  const toggleChannelMute = useMutes(s => s.toggleChannel);
+
+  // Busca de mensagens no servidor
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState('');
+  const [searchHere, setSearchHere] = useState(true);
+  const [results, setResults] = useState<any[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!searchOpen) return;
+    const term = searchQ.trim();
+    if (term.length < 2) { setResults(null); return; }
+    const t = setTimeout(() => {
+      setSearching(true);
+      api.get(`/servers/${serverId}/search`, { params: { q: term, ...(searchHere ? { channelId } : {}) } })
+        .then(({ data }) => setResults(Array.isArray(data) ? data : []))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQ, searchOpen, searchHere, serverId, channelId]);
+  useEffect(() => { setSearchOpen(false); setResults(null); setSearchQ(''); }, [channelId]);
+  const jumpTo = (r: any) => {
+    if (r.channelId !== channelId) {
+      router.push(`/app/servers/${serverId}/channels/${r.channelId}`);
+      return;
+    }
+    const el = document.getElementById(`msg-${r.id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setFlashId(r.id);
+      setTimeout(() => setFlashId(null), 1800);
+      setSearchOpen(false);
+    } else flash('Essa mensagem é mais antiga que as carregadas aqui.');
+  };
 
   // Mensagens fixadas (painel no topo do canal)
   const [pinsOpen, setPinsOpen] = useState(false);
@@ -454,8 +501,77 @@ export default function ChannelPage() {
           </h2>
           <p className="text-[#9188a2] text-[11px]">Canal de texto da comunidade</p>
         </div>
-        {/* Mensagens fixadas */}
+        {/* Busca */}
         <div className="ml-auto relative">
+          <button
+            onClick={() => setSearchOpen(v => !v)}
+            className={cn('p-2 rounded-lg transition-colors', searchOpen ? 'text-white bg-surface-raised' : 'text-muted hover:text-white')}
+            title="Buscar mensagens"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <AnimatePresence>
+            {searchOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setSearchOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-11 z-40 w-[min(400px,calc(100vw-24px))] rounded-xl border border-[var(--th-line)] bg-[var(--th-side)] shadow-2xl"
+                >
+                  <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--th-line)]">
+                    <Search className="w-4 h-4 text-muted" />
+                    <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)} maxLength={100}
+                      placeholder={searchHere ? `Buscar em #${channelName || 'canal'}` : 'Buscar no servidor'}
+                      className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-muted" />
+                    <button onClick={() => setSearchOpen(false)} className="text-muted hover:text-white" title="Fechar"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="flex gap-1 px-3 pt-2">
+                    {[true, false].map(v => (
+                      <button key={String(v)} onClick={() => setSearchHere(v)}
+                        className={cn('text-[11px] px-2 py-1 rounded-full border transition-colors',
+                          searchHere === v ? 'border-accent/60 text-white bg-accent/15' : 'border-[var(--th-line)] text-muted hover:text-white')}>
+                        {v ? 'Neste canal' : 'Todo o servidor'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="max-h-[55vh] overflow-y-auto py-1">
+                    {searching && <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted" /></div>}
+                    {!searching && results === null && <p className="text-muted text-sm text-center py-6">Digite pelo menos 2 letras</p>}
+                    {!searching && results?.length === 0 && <p className="text-muted text-sm text-center py-6">Nada encontrado</p>}
+                    {!searching && results?.map(r => (
+                      <button key={r.id} onClick={() => jumpTo(r)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-white/5 flex gap-3">
+                        <Avatar src={r.author?.profile?.avatarUrl} name={r.author?.profile?.displayName || r.author?.username || '?'} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-white text-[13px] font-medium truncate">{r.author?.profile?.displayName || r.author?.username}</span>
+                            {!searchHere && <span className="text-[#b05cff] text-[11px] shrink-0">#{r.channel?.name}</span>}
+                            <span className="text-muted text-[11px] shrink-0 ml-auto">{formatMessageDate(r.createdAt)}</span>
+                          </div>
+                          <p className="text-[13px] text-[#d6d0e0] line-clamp-2 break-words">{r.content}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+        {/* Silenciar canal */}
+        <button
+          onClick={async () => {
+            try { const m = await toggleChannelMute(channelId); flash(m ? 'Canal silenciado' : 'Avisos do canal reativados'); }
+            catch { flash('Não foi possível mudar agora'); }
+          }}
+          className={cn('p-2 rounded-lg transition-colors', channelMuted ? 'text-[#ff8098]' : 'text-muted hover:text-white')}
+          title={channelMuted ? 'Reativar avisos deste canal' : serverMuted ? 'O servidor inteiro está silenciado' : 'Silenciar este canal'}
+        >
+          {channelMuted || serverMuted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+        </button>
+        {/* Mensagens fixadas */}
+        <div className="relative">
           <button
             onClick={() => { if (!pinsOpen) loadPins(); setPinsOpen(!pinsOpen); }}
             className={cn('p-2 rounded-lg transition-colors', pinsOpen ? 'text-white bg-surface-raised' : 'text-muted hover:text-white')}
@@ -602,6 +718,7 @@ export default function ChannelPage() {
                 onEdit={() => startEdit(msg)}
                 onDelete={() => handleDelete(msg)}
                 onPin={() => handlePin(msg)}
+                flash={flashId === msg.id}
                 canPin={canPin}
                 canManage={canManageMessages}
                 onReaction={(emoji) => handleReaction(msg.id, emoji)}
@@ -689,7 +806,7 @@ export default function ChannelPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf,.zip,.txt,.doc,.docx,.xls,.xlsx"
+            accept="image/*,video/mp4,video/webm,audio/*,.pdf,.zip,.txt,.doc,.docx,.xls,.xlsx"
             className="hidden"
             onChange={async (e) => {
               const file = e.target.files?.[0];
@@ -732,6 +849,9 @@ export default function ChannelPage() {
           />
 
           <div className="flex items-center gap-1 relative">
+            <GifButton
+              onPick={(url) => socket.emit('message:send', { channelId, content: url, clientMsgId: genClientMsgId() })}
+            />
             <button
               onClick={() => setEmojiOpen(v => !v)}
               className={cn('p-2 -m-1 md:p-1 md:m-0 rounded transition-colors', emojiOpen ? 'text-warning' : 'text-muted hover:text-warning')}
@@ -790,18 +910,31 @@ export default function ChannelPage() {
                 </>
               )}
             </AnimatePresence>
-            <button
-              onClick={handleSend}
-              disabled={!content.trim()}
-              className={cn(
-                'w-9 h-9 rounded-[11px] flex items-center justify-center transition-all active:scale-95',
-                content.trim()
-                  ? 'bg-gradient-to-br from-orange to-accent text-white shadow-[0_5px_18px_rgba(255,90,0,0.2)]'
-                  : 'text-muted cursor-not-allowed',
-              )}
-            >
-              <Send className="w-4 h-4" />
-            </button>
+            {!content.trim() && canVoiceMsg ? (
+              <VoiceRecorderButton
+                disabled={uploadingFile}
+                onError={flash}
+                onSend={async (blob, fileName) => {
+                  const form = new FormData();
+                  form.append('file', blob, fileName);
+                  await api.post(`/upload/attachment/${channelId}`, form);
+                }}
+              />
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!content.trim()}
+                title="Enviar"
+                className={cn(
+                  'w-9 h-9 rounded-[11px] flex items-center justify-center transition-all active:scale-95',
+                  content.trim()
+                    ? 'bg-gradient-to-br from-orange to-accent text-white shadow-[0_5px_18px_rgba(255,90,0,0.2)]'
+                    : 'text-muted cursor-not-allowed',
+                )}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
         {uploadError && (
@@ -845,7 +978,7 @@ export default function ChannelPage() {
 
 // ── Componente de mensagem ─────────────────────────────────────
 function MessageRow({
-  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction, onPin, canPin, canManage,
+  msg, isOwn, isConsecutive, onReply, onEdit, onDelete, onReaction, onPin, canPin, canManage, flash,
   editingId, editContent, setEditContent, onSaveEdit, onCancelEdit,
   groupedReactions, currentUserId, emojiMap, myNames, onImageClick,
 }: any) {
@@ -861,12 +994,14 @@ function MessageRow({
 
   return (
     <div
+      id={`msg-${msg.id}`}
       onClick={onRowTap}
       className={cn(
-        'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40',
+        'message-row group flex gap-3 px-2 py-0.5 rounded-lg hover:bg-surface/40 transition-colors duration-500',
         !isConsecutive && 'mt-4',
         mentioned && 'border-l-2',
         touchOpen && 'bg-surface/40',
+        flash && '!bg-accent/15',
       )}
       style={mentioned ? { background: 'rgba(255,106,0,0.06)', borderLeftColor: '#ff6a00' } : undefined}
     >
@@ -922,7 +1057,9 @@ function MessageRow({
               <button onClick={onCancelEdit} className="text-muted hover:text-white">cancelar</button>
             </div>
           </div>
-        ) : (
+        ) : !msg.deleted && isGifUrl(msg.content) && !msg.attachments?.length ? (
+          <GifView url={msg.content.trim()} onClick={() => onImageClick?.(msg.content.trim())} />
+        ) : !msg.deleted && !msg.content && msg.attachments?.length ? null : (
           <p className={cn(
             'text-sm leading-relaxed break-words',
             msg.deleted && 'text-muted italic',
@@ -939,25 +1076,10 @@ function MessageRow({
         )}
 
         {/* Attachments */}
-        {msg.attachments?.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
+        {msg.attachments?.length > 0 && !msg.deleted && (
+          <div className={cn('flex flex-wrap gap-2', msg.content ? 'mt-2' : 'mt-1')}>
             {msg.attachments.map((att: any) => (
-              isImageMime(att.mimeType) ? (
-                <button key={att.id} onClick={() => onImageClick?.(att.url)}
-                  className="rounded-lg overflow-hidden max-w-xs border border-[var(--th-line)] cursor-zoom-in
-                             hover:border-accent transition-colors">
-                  {/* img simples: next/image não aceita data URLs (fallback de storage) */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={att.url} alt={att.fileName} className="max-w-full max-h-80 object-contain" />
-                </button>
-              ) : (
-                <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 p-2 bg-surface rounded-lg text-sm text-muted-foreground hover:text-white border border-border">
-                  <Paperclip className="w-4 h-4" />
-                  <span className="truncate max-w-[200px]">{att.fileName}</span>
-                  <span className="text-muted text-xs shrink-0">{formatFileSize(att.fileSize)}</span>
-                </a>
-              )
+              <AttachmentView key={att.id} att={att} onImageClick={onImageClick} />
             ))}
           </div>
         )}

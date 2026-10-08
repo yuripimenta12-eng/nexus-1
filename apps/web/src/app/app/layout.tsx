@@ -5,13 +5,17 @@ import { useRouter, usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
-import { connectSocket } from '@/lib/socket';
+import { connectSocket, getSocket } from '@/lib/socket';
+import { startGameActivity, currentGameResend } from '@/lib/desktop';
 import { syncPush } from '@/lib/push';
 import { VerifyEmailGate } from '@/components/layout/verify-email-gate';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { GlobalCallAudio } from '@/components/voice/global-call-audio';
+import { DmCallOverlay } from '@/components/dm/dm-call-overlay';
+import { PushPrompt } from '@/components/layout/push-prompt';
+import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +23,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading, hasHydrated, refreshUser, user } = useAuthStore();
   const { mobileNavOpen, closeMobileNav, toggleMobileNav } = useUiStore();
+  const loadMutes = useMutes(s => s.load);
+
+  // Servidores/canais silenciados (sons e destaques respeitam isso)
+  useEffect(() => { if (isAuthenticated) loadMutes(); }, [isAuthenticated, loadMutes]);
+
+  // App de PC: "Jogando …" (o app diz o jogo aberto; aqui repassa ao servidor)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const socket = getSocket();
+    const emit = (name: string | null) => { if (socket.connected) socket.emit('user:activity', { name }); };
+    const stop = startGameActivity(emit);
+    const onConnect = () => currentGameResend(emit);
+    socket.on('connect', onConnect);
+    return () => { stop(); socket.off('connect', onConnect); };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // Espera o estado persistido carregar antes de decidir redirecionar,
@@ -55,6 +74,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-background nx-safe-top nx-safe-bottom nx-safe-x">
       {/* Áudio da chamada — global: continua tocando em qualquer tela do app */}
       <GlobalCallAudio />
+      {/* Chamada 1:1 da DM (toca, chamando, em chamada) e convite para avisos no celular */}
+      <DmCallOverlay />
+      <PushPrompt />
 
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div

@@ -7,4 +7,11 @@ contextBridge.exposeInMainWorld('nexusDesktop', {
   flash: () => ipcRenderer.send('app:flash'),
   // Música: abre a janela de música; a próxima captura de tela pega só o som dela
   musicArm: () => ipcRenderer.invoke('music:arm'),
+  // "Jogando …": jogo aberto agora (ou null) e aviso quando mudar
+  getGame: () => ipcRenderer.invoke('activity:get'),
+  onGame: (cb) => {
+    const handler = (_e, name) => cb(typeof name === 'string' ? name : null);
+    ipcRenderer.on('activity:game', handler);
+    return () => ipcRenderer.removeListener('activity:game', handler);
+  },
 });

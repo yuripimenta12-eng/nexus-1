@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
-  UserPlus, Bell, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock,
+  UserPlus, Bell, BellOff, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock,
 } from 'lucide-react';
+import { useMutes } from '@/lib/mutes';
 import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
 // Fone mutado (ensurdecido): fone com risco, estilo Discord
@@ -44,6 +45,9 @@ export function AppSidebar() {
   voiceParticipants.forEach((p: any) => { if (p.isSpeaking) speakingIds.add(p.identity); });
   const serverId = params?.serverId as string;
   const { can: canDo } = useServerPerms(serverId);
+  const serverMuted = useMutes(s => !!serverId && s.servers.has(serverId));
+  const mutedChannels = useMutes(s => s.channels);
+  const toggleServerMute = useMutes(s => s.toggleServer);
   const activeChannelId = params?.channelId as string;
   const activeRoomId = params?.roomId as string;
   const [server, setServer] = useState<Server | null>(null);
@@ -68,6 +72,8 @@ export function AppSidebar() {
     const onActivity = (evt: { serverId: string; channelId: string; authorId: string; authorName?: string; content: string }) => {
       if (evt.authorId === user?.id) return;          // minhas próprias mensagens não contam
       if (evt.channelId === activeChannelId) return;  // canal aberto = já lida
+      // Silenciado: sem contador, sem som e sem aviso
+      if (useMutes.getState().isMuted(evt.serverId, evt.channelId)) return;
       setUnread(prev => ({ ...prev, [evt.channelId]: (prev[evt.channelId] || 0) + 1 }));
       const meNames = [user?.username, user?.profile?.displayName].filter(Boolean).map(n => (n as string).toLowerCase());
       if (evt.content && meNames.some(n => evt.content.toLowerCase().includes('@' + n))) {
@@ -237,6 +243,20 @@ export function AppSidebar() {
               />
               <div className="h-px bg-[var(--th-line)] mx-2 my-1" />
               <ServerMenuItem
+                icon={serverMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                label={serverMuted ? 'Reativar avisos do servidor' : 'Silenciar servidor'}
+                onClick={async () => {
+                  setServerMenuOpen(false);
+                  try {
+                    const muted = await toggleServerMute(serverId);
+                    setMenuToast(muted ? 'Servidor silenciado' : 'Avisos do servidor reativados');
+                  } catch {
+                    setMenuToast('Não foi possível mudar agora');
+                  }
+                  setTimeout(() => setMenuToast(null), 2500);
+                }}
+              />
+              <ServerMenuItem
                 icon={<Bell className="w-4 h-4" />}
                 label="Config. de notificação"
                 onClick={() => { setServerMenuOpen(false); router.push('/app/me/settings?tab=notifications'); }}
@@ -366,7 +386,10 @@ export function AppSidebar() {
               )}
             >
               <Hash className="w-4 h-4 shrink-0 text-[#8c5dcc]" />
-              <span className={cn('truncate', (unread[ch.id] || 0) > 0 && 'text-white font-semibold')}>{ch.name}</span>
+              <span className={cn('truncate', (unread[ch.id] || 0) > 0 && 'text-white font-semibold', (serverMuted || mutedChannels.has(ch.id)) && 'opacity-60')}>{ch.name}</span>
+              {mutedChannels.has(ch.id) && !(unread[ch.id] > 0) && (
+                <BellOff className="ml-auto w-3.5 h-3.5 shrink-0 text-muted" aria-label="Canal silenciado" />
+              )}
               {(unread[ch.id] || 0) > 0 && (
                 <span className={cn(
                   'ml-auto shrink-0 text-[10px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center',

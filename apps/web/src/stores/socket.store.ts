@@ -13,6 +13,9 @@ export interface DmMessage {
   createdAt: string;
   editedAt: string | null;
   edited: boolean;
+  deleted?: boolean;
+  attachments?: Array<{ id?: string; url: string; fileName: string; fileSize: number; mimeType: string }>;
+  reactions?: Array<{ userId: string; emoji: string }>;
   sender: {
     id: string;
     username: string;
@@ -94,16 +97,21 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
         msgs.set(msg.receiverId, [...threadR, msg]);
       }
 
-      // Incrementa não lidas para o remetente
+      // Incrementa não lidas só para mensagens recebidas (não as que eu mandei)
+      const myId = useAuthStore.getState().user?.id;
       const unread = new Map(dmUnread);
-      unread.set(msg.senderId, (unread.get(msg.senderId) ?? 0) + 1);
+      if (msg.senderId !== myId) unread.set(msg.senderId, (unread.get(msg.senderId) ?? 0) + 1);
 
       set({ dmMessages: msgs, dmUnread: unread });
 
       // Som + notificação de desktop (respeita as preferências do usuário)
-      const myId = useAuthStore.getState().user?.id;
       if (msg.senderId !== myId) {
-        notifyIncomingMessage(msg.sender?.displayName || msg.sender?.username || 'alguém', msg.content);
+        const a = msg.attachments?.[0];
+        const preview = msg.content || (a
+          ? a.mimeType.startsWith('audio/') ? '🎤 Mensagem de voz'
+            : a.mimeType.startsWith('image/') ? '📷 Imagem' : `📎 ${a.fileName}`
+          : '');
+        notifyIncomingMessage(msg.sender?.displayName || msg.sender?.username || 'alguém', preview);
       }
     });
 
@@ -116,6 +124,21 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
           updated[idx] = msg;
           msgs.set(key, updated);
         }
+      }
+      set({ dmMessages: msgs });
+    });
+
+    // Reação na DM (vale para os dois lados da conversa)
+    socket.on('dm:reaction', ({ messageId, userId, emoji, added }: { messageId: string; userId: string; emoji: string; added: boolean }) => {
+      const msgs = new Map(get().dmMessages);
+      for (const [key, thread] of msgs.entries()) {
+        const idx = thread.findIndex(m => m.id === messageId);
+        if (idx === -1) continue;
+        const m = thread[idx];
+        const rest = (m.reactions || []).filter(r => !(r.userId === userId && r.emoji === emoji));
+        const updated = [...thread];
+        updated[idx] = { ...m, reactions: added ? [...rest, { userId, emoji }] : rest };
+        msgs.set(key, updated);
       }
       set({ dmMessages: msgs });
     });
