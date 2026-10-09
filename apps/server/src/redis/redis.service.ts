@@ -33,6 +33,16 @@ export class RedisService implements OnModuleDestroy {
     await this.client.expire(`presence:${userId}`, 3600); // expira em 1h sem reconexão
   }
 
+  // Chamado a cada 5 min para quem segue conectado. Devolve true se o
+  // registro tinha vencido e foi recriado (aí avisamos que voltou online).
+  async refreshPresence(userId: string, socketId: string): Promise<boolean> {
+    const key = `presence:${userId}`;
+    const existia = await this.client.exists(key);
+    if (!existia) await this.client.hset(key, 'socketId', socketId, 'status', 'ONLINE');
+    await this.client.expire(key, 3600);
+    return !existia;
+  }
+
   async setUserOffline(userId: string) {
     await this.client.del(`presence:${userId}`);
   }

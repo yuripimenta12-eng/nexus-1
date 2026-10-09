@@ -103,6 +103,30 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     this.redis.clearAllPresence().catch(err =>
       this.logger.warn(`Falha ao limpar presença no boot: ${err.message}`),
     );
+
+    // Renova o "online" de quem continua conectado. Antes o registro vencia
+    // 1h depois da conexão e a pessoa sumia da lista de online mesmo na call.
+    setInterval(() => {
+      this.renewPresence().catch(err => this.logger.warn(`Falha ao renovar presença: ${err.message}`));
+    }, 5 * 60 * 1000).unref();
+  }
+
+  private async renewPresence() {
+    const porUsuario = new Map<string, Socket>();
+    for (const s of this.server.sockets.sockets.values()) {
+      if (s.data?.userId) porUsuario.set(s.data.userId, s);
+    }
+    for (const [userId, s] of porUsuario) {
+      const restaurado = await this.redis.refreshPresence(userId, s.id);
+      // O registro já tinha vencido: avisa os servidores para a lista voltar a mostrar online
+      if (restaurado) {
+        for (const room of s.rooms) {
+          if (room.startsWith('server:')) {
+            this.server.to(room).emit('user:online', { userId, serverId: room.slice(7) });
+          }
+        }
+      }
+    }
   }
 
   // ── Conexão ───────────────────────────────────────────────────
