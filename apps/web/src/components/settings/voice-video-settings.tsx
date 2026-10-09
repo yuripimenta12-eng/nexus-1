@@ -1,5 +1,6 @@
 'use client';
 
+import { HotkeySettings } from '@/components/settings/hotkey-settings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Mic, Volume2, Camera, MonitorUp, Sparkles, AudioLines,
@@ -231,6 +232,9 @@ export function VoiceVideoSettings() {
           />
         </div>
       </section>
+
+      {/* ── Atalhos de teclado da chamada ─────────────────── */}
+      <HotkeySettings />
     </div>
   );
 }

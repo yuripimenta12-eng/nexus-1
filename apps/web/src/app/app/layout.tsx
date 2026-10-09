@@ -14,6 +14,7 @@ import { ServersSidebar } from '@/components/layout/servers-sidebar';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { GlobalCallAudio } from '@/components/voice/global-call-audio';
 import { DmCallOverlay } from '@/components/dm/dm-call-overlay';
+import { CallHotkeys } from '@/components/voice/call-hotkeys';
 import { PushPrompt } from '@/components/layout/push-prompt';
 import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
@@ -76,6 +77,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <GlobalCallAudio />
       {/* Chamada 1:1 da DM (toca, chamando, em chamada) e convite para avisos no celular */}
       <DmCallOverlay />
+      {/* Atalhos de teclado da chamada (silenciar/ensurdecer) */}
+      <CallHotkeys />
       <PushPrompt />
 
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}

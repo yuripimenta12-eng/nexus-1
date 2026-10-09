@@ -7,6 +7,13 @@ contextBridge.exposeInMainWorld('nexusDesktop', {
   flash: () => ipcRenderer.send('app:flash'),
   // Música: abre a janela de música; a próxima captura de tela pega só o som dela
   musicArm: () => ipcRenderer.invoke('music:arm'),
+  // Atalhos da chamada com o jogo na frente: registra (ou libera com null) e avisa ao apertar
+  setHotkeys: (map) => ipcRenderer.invoke('hotkeys:set', map),
+  onHotkey: (cb) => {
+    const handler = (_e, action) => { if (action === 'mute' || action === 'deafen') cb(action); };
+    ipcRenderer.on('hotkey', handler);
+    return () => ipcRenderer.removeListener('hotkey', handler);
+  },
   // "Jogando …": jogo aberto agora (ou null) e aviso quando mudar
   getGame: () => ipcRenderer.invoke('activity:get'),
   onGame: (cb) => {

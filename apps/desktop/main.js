@@ -4,7 +4,7 @@
 // atualização publicada aparece no app sem reinstalar.
 const {
   app, BrowserWindow, Tray, Menu, shell, session, desktopCapturer,
-  ipcMain, nativeImage, dialog,
+  ipcMain, nativeImage, dialog, globalShortcut,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -328,6 +328,23 @@ ipcMain.handle('music:arm', () => {
   return true;
 });
 
+// Atalhos da chamada (silenciar/ensurdecer) valendo com o jogo em primeiro plano.
+// O site registra só durante a chamada e manda null ao sair — a tecla volta ao normal.
+ipcMain.handle('hotkeys:set', (_e, map) => {
+  globalShortcut.unregisterAll();
+  const ok = { mute: false, deafen: false };
+  for (const action of ['mute', 'deafen']) {
+    const accel = map && typeof map[action] === 'string' ? map[action].slice(0, 40) : null;
+    if (!accel) continue;
+    try {
+      ok[action] = globalShortcut.register(accel, () => {
+        if (win && !win.isDestroyed()) win.webContents.send('hotkey', action);
+      });
+    } catch { ok[action] = false; } // tecla inválida ou já usada por outro programa
+  }
+  return ok;
+});
+
 // O site pergunta o jogo atual (ao abrir/recarregar a página)
 ipcMain.handle('activity:get', () => (prefs.mostrarJogo ? gameWatcher?.current() ?? null : null));
 
@@ -336,6 +353,7 @@ ipcMain.on('app:flash', () => { if (win && !win.isFocused()) win.flashFrame(true
 
 app.on('second-instance', showWindow);
 app.on('before-quit', () => { quitting = true; saveState(); });
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.whenReady().then(() => {
   prefs = loadPrefs();
