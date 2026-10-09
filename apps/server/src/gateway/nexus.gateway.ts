@@ -103,6 +103,9 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     this.redis.clearAllPresence().catch(err =>
       this.logger.warn(`Falha ao limpar presença no boot: ${err.message}`),
     );
+    this.redis.clearAllVoiceRooms().catch(err =>
+      this.logger.warn(`Falha ao limpar salas de voz no boot: ${err.message}`),
+    );
 
     // Renova o "online" de quem continua conectado. Antes o registro vencia
     // 1h depois da conexão e a pessoa sumia da lista de online mesmo na call.

@@ -60,6 +60,19 @@ export class RedisService implements OnModuleDestroy {
     } while (cursor !== '0');
   }
 
+  // Mesma ideia para quem está em cada sala de voz (voice:<sala>): após um
+  // restart sobravam "fantasmas"; quem está na call reenvia voice:join ao
+  // reconectar. Não mexe em voice:deafen:* (estado de cada pessoa).
+  async clearAllVoiceRooms() {
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.client.scan(cursor, 'MATCH', 'voice:*', 'COUNT', 200);
+      cursor = next;
+      const salas = keys.filter(k => !k.startsWith('voice:deafen:'));
+      if (salas.length) await this.client.del(...salas);
+    } while (cursor !== '0');
+  }
+
   async getUserPresence(userId: string): Promise<{ socketId: string; status: string } | null> {
     const data = await this.client.hgetall(`presence:${userId}`);
     if (!data.socketId) return null;
