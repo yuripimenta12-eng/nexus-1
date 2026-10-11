@@ -23,6 +23,7 @@ import { FriendsModule } from './friends/friends.module';
 import { PushModule } from './push/push.module';
 import { MutesModule } from './mutes/mutes.module';
 import { GifsModule } from './gifs/gifs.module';
+import { UnidosModule } from './games/unidos/unidos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -48,6 +49,7 @@ import { HealthController } from './health.controller';
     GatewayModule,
     MutesModule,
     GifsModule,
+    UnidosModule,
     DmsModule,
     FriendsModule,
     RolesModule,
