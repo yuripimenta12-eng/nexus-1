@@ -129,6 +129,26 @@ function socket(token) {
     check('mesa encerrada some para todos', r.ok && sB.ev.some(x => x[0] === 'unidos:encerrada') && sB.ultimo('unidos:sala') === null);
     r = await sA.pedir('unidos:consultar', { voiceRoomId: sala.id });
     check('depois de encerrar não sobra mesa', r.ok && r.sala === null);
+
+    console.log('● Mesa na chamada direta (DM)');
+    const chaveDm = 'dm:' + [A.id, B.id].sort().join(':');
+    r = await sC.pedir('unidos:abrir', { voiceRoomId: chaveDm });
+    check('quem não é da dupla não abre mesa na DM', r.ok === false, JSON.stringify(r));
+    r = await sA.pedir('unidos:abrir', { voiceRoomId: 'dm:' + [B.id, A.id].sort().reverse().join(':') });
+    check('chave fora de ordem é recusada', r.ok === false);
+    r = await sA.pedir('unidos:abrir', { voiceRoomId: chaveDm });
+    check('A abre mesa na DM com B', r.ok && r.partida?.status === 'lobby', JSON.stringify(r));
+    await sleep(400);
+    check('B fica sabendo da mesa da DM', sB.ultimo('unidos:sala')?.voiceRoomId === chaveDm);
+    check('C não fica sabendo', sC.ultimo('unidos:sala')?.voiceRoomId !== chaveDm);
+    r = await sC.pedir('unidos:entrar', { partidaId: r.partida.id });
+    check('C não entra na mesa da DM', r.ok === false);
+    const pidDm = sB.ultimo('unidos:sala')?.id;
+    r = await sB.pedir('unidos:entrar', { partidaId: pidDm });
+    check('B entra na mesa da DM', r.ok && r.partida?.jogadores.length === 2);
+    r = await sA.pedir('unidos:iniciar', { partidaId: pidDm });
+    check('partida da DM começa', r.ok);
+    await sA.pedir('unidos:encerrar', { partidaId: pidDm });
   } catch (e) {
     falhas++; console.log('ERRO no teste:', e.stack || e.message);
   } finally {

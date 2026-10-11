@@ -45,11 +45,31 @@ export class UnidosGateway implements OnGatewayDisconnect {
     return id;
   }
 
+  // Sala de voz do servidor (precisa estar nela) ou chamada direta da DM:
+  // "dm:<idA>:<idB>" com os ids em ordem — só a dupla entra nessa mesa.
   private naSala(client: Socket, voiceRoomId: unknown): string {
+    if (typeof voiceRoomId === 'string' && voiceRoomId.startsWith('dm:')) {
+      const par = this.parDm(voiceRoomId);
+      if (par && par.includes(client.data?.userId)) return voiceRoomId;
+      throw new J.ErroJogo('Essa mesa é só de quem está na chamada');
+    }
     if (typeof voiceRoomId !== 'string' || !client.rooms.has(`voice:${voiceRoomId}`)) {
       throw new J.ErroJogo('Entre na chamada para jogar');
     }
     return voiceRoomId;
+  }
+
+  private parDm(chave: string): [string, string] | null {
+    const m = /^dm:([A-Za-z0-9_-]{8,40}):([A-Za-z0-9_-]{8,40})$/.exec(chave);
+    if (!m || m[1] >= m[2]) return null; // dois ids diferentes, em ordem
+    return [m[1], m[2]];
+  }
+
+  // Para onde avisar que existe uma mesa: a sala de voz, ou os dois da DM
+  private avisarSala(voiceRoomId: string, dado: unknown) {
+    const par = voiceRoomId.startsWith('dm:') ? this.parDm(voiceRoomId) : null;
+    if (par) for (const id of par) this.server.to(`user:${id}`).emit('unidos:sala', dado);
+    else this.server.to(`voice:${voiceRoomId}`).emit('unidos:sala', dado);
   }
 
   private partida(id: unknown): J.Estado {
@@ -72,7 +92,7 @@ export class UnidosGateway implements OnGatewayDisconnect {
     for (const j of p.jogadores) {
       this.server.to(`user:${j.id}`).emit('unidos:estado', J.visao(p, j.id));
     }
-    this.server.to(`voice:${p.voiceRoomId}`).emit('unidos:sala', this.resumo(p));
+    this.avisarSala(p.voiceRoomId, this.resumo(p));
     this.agendar(p);
   }
 
@@ -119,7 +139,7 @@ export class UnidosGateway implements OnGatewayDisconnect {
     if (this.porSala.get(p.voiceRoomId) === p.id) this.porSala.delete(p.voiceRoomId);
     this.ultimoUso.delete(p.id);
     for (const j of p.jogadores) this.server.to(`user:${j.id}`).emit('unidos:encerrada', { id: p.id });
-    this.server.to(`voice:${p.voiceRoomId}`).emit('unidos:sala', null);
+    this.avisarSala(p.voiceRoomId, null);
   }
 
   private limpar() {

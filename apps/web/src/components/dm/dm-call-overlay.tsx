@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Gamepad2 } from 'lucide-react';
+import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { getSocket } from '@/lib/socket';
 import { useDmCall } from '@/stores/dm-call.store';
 import { useVoiceStore } from '@/stores/voice.store';
@@ -59,6 +60,8 @@ export function DmCallOverlay() {
   const { phase, partner, startedAt, notice, ring, accept, decline, hangup, remoteAccepted, remoteEnded, handledElsewhere, clearNotice } = useDmCall();
   const { localMicEnabled, toggleMic, voiceRoomId, isConnected, participants } = useVoiceStore() as any;
   const wasInDm = useRef<string | null>(null);
+  const unidosSala = useUnidos(s => s.sala);
+  const unidosPartida = useUnidos(s => s.partida);
 
   // Eventos de chamada vindos do servidor
   useEffect(() => {
@@ -127,7 +130,9 @@ export function DmCallOverlay() {
                 <p className="text-[12px] text-[#a99fc0]">
                   {phase === 'incoming' && 'está ligando para você…'}
                   {phase === 'outgoing' && 'Chamando…'}
-                  {phase === 'active' && (
+                  {phase === 'active' && unidosSala && !unidosPartida && unidosSala.status === 'lobby' ? (
+                    <span className="text-[#ffb27d] font-semibold">🎮 {unidosSala.hostNome} abriu uma mesa de UNidos</span>
+                  ) : phase === 'active' && (
                     remoteHere
                       ? <>Em chamada · {startedAt ? <Elapsed since={startedAt} /> : '0:00'}</>
                       : 'Conectando…'
@@ -150,6 +155,15 @@ export function DmCallOverlay() {
                 </>
               ) : (
                 <>
+                  {phase === 'active' && (
+                    <button
+                      onClick={() => { const u = useUnidos.getState(); if (u.partida) u.setAberta(true); else u.entrarMesa(); }}
+                      title={unidosSala && !unidosPartida ? `Entrar na mesa de UNidos de ${unidosSala.hostNome}` : 'Jogar UNidos'}
+                      className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${unidosSala ? 'bg-[#7a2cff]/30 text-white' : 'bg-white/10 text-white hover:bg-white/15'}`}>
+                      <Gamepad2 className="w-5 h-5" />
+                      {unidosSala && !unidosPartida && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ff6a00] animate-pulse" />}
+                    </button>
+                  )}
                   {phase === 'active' && (
                     <button onClick={() => toggleMic()} title={localMicEnabled ? 'Silenciar microfone' : 'Ligar microfone'}
                       className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${localMicEnabled ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-[#ff4d6d]/20 text-[#ff8098]'}`}>

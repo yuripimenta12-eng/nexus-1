@@ -8,14 +8,27 @@ import { useUnidos } from './unidos.store';
 import { UnidosMesa } from './unidos-mesa';
 
 // Vive no layout do app: liga o UNidos à chamada em que a pessoa está
-// (de servidor; chamada 1:1 da DM não tem mesa) e mostra o atalho para
+// (sala de voz do servidor ou chamada direta da DM) e mostra o atalho para
 // voltar à partida quando a janela do jogo está minimizada.
 export function UnidosHost() {
   const isConnected = useVoiceStore(s => s.isConnected);
   const voiceRoomId = useVoiceStore(s => s.voiceRoomId);
-  const sala = isConnected && voiceRoomId && !voiceRoomId.startsWith('dm:') ? voiceRoomId : null;
-  const { partida, aberta, setAberta } = useUnidos();
   const meuId = useAuthStore(s => s.user?.id);
+  // Chamada direta da DM ("dm:<parceiro>") vira a chave da dupla, com os ids em ordem
+  const sala = !isConnected || !voiceRoomId ? null
+    : voiceRoomId.startsWith('dm:')
+      ? (meuId ? 'dm:' + [meuId, voiceRoomId.slice(3)].sort().join(':') : null)
+      : voiceRoomId;
+  const { partida, aberta, setAberta, erro, limparErro } = useUnidos();
+
+  // Erro com a mesa fechada (ex.: abrir pela chamada da DM): aviso curto na tela.
+  // Na sala de voz do servidor a própria página já mostra; aqui cobre o resto.
+  const naPaginaDaSala = typeof window !== 'undefined' && window.location.pathname.includes('/voice/');
+  useEffect(() => {
+    if (!erro || aberta || naPaginaDaSala) return;
+    const t = setTimeout(limparErro, 4000);
+    return () => clearTimeout(t);
+  }, [erro, aberta, naPaginaDaSala, limparErro]);
   const salaAnterior = useRef<string | null>(null);
 
   useEffect(() => {
@@ -34,12 +47,21 @@ export function UnidosHost() {
     <>
       <AnimatePresence>{aberta && partida && <UnidosMesa key="mesa" />}</AnimatePresence>
       <AnimatePresence>
+        {erro && !aberta && !naPaginaDaSala && (
+          <motion.div key="erro" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="fixed z-[70] top-[calc(env(safe-area-inset-top)+14px)] inset-x-0 mx-auto w-max max-w-[90vw] px-4 py-2.5 rounded-xl text-sm bg-[#3a1220] border border-[#ed4245]/40 text-[#ffd0d8]"
+            role="alert">
+            {erro}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {partida && !aberta && (
           <motion.button
             key="voltar"
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
             onClick={() => setAberta(true)}
-            className="fixed z-[60] left-3 sm:left-auto sm:right-5 bottom-[calc(env(safe-area-inset-bottom)+84px)] sm:bottom-24
+            className="fixed z-[60] inset-x-0 mx-auto w-max bottom-[calc(env(safe-area-inset-bottom)+84px)] sm:bottom-24
                        h-11 px-4 rounded-full font-black text-[13px] text-white flex items-center gap-2 shadow-2xl border border-white/10"
             style={{ background: minhaVez ? 'linear-gradient(135deg,#ff6a00,#7a2cff)' : 'rgba(30,22,48,0.96)' }}
             title="Voltar para a mesa de UNidos"
