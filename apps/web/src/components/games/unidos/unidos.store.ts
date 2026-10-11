@@ -4,8 +4,8 @@ import { create } from 'zustand';
 import { getSocket } from '@/lib/socket';
 
 // Tipos espelhados do servidor (apps/server/src/games/unidos/unidos.engine.ts)
-export type Cor = 'laranja' | 'roxo' | 'ciano' | 'verde';
-export type Tipo = 'numero' | 'mutado' | 'eco' | 'mais2' | 'troca' | 'portal' | 'tempestade';
+export type Cor = 'laranja' | 'roxo' | 'prata' | 'dourado';
+export type Tipo = 'numero' | 'bloqueio' | 'troca' | 'mais2' | 'call' | 'conexao' | 'todosunidos';
 export interface Carta { id: string; cor: Cor | null; tipo: Tipo; valor?: number }
 export interface JogadorVisao {
   id: string; nome: string; avatarUrl: string | null; cartas: number;

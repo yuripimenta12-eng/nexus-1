@@ -31,9 +31,10 @@ console.log('● Baralho e início');
 const b = J.criarBaralho();
 const conta = (f) => b.filter(f).length;
 check('112 cartas', b.length === 112, String(b.length));
-check('76 números, 8 Mutado, 8 Eco, 8 Ping +2, 4 Troca', conta(c => c.tipo === 'numero') === 76 && conta(c => c.tipo === 'mutado') === 8
-  && conta(c => c.tipo === 'eco') === 8 && conta(c => c.tipo === 'mais2') === 8 && conta(c => c.tipo === 'troca') === 4);
-check('4 Portal e 4 Tempestade, sem cor', conta(c => c.tipo === 'portal' && !c.cor) === 4 && conta(c => c.tipo === 'tempestade' && !c.cor) === 4);
+check('76 números, 8 Bloqueio, 8 Troca, 8 +2, 4 Call', conta(c => c.tipo === 'numero') === 76 && conta(c => c.tipo === 'bloqueio') === 8
+  && conta(c => c.tipo === 'troca') === 8 && conta(c => c.tipo === 'mais2') === 8 && conta(c => c.tipo === 'call') === 4);
+check('4 Conexão e 4 Todos Unidos, sem cor', conta(c => c.tipo === 'conexao' && !c.cor) === 4 && conta(c => c.tipo === 'todosunidos' && !c.cor) === 4);
+check('cores: laranja, roxo, prata e dourado', ['laranja', 'roxo', 'prata', 'dourado'].every(cor => conta(c => c.cor === cor) === 26));
 check('ids únicos', new Set(b.map(c => c.id)).size === 112);
 
 let e = mesa(3);
@@ -48,9 +49,10 @@ cena(e, 0, carta('t', 'roxo', 'numero', 5), [[], [], []]);
 check('mesma cor serve', J.podeJogar(e, carta('x', 'roxo', 'numero', 2)));
 check('mesmo número serve', J.podeJogar(e, carta('x', 'verde', 'numero', 5)));
 check('cor e número diferentes não servem', !J.podeJogar(e, carta('x', 'verde', 'numero', 2)));
-check('preta sempre serve', J.podeJogar(e, carta('x', null, 'portal')) && J.podeJogar(e, carta('x', null, 'tempestade')));
-cena(e, 0, carta('t', 'roxo', 'mutado'), [[], [], []]);
-check('mesmo símbolo de outra cor serve', J.podeJogar(e, carta('x', 'verde', 'mutado')));
+check('curinga sempre serve', J.podeJogar(e, carta('x', null, 'conexao')) && J.podeJogar(e, carta('x', null, 'todosunidos')));
+cena(e, 0, carta('t', 'roxo', 'bloqueio'), [[], [], []]);
+check('mesmo símbolo de outra cor serve', J.podeJogar(e, carta('x', 'verde', 'bloqueio')));
+check('especial de outra cor e outro símbolo não serve', !J.podeJogar(e, carta('x', 'verde', 'mais2')));
 
 console.log('● Vez e jogadas inválidas');
 cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('a1', 'roxo', 'numero', 1), carta('a2', 'verde', 'numero', 9)], [carta('b1', 'roxo', 'numero', 3)], [carta('c1', 'ciano', 'numero', 4)]]);
@@ -61,24 +63,24 @@ J.jogar(e, 'a', 'a1', {}, rng);
 check('jogada válida passa a vez', J.daVez(e).id === 'b' && J.topo(e).id === 'a1');
 
 console.log('● Especiais');
-cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('m', 'roxo', 'mutado'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
+cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('m', 'roxo', 'bloqueio'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
 J.jogar(e, 'a', 'm', {}, rng);
-check('Mutado pula o próximo', J.daVez(e).id === 'c');
+check('Bloqueio pula o próximo', J.daVez(e).id === 'c');
 
-cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('e1', 'roxo', 'eco'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
+cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('e1', 'roxo', 'troca'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
 J.jogar(e, 'a', 'e1', {}, rng);
-check('Eco inverte o sentido (3 jogadores)', e.sentido === -1 && J.daVez(e).id === 'c');
+check('Troca inverte o sentido (3 jogadores)', e.sentido === -1 && J.daVez(e).id === 'c');
 
 let dois = mesa(2);
-cena(dois, 0, carta('t', 'roxo', 'numero', 5), [[carta('e2', 'roxo', 'eco'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)]]);
+cena(dois, 0, carta('t', 'roxo', 'numero', 5), [[carta('e2', 'roxo', 'troca'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)]]);
 J.jogar(dois, 'a', 'e2', {}, rng);
-check('Eco com 2 jogadores: joga de novo', J.daVez(dois).id === 'a');
+check('Troca com 2 jogadores: joga de novo', J.daVez(dois).id === 'a');
 
-cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('p', null, 'portal'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
-check('Portal exige escolher a cor', lanca(() => J.jogar(e, 'a', 'p', {}, rng), 'Escolha uma cor'));
+cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('p', null, 'conexao'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
+check('Conexão exige escolher a cor', lanca(() => J.jogar(e, 'a', 'p', {}, rng), 'Escolha uma cor'));
 check('cor inventada é recusada', lanca(() => J.jogar(e, 'a', 'p', { cor: 'rosa' }, rng), 'Escolha uma cor'));
-J.jogar(e, 'a', 'p', { cor: 'ciano' }, rng);
-check('Portal muda a cor', e.corAtual === 'ciano' && J.daVez(e).id === 'b');
+J.jogar(e, 'a', 'p', { cor: 'prata' }, rng);
+check('Conexão muda a cor', e.corAtual === 'prata' && J.daVez(e).id === 'b');
 
 console.log('● Acumular +2 e +4');
 cena(e, 0, carta('t', 'roxo', 'numero', 5), [
@@ -87,7 +89,7 @@ cena(e, 0, carta('t', 'roxo', 'numero', 5), [
   [carta('c9', 'ciano', 'numero', 4)],
 ]);
 J.jogar(e, 'a', 'd1', {}, rng);
-check('Ping +2 acumula 2', e.acumulado === 2 && J.daVez(e).id === 'b');
+check('+2 acumula 2', e.acumulado === 2 && J.daVez(e).id === 'b');
 check('com +2 na mesa, carta comum não vale', lanca(() => J.jogar(e, 'b', 'b9', {}, rng), 'compre 2'));
 J.jogar(e, 'b', 'd2', {}, rng);
 check('+2 em cima de +2 soma 4', e.acumulado === 4 && J.daVez(e).id === 'c');
@@ -96,24 +98,29 @@ J.comprar(e, 'c', rng);
 check('quem não tem compra tudo e perde a vez', e.jogadores[2].mao.length === antes + 4 && e.acumulado === 0 && J.daVez(e).id === 'a');
 
 cena(e, 0, carta('t', 'roxo', 'numero', 5), [
-  [carta('t1', null, 'tempestade'), carta('z', 'verde', 'numero', 1)],
-  [carta('t2', null, 'tempestade'), carta('w', 'verde', 'numero', 1)],
+  [carta('t1', null, 'todosunidos'), carta('z', 'verde', 'numero', 1)],
+  [carta('t2', null, 'todosunidos'), carta('w', 'verde', 'numero', 1)],
   [carta('c9', 'ciano', 'numero', 4)],
 ]);
-J.jogar(e, 'a', 't1', { cor: 'verde' }, rng);
+J.jogar(e, 'a', 't1', { cor: 'dourado' }, rng);
 J.jogar(e, 'b', 't2', { cor: 'roxo' }, rng);
-check('Tempestade em cima de Tempestade soma 8', e.acumulado === 8 && e.corAtual === 'roxo');
+check('Todos Unidos em cima de Todos Unidos soma 8', e.acumulado === 8 && e.corAtual === 'roxo');
 
-console.log('● Troca');
+console.log('● Call');
+e = mesa(3);
 cena(e, 0, carta('t', 'roxo', 'numero', 5), [
-  [carta('tr', 'roxo', 'troca'), carta('a2', 'verde', 'numero', 1)],
-  [carta('b1', 'ciano', 'numero', 1), carta('b2', 'ciano', 'numero', 2), carta('b3', 'ciano', 'numero', 3)],
-  [carta('c1', 'ciano', 'numero', 4)],
+  [carta('cl', 'roxo', 'call'), carta('a2', 'verde', 'numero', 1)],
+  [carta('b1', 'prata', 'numero', 1)],
+  [carta('c1', 'prata', 'numero', 4)],
 ]);
-check('Troca exige escolher com quem', lanca(() => J.jogar(e, 'a', 'tr', {}, rng), 'trocar'));
-check('não troca consigo mesmo', lanca(() => J.jogar(e, 'a', 'tr', { alvoId: 'a' }, rng), 'trocar'));
-J.jogar(e, 'a', 'tr', { alvoId: 'b' }, rng);
-check('Troca troca as mãos inteiras', e.jogadores[0].mao.map(c => c.id).join() === 'b1,b2,b3' && e.jogadores[1].mao.map(c => c.id).join() === 'a2');
+check('Call exige escolher quem joga', lanca(() => J.jogar(e, 'a', 'cl', {}, rng), 'quem joga'));
+check('Call não escolhe a si mesmo', lanca(() => J.jogar(e, 'a', 'cl', { alvoId: 'a' }, rng), 'quem joga'));
+J.jogar(e, 'a', 'cl', { alvoId: 'c' }, rng);
+check('Call: quem foi escolhido joga agora (pulando a ordem)', J.daVez(e).id === 'c' && e.sentido === 1);
+check('Call não acumula nem muda a cor', e.acumulado === 0 && e.corAtual === 'roxo');
+cena(e, 0, carta('t', 'roxo', 'mais2'), [[carta('cl2', 'roxo', 'call'), carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
+e.acumulado = 2;
+check('com +2 acumulado, Call não vale', lanca(() => J.jogar(e, 'a', 'cl2', { alvoId: 'b' }, rng)));
 
 console.log('● Comprar e passar');
 cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('z', 'verde', 'numero', 1)], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);

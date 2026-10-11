@@ -2,10 +2,14 @@
 // Funções puras sobre o estado: fáceis de testar e impossíveis de trapacear
 // pelo navegador (o cliente só recebe a própria mão e a visão pública).
 
-export type Cor = 'laranja' | 'roxo' | 'ciano' | 'verde';
-export type Tipo = 'numero' | 'mutado' | 'eco' | 'mais2' | 'troca' | 'portal' | 'tempestade';
+// Cores e cartas da identidade criada pelo usuário (Laranja, Roxo, Prata, Dourado)
+export type Cor = 'laranja' | 'roxo' | 'prata' | 'dourado';
+// bloqueio = pula o próximo · troca = inverte o sentido · mais2 = +2 · call = escolhe quem joga
+// conexao = curinga (escolhe a cor) · todosunidos = curinga +4
+export type Tipo = 'numero' | 'bloqueio' | 'troca' | 'mais2' | 'call' | 'conexao' | 'todosunidos';
 
-export const CORES: Cor[] = ['laranja', 'roxo', 'ciano', 'verde'];
+export const CORES: Cor[] = ['laranja', 'roxo', 'prata', 'dourado'];
+const CURINGA = (t: Tipo) => t === 'conexao' || t === 'todosunidos';
 export const MAO_INICIAL = 7;
 export const MIN_JOGADORES = 2;
 export const MAX_JOGADORES = 8;
@@ -58,15 +62,15 @@ export function criarBaralho(): Carta[] {
       cartas.push({ id: id(), cor, tipo: 'numero', valor: v });
       cartas.push({ id: id(), cor, tipo: 'numero', valor: v });
     }
-    for (const tipo of ['mutado', 'eco', 'mais2'] as Tipo[]) {
+    for (const tipo of ['bloqueio', 'troca', 'mais2'] as Tipo[]) {
       cartas.push({ id: id(), cor, tipo });
       cartas.push({ id: id(), cor, tipo });
     }
-    cartas.push({ id: id(), cor, tipo: 'troca' });
+    cartas.push({ id: id(), cor, tipo: 'call' });
   }
   for (let i = 0; i < 4; i++) {
-    cartas.push({ id: id(), cor: null, tipo: 'portal' });
-    cartas.push({ id: id(), cor: null, tipo: 'tempestade' });
+    cartas.push({ id: id(), cor: null, tipo: 'conexao' });
+    cartas.push({ id: id(), cor: null, tipo: 'todosunidos' });
   }
   return cartas;
 }
@@ -144,9 +148,9 @@ export function podeJogar(e: Estado, carta: Carta): boolean {
   const t = topo(e);
   if (e.acumulado > 0) {
     // Com +2/+4 acumulado só dá para empilhar o mesmo tipo
-    return (t.tipo === 'mais2' && carta.tipo === 'mais2') || (t.tipo === 'tempestade' && carta.tipo === 'tempestade');
+    return (t.tipo === 'mais2' && carta.tipo === 'mais2') || (t.tipo === 'todosunidos' && carta.tipo === 'todosunidos');
   }
-  if (carta.tipo === 'portal' || carta.tipo === 'tempestade') return true;
+  if (CURINGA(carta.tipo)) return true;
   if (carta.cor === e.corAtual) return true;
   if (carta.tipo === 'numero') return t.tipo === 'numero' && t.valor === carta.valor;
   return carta.tipo === t.tipo;
@@ -184,25 +188,20 @@ export function jogar(e: Estado, jogadorId: string, cartaId: string, op: OpcoesJ
   if (idx < 0) erro('Essa carta não está na sua mão');
   const carta = j.mao[idx];
   if (e.comprada && e.comprada !== carta.id) erro('Depois de comprar, só dá para jogar a carta que você comprou');
-  if (!podeJogar(e, carta)) erro(e.acumulado > 0 ? `Jogue um ${topo(e).tipo === 'mais2' ? 'Ping +2' : 'Tempestade +4'} ou compre ${e.acumulado}` : 'Essa carta não combina com a da mesa');
+  if (!podeJogar(e, carta)) erro(e.acumulado > 0 ? `Jogue um ${topo(e).tipo === 'mais2' ? '+2' : 'Todos Unidos'} ou compre ${e.acumulado}` : 'Essa carta não combina com a da mesa');
 
-  const preta = carta.tipo === 'portal' || carta.tipo === 'tempestade';
+  const preta = CURINGA(carta.tipo);
   if (preta && !CORES.includes(op.cor as Cor)) erro('Escolha uma cor');
   let alvo: Jogador | undefined;
-  if (carta.tipo === 'troca') {
+  if (carta.tipo === 'call') {
     alvo = e.jogadores.find(p => p.id === op.alvoId);
-    if (!alvo || alvo.id === j.id) erro('Escolha com quem trocar a mão');
+    if (!alvo || alvo.id === j.id) erro('Escolha quem joga agora');
   }
 
   j.mao.splice(idx, 1);
   e.descarte.push(carta);
   e.corAtual = preta ? (op.cor as Cor) : carta.cor;
   e.ultima = { jogadorId, acao: 'jogou', carta, alvoId: alvo?.id };
-
-  if (carta.tipo === 'troca' && alvo) {
-    [j.mao, alvo.mao] = [alvo.mao, j.mao];
-    j.gritou = false; alvo.gritou = false;
-  }
 
   // Acabou a mão: venceu (mesmo que a última carta seja um +2/+4)
   if (j.mao.length === 0) {
@@ -217,13 +216,18 @@ export function jogar(e: Estado, jogadorId: string, cartaId: string, op: OpcoesJ
 
   const n = e.jogadores.length;
   switch (carta.tipo) {
-    case 'mutado': avancar(e, 2); break;
-    case 'eco':
+    case 'bloqueio': avancar(e, 2); break;
+    case 'troca':
       e.sentido = (e.sentido * -1) as 1 | -1;
       avancar(e, n === 2 ? 2 : 1); // com 2 jogadores, inverter = jogar de novo
       break;
     case 'mais2': e.acumulado += 2; avancar(e); break;
-    case 'tempestade': e.acumulado += 4; avancar(e); break;
+    case 'todosunidos': e.acumulado += 4; avancar(e); break;
+    case 'call':
+      // Quem jogou escolhe quem joga agora (o sentido continua o mesmo)
+      e.vez = e.jogadores.findIndex(p => p.id === alvo!.id);
+      e.comprada = null;
+      break;
     default: avancar(e);
   }
   e.prazo = agora + tempoVez;

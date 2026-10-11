@@ -106,7 +106,7 @@ function socket(token) {
     const seqAntes = eVez.seq;
     if (eVez.jogaveis.length) {
       const c = eVez.minhaMao.find(x => x.id === eVez.jogaveis[0]);
-      const alvoId = c.tipo === 'troca' ? eOutro.jogadores.find(p => p.id !== vez).id : undefined;
+      const alvoId = c.tipo === 'call' ? eOutro.jogadores.find(p => p.id !== vez).id : undefined;
       r = await sVez.pedir('unidos:jogar', { partidaId: pid, cartaId: c.id, cor: 'verde', alvoId });
       await sleep(400);
       check('jogada válida chega para todos', r.ok && sOutro.ultimo('unidos:estado').topo.id === c.id, JSON.stringify(r));

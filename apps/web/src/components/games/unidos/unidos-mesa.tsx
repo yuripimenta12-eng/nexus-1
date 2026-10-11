@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogOut, Play, RotateCw, RotateCcw, Crown, Loader2, Trophy, Hand, Minimize2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn } from '@/lib/utils';
-import { CartaView, CartaVerso, COR_HEX, nomeCarta } from './carta';
+import { CartaView, CartaVerso, COR_HEX, nomeCarta, precarregarCartas } from './carta';
 import { useUnidos, type Carta, type Cor, type JogadorVisao, type Partida } from './unidos.store';
 
 // ── Sons curtos do jogo (gerados na hora, sem arquivos) ───────────────
@@ -40,8 +40,9 @@ function textoUltima(p: Partida, meuId: string) {
     case 'inicio': return `A partida começou! ${nome(u.jogadorId)} joga primeiro.`;
     case 'jogou': {
       const c = u.carta!;
-      if (c.tipo === 'troca') return `${nome(u.jogadorId)} trocou a mão com ${nome(u.alvoId).toLowerCase() === 'você' ? 'você' : nome(u.alvoId)}`;
-      if (c.tipo === 'portal' || c.tipo === 'tempestade') return `${nome(u.jogadorId)} jogou ${nomeCarta(c)} e escolheu ${COR_HEX[p.corAtual!]?.nome.toLowerCase()}`;
+      if (c.tipo === 'call') return `${nome(u.jogadorId)} jogou Call e chamou ${nome(u.alvoId) === 'Você' ? 'você' : nome(u.alvoId)} para jogar`;
+      if (c.tipo === 'troca') return `${nome(u.jogadorId)} jogou Troca: o sentido inverteu`;
+      if (c.tipo === 'conexao' || c.tipo === 'todosunidos') return `${nome(u.jogadorId)} jogou ${nomeCarta(c)} e escolheu ${COR_HEX[p.corAtual!]?.nome.toLowerCase()}`;
       return `${nome(u.jogadorId)} jogou ${nomeCarta(c)}`;
     }
     case 'comprou': return `${nome(u.jogadorId)} comprou ${u.qtd} carta${u.qtd === 1 ? '' : 's'}`;
@@ -120,6 +121,9 @@ export function UnidosMesa() {
   const minhaVez = !!p && p.status === 'jogando' && p.vezId === meuId;
   const restante = useRestante(p?.prazoLocal || 0, minhaVez);
 
+  // Baixa as artes das cartas ao abrir a mesa (sem piscar quando uma carta aparece)
+  useEffect(() => { precarregarCartas(); }, []);
+
   // Erro some sozinho
   useEffect(() => {
     if (!erro) return;
@@ -161,8 +165,8 @@ export function UnidosMesa() {
 
   const tocarCarta = async (c: Carta) => {
     if (!minhaVez || !jogaveis.has(c.id)) return;
-    if (c.tipo === 'portal' || c.tipo === 'tempestade') { setEscolherCor(c); return; }
-    if (c.tipo === 'troca') { setEscolherAlvo(c); return; }
+    if (c.tipo === 'conexao' || c.tipo === 'todosunidos') { setEscolherCor(c); return; }
+    if (c.tipo === 'call') { setEscolherAlvo(c); return; }
     if (await fazer('jogar', { cartaId: c.id })) som.jogar();
   };
 
@@ -179,9 +183,8 @@ export function UnidosMesa() {
     >
       {/* Cabeçalho */}
       <div className="flex items-center gap-3 px-4 h-14 shrink-0 border-b border-white/[0.06]">
-        <span className="text-xl font-black tracking-tight">
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff6a00] to-[#b142f5]">UN</span>idos
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-9 w-auto select-none" draggable={false} />
         <span className="text-[12px] text-[#a99cb8] hidden sm:inline">
           {p.status === 'lobby' ? 'Esperando jogadores' : p.status === 'jogando' ? `${p.monte} cartas no monte` : 'Fim de partida'}
         </span>
@@ -201,14 +204,15 @@ export function UnidosMesa() {
       {p.status === 'lobby' && (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 text-center">
           <div className="flex -space-x-6">
-            {[{ id: 'a', cor: 'laranja', tipo: 'numero', valor: 7 }, { id: 'b', cor: null, tipo: 'portal' }, { id: 'c', cor: 'roxo', tipo: 'troca' }].map((c, i) => (
+            {[{ id: 'a', cor: 'laranja', tipo: 'numero', valor: 0 }, { id: 'b', cor: null, tipo: 'todosunidos' }, { id: 'c', cor: 'roxo', tipo: 'numero', valor: 3 }].map((c, i) => (
               <motion.div key={c.id} initial={{ y: 30, opacity: 0, rotate: 0 }} animate={{ y: 0, opacity: 1, rotate: (i - 1) * 12 }} transition={{ delay: i * 0.08 }}>
                 <CartaView carta={c as Carta} tamanho={86} />
               </motion.div>
             ))}
           </div>
           <div>
-            <h2 className="text-2xl font-black">Mesa de UNidos</h2>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-20 sm:h-24 w-auto mx-auto mb-1 select-none" draggable={false} />
             <p className="text-[#a99cb8] text-sm mt-1">Quem está na chamada vê o botão <b className="text-white">Entrar</b>. De 2 a 8 jogadores.</p>
           </div>
           <div className="flex flex-wrap justify-center gap-3 max-w-xl">
@@ -230,7 +234,7 @@ export function UnidosMesa() {
           )}
           <div className="text-left text-[12.5px] text-[#a99cb8] max-w-md rounded-2xl bg-white/[0.04] border border-white/[0.06] px-4 py-3 space-y-1">
             <p><b className="text-white">Como jogar:</b> jogue uma carta da mesma cor ou do mesmo número/símbolo da mesa.</p>
-            <p><b className="text-white">Mutado</b> pula o próximo · <b className="text-white">Eco</b> inverte · <b className="text-white">Ping +2</b> e <b className="text-white">Tempestade +4</b> acumulam · <b className="text-white">Troca</b> troca sua mão com alguém · <b className="text-white">Portal</b> muda a cor.</p>
+            <p><b className="text-white">Bloqueio</b> pula o próximo · <b className="text-white">Troca</b> inverte o sentido · <b className="text-white">Call</b> escolhe quem joga · <b className="text-white">+2</b> e <b className="text-white">Todos Unidos (+4)</b> acumulam · <b className="text-white">Conexão</b> muda a cor.</p>
             <p>Com 1 carta, aperte <b className="text-white">UNidos!</b> — se esquecer e alguém pegar, você compra 2.</p>
           </div>
         </div>
@@ -379,7 +383,7 @@ export function UnidosMesa() {
         )}
       </AnimatePresence>
 
-      {/* Escolher a cor (Portal / Tempestade) */}
+      {/* Escolher a cor (Conexão / Todos Unidos) */}
       <AnimatePresence>
         {escolherCor && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -401,15 +405,15 @@ export function UnidosMesa() {
         )}
       </AnimatePresence>
 
-      {/* Escolher com quem trocar (Troca) */}
+      {/* Escolher quem joga agora (Call) */}
       <AnimatePresence>
         {escolherAlvo && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center p-4" onClick={() => setEscolherAlvo(null)}>
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}
               className="rounded-3xl border border-white/10 p-5 w-full max-w-sm bg-[#140d22]">
-              <p className="font-black text-lg mb-1 text-center">Trocar a mão com quem?</p>
-              <p className="text-[12.5px] text-[#a99cb8] mb-4 text-center">Você fica com as cartas da pessoa e ela com as suas.</p>
+              <p className="font-black text-lg mb-1 text-center">Quem joga agora?</p>
+              <p className="text-[12.5px] text-[#a99cb8] mb-4 text-center">A vez pula direto para a pessoa que você escolher.</p>
               <div className="space-y-2">
                 {adversarios.map(j => (
                   <button key={j.id} onClick={async () => { const c = escolherAlvo; setEscolherAlvo(null); if (await fazer('jogar', { cartaId: c.id, alvoId: j.id })) som.jogar(); }}

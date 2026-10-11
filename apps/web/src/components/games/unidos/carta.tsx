@@ -1,24 +1,35 @@
 'use client';
 
-import { MicOff, Repeat2, Shuffle, Zap } from 'lucide-react';
+import { Shield, Repeat2, Headphones, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Carta, Cor } from './unidos.store';
 
-// Quando as artes oficiais chegarem (public/unidos/cartas/*.png), basta
-// colocar true aqui: cada carta passa a usar a imagem com o nome combinado
-// (laranja-7.png, roxo-mutado.png, portal.png, verso.png...).
-export const ARTE_PERSONALIZADA = false;
+// Artes oficiais do UNidos (public/unidos/cartas/*.webp), geradas a partir das
+// artes do usuário. Com false, volta para as cartas desenhadas em CSS.
+export const ARTE_PERSONALIZADA = true;
 
 export const COR_HEX: Record<Cor, { base: string; claro: string; escuro: string; nome: string }> = {
   laranja: { base: '#FF6A00', claro: '#FFB27D', escuro: '#9C3D00', nome: 'Laranja' },
   roxo: { base: '#7A2CFF', claro: '#CBB3FF', escuro: '#3F1291', nome: 'Roxo' },
-  ciano: { base: '#0EA5C6', claro: '#8EE6F7', escuro: '#075E72', nome: 'Ciano' },
-  verde: { base: '#1FB57A', claro: '#8DF0C4', escuro: '#0D6343', nome: 'Verde' },
+  prata: { base: '#C9C9D1', claro: '#FFFFFF', escuro: '#5E5E66', nome: 'Prata' },
+  dourado: { base: '#F2C35B', claro: '#FFF1CC', escuro: '#8A6420', nome: 'Dourado' },
 };
 
 export const NOME_TIPO: Record<Carta['tipo'], string> = {
-  numero: 'Número', mutado: 'Mutado', eco: 'Eco', mais2: 'Ping +2', troca: 'Troca', portal: 'Portal', tempestade: 'Tempestade +4',
+  numero: 'Número', bloqueio: 'Bloqueio', troca: 'Troca', mais2: '+2', call: 'Call', conexao: 'Conexão', todosunidos: 'Todos Unidos',
 };
+
+let precarregado = false;
+export function precarregarCartas() {
+  if (precarregado || !ARTE_PERSONALIZADA || typeof window === 'undefined') return;
+  precarregado = true;
+  const nomes = ['verso', 'conexao', 'todos-unidos', 'logo'];
+  for (const cor of Object.keys(COR_HEX)) {
+    for (let v = 0; v <= 9; v++) nomes.push(`${cor}-${v}`);
+    for (const t of ['bloqueio', 'troca', 'mais2', 'call']) nomes.push(`${cor}-${t}`);
+  }
+  for (const n of nomes) { const img = new Image(); img.decoding = 'async'; img.src = `/unidos/cartas/${n}.webp`; }
+}
 
 export function nomeCarta(c: Carta) {
   if (c.tipo === 'numero') return `${c.valor} ${COR_HEX[c.cor!].nome.toLowerCase()}`;
@@ -27,21 +38,22 @@ export function nomeCarta(c: Carta) {
 }
 
 function arquivo(c: Carta) {
-  if (c.tipo === 'portal' || c.tipo === 'tempestade') return `/unidos/cartas/${c.tipo}.png`;
+  if (c.tipo === 'conexao') return '/unidos/cartas/conexao.webp';
+  if (c.tipo === 'todosunidos') return '/unidos/cartas/todos-unidos.webp';
   const sufixo = c.tipo === 'numero' ? String(c.valor) : c.tipo;
-  return `/unidos/cartas/${c.cor}-${sufixo}.png`;
+  return `/unidos/cartas/${c.cor}-${sufixo}.webp`;
 }
 
 function Simbolo({ c, grande }: { c: Carta; grande?: boolean }) {
   const tam = grande ? 'w-[46%] h-[46%]' : 'w-[60%] h-[60%]';
   switch (c.tipo) {
     case 'numero': return <span className="leading-none">{c.valor}</span>;
-    case 'mutado': return <MicOff className={tam} strokeWidth={2.6} />;
-    case 'eco': return <Repeat2 className={tam} strokeWidth={2.6} />;
-    case 'troca': return <Shuffle className={tam} strokeWidth={2.6} />;
+    case 'bloqueio': return <Shield className={tam} strokeWidth={2.6} />;
+    case 'troca': return <Repeat2 className={tam} strokeWidth={2.6} />;
+    case 'call': return <Headphones className={tam} strokeWidth={2.6} />;
     case 'mais2': return <span className="leading-none">+2</span>;
-    case 'tempestade': return <span className="leading-none">+4</span>;
-    case 'portal': return <Zap className={tam} strokeWidth={2.6} />;
+    case 'todosunidos': return <span className="leading-none">+4</span>;
+    case 'conexao': return <Zap className={tam} strokeWidth={2.6} />;
   }
 }
 
@@ -57,12 +69,27 @@ export function CartaView({
   const raio = Math.round(tamanho * 0.12);
 
   if (ARTE_PERSONALIZADA) {
+    const r = Math.round(tamanho * 0.075); // canto arredondado das artes
+    const especialColorida = carta.cor && carta.tipo !== 'numero';
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={arquivo(carta)} alt={nomeCarta(carta)} draggable={false}
-        className={cn('select-none', apagada && 'opacity-45 saturate-[.7]', className)}
-        style={{ width: tamanho, height: altura, borderRadius: raio,
-          boxShadow: jogavel ? '0 0 0 3px #fff, 0 10px 24px rgba(0,0,0,.45)' : '0 6px 16px rgba(0,0,0,.4)' }} />
+      <div className={cn('relative shrink-0 select-none transition-opacity duration-200', apagada && 'opacity-45 saturate-[.7]', className)}
+        style={{ width: tamanho, height: altura, borderRadius: r,
+          boxShadow: jogavel ? '0 0 0 3px #fff, 0 10px 24px rgba(0,0,0,.5)' : '0 6px 16px rgba(0,0,0,.45)' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={arquivo(carta)} alt={nomeCarta(carta)} draggable={false} className="w-full h-full" style={{ borderRadius: r }} />
+        {/* Especial colorida: selo da cor no canto (dá para ver mesmo com a carta pequena) */}
+        {especialColorida && (
+          <span className="absolute rounded-full" style={{
+            top: tamanho * 0.045, left: tamanho * 0.045, width: tamanho * 0.2, height: tamanho * 0.2,
+            background: COR_HEX[carta.cor!].base, border: `${Math.max(2, tamanho * 0.025)}px solid #0a0713`,
+            boxShadow: `0 0 ${tamanho * 0.08}px ${COR_HEX[carta.cor!].base}`,
+          }} />
+        )}
+        {/* Curinga na mesa: mostra a cor escolhida */}
+        {!carta.cor && corEscolhida && (
+          <span className="absolute inset-x-[12%] bottom-[3%] rounded-full" style={{ height: tamanho * 0.07, background: COR_HEX[corEscolhida].base, boxShadow: `0 0 ${tamanho * 0.1}px ${COR_HEX[corEscolhida].base}` }} />
+        )}
+      </div>
     );
   }
 
@@ -97,7 +124,7 @@ export function CartaView({
         <div className="flex items-center justify-center rounded-full"
           style={{
             width: tamanho * 0.72, height: tamanho * 0.72, fontSize: tamanho * 0.36,
-            background: preta ? 'conic-gradient(#FF6A00 0 25%, #7A2CFF 0 50%, #0EA5C6 0 75%, #1FB57A 0)' : '#0a0713',
+            background: preta ? 'conic-gradient(#FF6A00 0 25%, #7A2CFF 0 50%, #C9C9D1 0 75%, #F2C35B 0)' : '#0a0713',
             color: preta ? '#fff' : cor!.claro,
             boxShadow: 'inset 0 0 0 3px rgba(255,255,255,.12)',
           }}>
@@ -121,7 +148,7 @@ export function CartaVerso({ tamanho = 84, className }: { tamanho?: number; clas
   const raio = Math.round(tamanho * 0.12);
   if (ARTE_PERSONALIZADA) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src="/unidos/cartas/verso.png" alt="" draggable={false} className={cn('select-none', className)} style={{ width: tamanho, height: altura, borderRadius: raio }} />;
+    return <img src="/unidos/cartas/verso.webp" alt="" draggable={false} className={cn('select-none shrink-0', className)} style={{ width: tamanho, height: altura, borderRadius: Math.round(tamanho * 0.075), boxShadow: '0 6px 16px rgba(0,0,0,.45)' }} />;
   }
   return (
     <div className={cn('relative shrink-0 select-none overflow-hidden', className)}

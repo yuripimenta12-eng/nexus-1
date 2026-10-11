@@ -50,3 +50,6 @@ public/uploads/
 env-novo.txt
 *.env
 .env*
+
+# Artes originais do UNidos (grandes); as cartas prontas ficam em apps/web/public/unidos
+unidos-artes/
