@@ -138,6 +138,17 @@ export class RedisService implements OnModuleDestroy {
   }
 
   // ── Genérico ─────────────────────────────────────────────────
+  async scanKeys(pattern: string): Promise<string[]> {
+    const out: string[] = [];
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
+      cursor = next;
+      out.push(...keys);
+    } while (cursor !== '0');
+    return out;
+  }
+
   async get(key: string): Promise<string | null> {
     return this.client.get(key);
   }

@@ -44,7 +44,7 @@ interface UnidosState {
   erro: string | null;
   voiceRoomId: string | null;
   ouvir: (voiceRoomId: string) => () => void;
-  consultar: () => Promise<void>;
+  consultar: (tentativa?: number) => Promise<void>;
   abrirMesa: () => Promise<void>;
   entrarMesa: () => Promise<void>;
   acao: (evento: string, dados?: Record<string, unknown>) => Promise<boolean>;
@@ -78,7 +78,9 @@ export const useUnidos = create<UnidosState>((set, get) => ({
     const onEncerrada = ({ id }: { id: string }) => {
       if (get().partida?.id === id) set({ partida: null, aberta: false });
     };
-    const onConnect = () => { get().consultar(); };
+    // Reconectou (internet piscou ou o servidor reiniciou): confere a mesa de novo.
+    // Espera o voice:join chegar antes, senão o servidor ainda não sabe que estamos na sala.
+    const onConnect = () => { setTimeout(() => get().consultar(), 1200); };
     socket.on('unidos:estado', onEstado);
     socket.on('unidos:sala', onSala);
     socket.on('unidos:encerrada', onEncerrada);
@@ -95,11 +97,20 @@ export const useUnidos = create<UnidosState>((set, get) => ({
     };
   },
 
-  consultar: async () => {
+  consultar: async (tentativa = 0) => {
     const voiceRoomId = get().voiceRoomId;
     if (!voiceRoomId) return;
     const r = await pedir('unidos:consultar', { voiceRoomId });
-    if (r.ok) set({ sala: r.sala ?? null, partida: r.partida ? comRelogio(r.partida) : null });
+    if (r.ok) {
+      const tinha = get().partida;
+      const agora = r.partida ? comRelogio(r.partida) : null;
+      // A mesa não existe mais no servidor: avisa em vez de deixar a tela parada
+      if (tinha && !agora) set({ erro: 'A partida foi encerrada. Abra uma mesa nova para jogar de novo.', aberta: false });
+      set({ sala: r.sala ?? null, partida: agora });
+    } else if (tentativa < 4 && get().voiceRoomId === voiceRoomId) {
+      // Ainda entrando na chamada depois de reconectar: tenta de novo
+      setTimeout(() => get().consultar(tentativa + 1), 1500);
+    }
   },
 
   abrirMesa: async () => {
@@ -123,7 +134,11 @@ export const useUnidos = create<UnidosState>((set, get) => ({
     const p = get().partida;
     if (!p) return false;
     const r = await pedir(`unidos:${evento}`, { partidaId: p.id, ...dados });
-    if (!r.ok) set({ erro: r.erro || 'Jogada recusada' });
+    if (!r.ok) {
+      set({ erro: r.erro || 'Jogada recusada' });
+      // A partida sumiu do servidor: atualiza a tela (fecha a mesa e avisa)
+      if (r.erro === 'Partida não encontrada') get().consultar();
+    }
     return r.ok;
   },
 

@@ -1,7 +1,8 @@
 import { Logger, UseFilters } from '@nestjs/common';
 import {
-  ConnectedSocket, MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer,
+  ConnectedSocket, MessageBody, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer,
 } from '@nestjs/websockets';
+import { RedisService } from '../../redis/redis.service';
 import { randomBytes, randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -25,7 +26,7 @@ type Resposta = { ok: true; partida?: J.Visao } | { ok: false; erro: string };
   cors: { origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(','), credentials: true },
   transports: ['websocket', 'polling'],
 })
-export class UnidosGateway implements OnGatewayDisconnect {
+export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger('UNidos');
   private partidas = new Map<string, J.Estado>();
@@ -33,9 +34,35 @@ export class UnidosGateway implements OnGatewayDisconnect {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private ultimoUso = new Map<string, number>();
 
-  constructor(private prisma: PrismaService) {
+  constructor(private prisma: PrismaService, private redis: RedisService) {
     // Limpa mesas abandonadas
     setInterval(() => this.limpar(), 60_000).unref();
+  }
+
+  // ── Partidas salvas no Redis: sobrevivem a reinício do servidor ─
+  private chave = (id: string) => `unidos:partida:${id}`;
+  private salvar(p: J.Estado) {
+    this.redis.set(this.chave(p.id), JSON.stringify(p), 6 * 3600).catch(e => this.logger.warn(`salvar: ${e.message}`));
+  }
+
+  // Ao subir: retoma as partidas que estavam rolando (o relógio da vez recomeça)
+  async afterInit() {
+    try {
+      const chaves = await this.redis.scanKeys('unidos:partida:*');
+      for (const k of chaves) {
+        const bruto = await this.redis.get(k);
+        if (!bruto) continue;
+        const p = JSON.parse(bruto) as J.Estado;
+        if (!p?.id || !Array.isArray(p.jogadores) || !p.jogadores.length) { await this.redis.del(k); continue; }
+        if (p.status === 'jogando') p.prazo = Date.now() + TEMPO_VEZ;
+        p.seq++;
+        this.partidas.set(p.id, p);
+        this.porSala.set(p.voiceRoomId, p.id);
+        this.ultimoUso.set(p.id, Date.now());
+        this.agendar(p);
+      }
+      if (chaves.length) this.logger.log(`${this.partidas.size} partida(s) retomada(s) depois do reinício`);
+    } catch (e: any) { this.logger.warn(`retomar partidas: ${e.message}`); }
   }
 
   // ── Helpers ────────────────────────────────────────────────────
@@ -89,6 +116,7 @@ export class UnidosGateway implements OnGatewayDisconnect {
   // Cada jogador recebe a visão dele; a sala de voz recebe o resumo (para o botão "Entrar")
   private enviar(p: J.Estado) {
     this.ultimoUso.set(p.id, Date.now());
+    this.salvar(p);
     for (const j of p.jogadores) {
       this.server.to(`user:${j.id}`).emit('unidos:estado', J.visao(p, j.id));
     }
@@ -136,6 +164,7 @@ export class UnidosGateway implements OnGatewayDisconnect {
     clearTimeout(this.timers.get(p.id));
     this.timers.delete(p.id);
     this.partidas.delete(p.id);
+    this.redis.del(this.chave(p.id)).catch(() => {});
     if (this.porSala.get(p.voiceRoomId) === p.id) this.porSala.delete(p.voiceRoomId);
     this.ultimoUso.delete(p.id);
     for (const j of p.jogadores) this.server.to(`user:${j.id}`).emit('unidos:encerrada', { id: p.id });
