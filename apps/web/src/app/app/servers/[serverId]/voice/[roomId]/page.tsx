@@ -9,7 +9,7 @@ import {
   WifiOff, ShieldCheck, UserPlus, Users, Sliders,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
-  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X,
+  Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X, Gamepad2,
 } from 'lucide-react';
 import { DjPanel, useAnyTabMusic } from '@/components/voice/dj-panel';
 import { DJ_IDENTITY, MUSIC_TRACK_NAME } from '@/stores/voice.store';
@@ -29,6 +29,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
+import { useUnidos } from '@/components/games/unidos/unidos.store';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -149,6 +150,9 @@ export default function VoicePage() {
     setCanShareScreen(!!(navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia));
   }, []);
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
+  const unidosSala = useUnidos(s => s.sala);
+  const unidosPartida = useUnidos(s => s.partida);
+  const unidosErro = useUnidos(s => s.erro);
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
   const tabMusicOn = useAnyTabMusic();                     // alguém transmitindo música de uma aba
   const djState = useVoiceStore(s => s.djState);
@@ -356,6 +360,19 @@ export default function VoicePage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   }
+
+  // UNidos: erro ao abrir/entrar (com a mesa fechada) e aviso de mesa nova
+  useEffect(() => {
+    if (!unidosErro || useUnidos.getState().aberta) return;
+    notify(unidosErro);
+    useUnidos.getState().limparErro();
+  }, [unidosErro]);
+  const mesaAvisada = useRef<string | null>(null);
+  useEffect(() => {
+    if (!unidosSala || unidosSala.status !== 'lobby' || unidosPartida || mesaAvisada.current === unidosSala.id) return;
+    mesaAvisada.current = unidosSala.id;
+    notify(`🎮 ${unidosSala.hostNome} abriu uma mesa de UNidos — toque no controle para entrar`);
+  }, [unidosSala, unidosPartida]);
 
   // Live caiu sem o usuário pedir → mostra o motivo por mais tempo
   useEffect(() => {
@@ -1211,6 +1228,20 @@ export default function VoicePage() {
                 <MonitorSpeaker className="w-5 h-5" />
               </ControlButton>
             )}
+
+            {/* UNidos: jogo de cartas da chamada */}
+            <ControlButton
+              onClick={() => { const u = useUnidos.getState(); if (u.partida) u.setAberta(true); else u.entrarMesa(); }}
+              active={!!unidosSala}
+              title={unidosSala ? (unidosSala.status === 'lobby' ? `Entrar na mesa de UNidos de ${unidosSala.hostNome}` : 'Mesa de UNidos rolando') : 'Jogar UNidos com quem está na chamada'}
+            >
+              <span className="relative">
+                <Gamepad2 className="w-5 h-5" />
+                {unidosSala && !unidosPartida && (
+                  <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[#ff6a00] animate-pulse" />
+                )}
+              </span>
+            </ControlButton>
 
             {/* DJ Nexus: bot de música (YouTube/SoundCloud) que entra na call */}
             <div className="relative">

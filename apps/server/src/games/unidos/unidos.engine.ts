@@ -350,6 +350,8 @@ export function visao(e: Estado, quemId: string) {
     vencedorId: e.vencedorId,
     ultima: e.ultima,
     prazo: e.prazo,
+    // Tempo que falta, medido no servidor (o relógio de cada PC pode estar diferente)
+    restante: e.status === 'jogando' ? Math.max(0, e.prazo - Date.now()) : 0,
     minhaMao: eu ? eu.mao : [],
     jogaveis: minhaVez ? eu!.mao.filter(c => (!e.comprada || c.id === e.comprada) && podeJogar(e, c)).map(c => c.id) : [],
   };
