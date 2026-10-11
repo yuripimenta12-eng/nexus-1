@@ -395,7 +395,8 @@ export function UnidosMesa() {
                 {(Object.keys(COR_HEX) as Cor[]).map(cor => (
                   <button key={cor} onClick={async () => { const c = escolherCor; setEscolherCor(null); if (await fazer('jogar', { cartaId: c.id, cor })) som.jogar(); }}
                     className="w-32 h-20 rounded-2xl font-black text-[15px] hover:scale-105 transition-transform border-2 border-white/10"
-                    style={{ background: `linear-gradient(150deg, ${COR_HEX[cor].claro} -40%, ${COR_HEX[cor].base} 50%, ${COR_HEX[cor].escuro} 140%)` }}>
+                    style={{ background: `linear-gradient(150deg, ${COR_HEX[cor].claro} -40%, ${COR_HEX[cor].base} 50%, ${COR_HEX[cor].escuro} 140%)`,
+                      color: cor === 'prata' || cor === 'dourado' ? '#1a1406' : '#fff' }}>
                     {COR_HEX[cor].nome}
                   </button>
                 ))}
