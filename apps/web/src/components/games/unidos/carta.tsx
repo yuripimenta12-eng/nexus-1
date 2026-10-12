@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, Repeat2, Headphones, Zap } from 'lucide-react';
+import { Shield, Repeat2, Headphones, Zap, Flame, Gem, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Carta, Cor } from './unidos.store';
 
@@ -14,6 +14,13 @@ export const COR_HEX: Record<Cor, { base: string; claro: string; escuro: string;
   prata: { base: '#C9C9D1', claro: '#FFFFFF', escuro: '#5E5E66', nome: 'Prata' },
   dourado: { base: '#F2C35B', claro: '#FFF1CC', escuro: '#8A6420', nome: 'Dourado' },
 };
+
+// Símbolo de cada cor (além da cor em si, para quem não distingue bem as cores)
+const ICONE_COR = { laranja: Flame, roxo: Gem, prata: Moon, dourado: Sun } as const;
+export function IconeCor({ cor, className, style }: { cor: Cor; className?: string; style?: React.CSSProperties }) {
+  const I = ICONE_COR[cor];
+  return <I className={className} style={style} strokeWidth={2.6} aria-hidden />;
+}
 
 export const NOME_TIPO: Record<Carta['tipo'], string> = {
   numero: 'Número', bloqueio: 'Bloqueio', troca: 'Troca', mais2: '+2', call: 'Call', conexao: 'Conexão', todosunidos: 'Todos Unidos',
@@ -167,5 +174,20 @@ export function CartaVerso({ tamanho = 84, className }: { tamanho?: number; clas
         )}
       </div>
     </div>
+  );
+}
+
+// As duas faces de uma carta para virar em 3D: coloque dentro de um elemento
+// com transformStyle 'preserve-3d' e gire esse elemento no eixo Y
+// (0° = frente, 180° = verso).
+export function FacesCarta({ carta, tamanho, corEscolhida, jogavel, apagada }: {
+  carta: Carta; tamanho: number; corEscolhida?: Cor | null; jogavel?: boolean; apagada?: boolean;
+}) {
+  const esconder = { backfaceVisibility: 'hidden' as const, WebkitBackfaceVisibility: 'hidden' as const };
+  return (
+    <>
+      <div style={esconder}><CartaView carta={carta} tamanho={tamanho} corEscolhida={corEscolhida} jogavel={jogavel} apagada={apagada} /></div>
+      <div className="absolute inset-0" style={{ ...esconder, transform: 'rotateY(180deg)' }}><CartaVerso tamanho={tamanho} /></div>
+    </>
   );
 }

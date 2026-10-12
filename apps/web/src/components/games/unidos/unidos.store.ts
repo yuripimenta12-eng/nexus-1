@@ -16,6 +16,7 @@ export interface Partida {
   jogadores: JogadorVisao[]; topo: Carta | null; corAtual: Cor | null; vezId: string | null;
   sentido: 1 | -1; acumulado: number; monte: number; comprada: string | null;
   vencedorId: string | null; prazo: number; restante?: number;
+  pontos?: number; duracao?: number; // vitória: pontos do vencedor e duração da partida (ms)
   prazoLocal?: number; // prazo convertido para o relógio deste aparelho
   ultima: { jogadorId: string; acao: string; carta?: Carta; alvoId?: string; qtd?: number } | null;
   minhaMao: Carta[]; jogaveis: string[];

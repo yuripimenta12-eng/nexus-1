@@ -151,9 +151,11 @@ J.jogar(e, 'a', 'a1', {}, rng);
 check('gritou antes: não pode ser pego', lanca(() => J.pegar(e, 'b', 'a', rng), 'não esqueceu'));
 
 console.log('● Fim de jogo, tempo e saída');
-cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('ult', 'roxo', 'mais2')], [carta('x', 'verde', 'numero', 2)], [carta('y', 'verde', 'numero', 3)]]);
-J.jogar(e, 'a', 'ult', {}, rng);
+cena(e, 0, carta('t', 'roxo', 'numero', 5), [[carta('ult', 'roxo', 'mais2')], [carta('x', 'verde', 'numero', 2), carta('cx', null, 'conexao')], [carta('y', 'verde', 'numero', 3), carta('bq', 'roxo', 'bloqueio')]]);
+J.jogar(e, 'a', 'ult', {}, rng, 90_000);
 check('última carta vence (mesmo sendo +2)', e.status === 'fim' && e.vencedorId === 'a');
+check('pontos = cartas que sobraram com os outros (2+50+3+20)', J.visao(e, 'b').pontos === 75, J.visao(e, 'b').pontos);
+check('duração da partida medida do início ao fim', J.visao(e, 'b').duracao === 90_000, J.visao(e, 'b').duracao);
 check('depois do fim ninguém joga', lanca(() => J.comprar(e, 'b', rng), 'não está rolando'));
 
 e = mesa(3);

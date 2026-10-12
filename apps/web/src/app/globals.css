@@ -1036,3 +1036,40 @@
 }
 /* Evita o "pulo"/destaque azul ao tocar em botões no celular */
 button, a { -webkit-tap-highlight-color: transparent; }
+
+/* ── UNidos: efeitos da mesa ───────────────────────────────────────────── */
+/* Brilho holográfico passando pela carta */
+@keyframes unidos-holo {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.unidos-holo {
+  background: linear-gradient(115deg, transparent 20%, rgba(255,106,0,.55) 35%, rgba(255,255,255,.7) 45%, rgba(122,44,255,.6) 55%, rgba(242,195,91,.5) 65%, transparent 80%);
+  background-size: 200% 100%;
+  mix-blend-mode: screen;
+  animation: unidos-holo 0.9s linear infinite;
+}
+/* Contorno pulsando na carta selecionada */
+@keyframes unidos-contorno {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 2px #fff, 0 0 18px 3px var(--unidos-cor, #fff); }
+  50% { opacity: .75; box-shadow: 0 0 0 3px #fff, 0 0 28px 8px var(--unidos-cor, #fff); }
+}
+.unidos-contorno { animation: unidos-contorno 1.1s ease-in-out infinite; }
+/* Ondas de quem está falando na chamada */
+@keyframes unidos-fala {
+  0% { transform: scale(1); opacity: .7; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+.unidos-fala { animation: unidos-fala 1.2s ease-out infinite; }
+/* Pulso do anel da vez */
+@keyframes unidos-pulso-vez {
+  0%, 100% { filter: drop-shadow(0 0 4px var(--unidos-cor, #ff6a00)); }
+  50% { filter: drop-shadow(0 0 12px var(--unidos-cor, #ff6a00)); }
+}
+.unidos-pulso-vez { animation: unidos-pulso-vez 1.4s ease-in-out infinite; }
+.unidos-pulso-vez.urgente { animation-duration: .5s; }
+@keyframes unidos-girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .unidos-holo, .unidos-fala, .unidos-pulso-vez, .unidos-contorno { animation: none !important; }
+}

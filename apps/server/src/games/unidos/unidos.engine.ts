@@ -44,6 +44,9 @@ export interface Estado {
   ultima: Jogada | null;
   prazo: number;        // quando acaba o tempo da vez (ms)
   seq: number;          // muda a cada jogada (o cliente ignora estados velhos)
+  iniciadoEm?: number;  // quando a partida começou (ms) — para a duração na vitória
+  terminadoEm?: number;
+  pontos?: number;      // pontos do vencedor: soma das cartas que sobraram com os outros
 }
 
 export type Rng = () => number;
@@ -126,7 +129,25 @@ export function iniciar(e: Estado, rng: Rng, agora = Date.now(), tempoVez = 30_0
   e.vez = Math.floor(rng() * e.jogadores.length);
   e.ultima = { jogadorId: e.jogadores[e.vez].id, acao: 'inicio' };
   e.prazo = agora + tempoVez;
+  e.iniciadoEm = agora;
+  e.terminadoEm = 0;
+  e.pontos = 0;
   e.seq++;
+}
+
+// Pontos da vitória: número vale o próprio valor, especial colorida 20, curinga 50
+export function valorCarta(c: Carta) {
+  if (c.tipo === 'numero') return c.valor ?? 0;
+  return CURINGA(c.tipo) ? 50 : 20;
+}
+
+function terminar(e: Estado, vencedorId: string | null, agora: number) {
+  e.status = 'fim';
+  e.vencedorId = vencedorId;
+  e.comprada = null;
+  e.prazo = 0;
+  e.terminadoEm = agora;
+  e.pontos = e.jogadores.filter(p => p.id !== vencedorId).reduce((t, p) => t + p.mao.reduce((s, c) => s + valorCarta(c), 0), 0);
 }
 
 export const topo = (e: Estado) => e.descarte[e.descarte.length - 1];
@@ -205,10 +226,7 @@ export function jogar(e: Estado, jogadorId: string, cartaId: string, op: OpcoesJ
 
   // Acabou a mão: venceu (mesmo que a última carta seja um +2/+4)
   if (j.mao.length === 0) {
-    e.status = 'fim';
-    e.vencedorId = j.id;
-    e.comprada = null;
-    e.prazo = 0;
+    terminar(e, j.id, agora);
     e.seq++;
     return;
   }
@@ -314,9 +332,7 @@ export function sair(e: Estado, jogadorId: string, agora = Date.now(), tempoVez 
   if (e.status === 'jogando') {
     e.monte.push(...saiu.mao);
     if (e.jogadores.length < MIN_JOGADORES) {
-      e.status = 'fim';
-      e.vencedorId = e.jogadores[0]?.id ?? null;
-      e.prazo = 0;
+      terminar(e, e.jogadores[0]?.id ?? null, agora);
     } else {
       if (idx < e.vez) e.vez--;
       else if (idx === e.vez) { e.vez = e.vez % e.jogadores.length; e.comprada = null; e.prazo = agora + tempoVez; }
@@ -352,6 +368,9 @@ export function visao(e: Estado, quemId: string) {
     monte: e.monte.length,
     comprada: minhaVez ? e.comprada : null,
     vencedorId: e.vencedorId,
+    pontos: e.pontos ?? 0,
+    // Duração da partida (medida no servidor); enquanto rola, quanto já passou
+    duracao: e.iniciadoEm != null && e.status !== 'lobby' ? Math.max(0, (e.terminadoEm || Date.now()) - e.iniciadoEm) : 0,
     ultima: e.ultima,
     prazo: e.prazo,
     // Tempo que falta, medido no servidor (o relógio de cada PC pode estar diferente)

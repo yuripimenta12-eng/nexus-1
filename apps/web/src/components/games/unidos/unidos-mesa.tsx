@@ -1,36 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, LogOut, Play, RotateCw, RotateCcw, Crown, Loader2, Trophy, Hand, Minimize2 } from 'lucide-react';
+import { motion, AnimatePresence, MotionConfig, useAnimationControls } from 'framer-motion';
+import { X, LogOut, Play, RotateCw, RotateCcw, Crown, Loader2, Minimize2, Volume2, VolumeX, Settings2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn } from '@/lib/utils';
-import { CartaView, CartaVerso, COR_HEX, nomeCarta, precarregarCartas } from './carta';
-import { useUnidos, type Carta, type Cor, type JogadorVisao, type Partida } from './unidos.store';
-
-// ── Sons curtos do jogo (gerados na hora, sem arquivos) ───────────────
-let ctx: AudioContext | null = null;
-function bip(notas: [number, number, number][], tipo: OscillatorType = 'triangle', vol = 0.12) {
-  try {
-    ctx = ctx || new AudioContext();
-    const t0 = ctx.currentTime + 0.01;
-    for (const [f, ini, dur] of notas) {
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type = tipo; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t0 + ini);
-      g.gain.exponentialRampToValueAtTime(vol, t0 + ini + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + ini + dur);
-      o.connect(g).connect(ctx.destination); o.start(t0 + ini); o.stop(t0 + ini + dur + 0.05);
-    }
-  } catch { /* sem áudio */ }
-}
-const som = {
-  jogar: () => bip([[660, 0, 0.09], [990, 0.05, 0.12]]),
-  comprar: () => bip([[420, 0, 0.1]], 'sine', 0.1),
-  vez: () => bip([[784, 0, 0.12], [1175, 0.1, 0.18]], 'sine', 0.14),
-  gritar: () => bip([[880, 0, 0.1], [1320, 0.08, 0.1], [1760, 0.16, 0.2]], 'square', 0.06),
-  vitoria: () => bip([[523, 0, 0.2], [659, 0.15, 0.2], [784, 0.3, 0.2], [1047, 0.45, 0.45]], 'triangle', 0.14),
-};
+import { CartaView, COR_HEX, nomeCarta, precarregarCartas } from './carta';
+import { useUnidos, type Carta, type Cor, type Partida } from './unidos.store';
+import { audio } from './efeitos/audio';
+import { useConfigUnidos, useModoEfeitos } from './efeitos/config';
+import { cancelarTudo, impactoNaPilha, reagir } from './efeitos/controlador';
+import { derivar } from './efeitos/derivar';
+import { CamadaEspeciais } from './efeitos/especiais';
+import { CamadaParticulas } from './efeitos/particulas';
+import { lembrarOrigem } from './efeitos/posicoes';
+import { useTremor } from './efeitos/tremor';
+import { CamadaVoos, useVoos } from './efeitos/voos';
+import { Ajustes } from './mesa/ajustes';
+import { Adversario, Avatar, AvatarMesa, useRestanteMs } from './mesa/jogadores';
+import { Mao, type EstadoArrasto } from './mesa/mao';
+import { Monte, Pilha } from './mesa/pilha';
+import { SeletorAlvo, SeletorCor } from './mesa/seletores';
+import { PainelFim } from './mesa/vitoria';
 
 function textoUltima(p: Partida, meuId: string) {
   const u = p.ultima;
@@ -41,7 +32,8 @@ function textoUltima(p: Partida, meuId: string) {
     case 'jogou': {
       const c = u.carta!;
       if (c.tipo === 'call') return `${nome(u.jogadorId)} jogou Call e chamou ${nome(u.alvoId) === 'Você' ? 'você' : nome(u.alvoId)} para jogar`;
-      if (c.tipo === 'troca') return `${nome(u.jogadorId)} jogou Troca: o sentido inverteu`;
+      if (c.tipo === 'troca') return p.jogadores.length === 2 ? `${nome(u.jogadorId)} jogou Troca e joga de novo` : `${nome(u.jogadorId)} jogou Troca: o sentido inverteu`;
+      if (c.tipo === 'bloqueio') return `${nome(u.jogadorId)} jogou Bloqueio: o próximo perdeu a vez`;
       if (c.tipo === 'conexao' || c.tipo === 'todosunidos') return `${nome(u.jogadorId)} jogou ${nomeCarta(c)} e escolheu ${COR_HEX[p.corAtual!]?.nome.toLowerCase()}`;
       return `${nome(u.jogadorId)} jogou ${nomeCarta(c)}`;
     }
@@ -54,93 +46,92 @@ function textoUltima(p: Partida, meuId: string) {
   }
 }
 
-function Avatar({ j, tamanho = 44 }: { j: { nome: string; avatarUrl: string | null }; tamanho?: number }) {
-  return j.avatarUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={j.avatarUrl} alt="" className="rounded-full object-cover" style={{ width: tamanho, height: tamanho }} />
-  ) : (
-    <div className="rounded-full grid place-items-center font-black text-white" style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.36, background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
-      {j.nome.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
-
-function useRestante(prazo: number, ativo: boolean) {
-  const [agora, setAgora] = useState(Date.now());
+function useLarguraTela() {
+  const [w, setW] = useState(typeof window === 'undefined' ? 1200 : window.innerWidth);
   useEffect(() => {
-    if (!ativo) return;
-    const t = setInterval(() => setAgora(Date.now()), 250);
-    return () => clearInterval(t);
-  }, [ativo]);
-  return Math.max(0, Math.ceil((prazo - agora) / 1000));
+    const f = () => setW(window.innerWidth);
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+  return w;
 }
 
-function Adversario({ j, daVez, prazo, onPegar, host }: { j: JogadorVisao; daVez: boolean; prazo: number; onPegar: () => void; host: boolean }) {
-  const restante = useRestante(prazo, daVez);
-  return (
-    <div className={cn('relative flex flex-col items-center gap-1.5 px-2 py-2 rounded-2xl min-w-[86px] transition-colors', daVez && 'bg-white/[0.06]')}>
-      <div className={cn('relative rounded-full p-[3px]', daVez ? 'bg-gradient-to-br from-[#ff6a00] to-[#7a2cff]' : 'bg-transparent')}>
-        <div className={cn(j.ausente && 'opacity-40 grayscale')}><Avatar j={j} tamanho={42} /></div>
-        {daVez && (
-          <span className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-[#0a0713] border border-[#ff6a00] text-[11px] font-black text-white grid place-items-center tabular-nums">
-            {restante}
-          </span>
-        )}
-        {host && <Crown className="absolute -top-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 text-[#ffcc4d]" />}
-      </div>
-      <span className="text-[12px] font-semibold text-white max-w-[90px] truncate">{j.nome}</span>
-      <div className="flex items-center gap-1">
-        <div className="relative h-[26px]" style={{ width: Math.min(j.cartas, 6) * 6 + 14 }}>
-          {Array.from({ length: Math.min(j.cartas, 6) }).map((_, i) => (
-            <div key={i} className="absolute top-0" style={{ left: i * 6 }}><CartaVerso tamanho={17} /></div>
-          ))}
-        </div>
-        <span className="text-[12px] font-black text-[#cbb3ff] tabular-nums">{j.cartas}</span>
-      </div>
-      {j.gritou && j.cartas <= 2 && (
-        <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-[#0a0713] bg-gradient-to-r from-[#ffb27d] to-[#ff6a00]">UNidos!</span>
-      )}
-      {j.esqueceu && (
-        <button onClick={onPegar}
-          className="text-[11px] font-black px-2.5 py-1 rounded-full text-white bg-[#ed4245] hover:bg-[#ff5a5d] animate-pulse">
-          Pegar! (+2)
-        </button>
-      )}
-      {j.ausente && <span className="text-[10px] text-[#a99cb8]">saiu da chamada</span>}
-    </div>
-  );
-}
+type Seletor = { tipo: 'cor' | 'alvo'; carta: Carta; el: HTMLElement; resolver: (ok: boolean) => void };
 
 export function UnidosMesa() {
   const { partida: p, aberta, erro, setAberta, acao, sair, limparErro } = useUnidos();
   const { user } = useAuthStore();
   const meuId = user?.id || '';
-  const [escolherCor, setEscolherCor] = useState<Carta | null>(null);
-  const [escolherAlvo, setEscolherAlvo] = useState<Carta | null>(null);
+  const umClique = useConfigUnidos(s => s.umClique);
+  const mudo = useConfigUnidos(s => s.mudo);
+  const mudarConfig = useConfigUnidos(s => s.mudar);
+  const modo = useModoEfeitos();
+  const [seletor, setSeletor] = useState<Seletor | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [processando, setProcessando] = useState(false);
+  const [arrasto, setArrasto] = useState<EstadoArrasto>('nao');
+  const [ajustes, setAjustes] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const minhaVez = !!p && p.status === 'jogando' && p.vezId === meuId;
-  const restante = useRestante(p?.prazoLocal || 0, minhaVez);
+  const restanteMs = useRestanteMs(p?.prazoLocal || 0, !!p && p.status === 'jogando');
+  const largura = useLarguraTela();
+  const tamanhoMao = largura < 640 ? 66 : 92;
+  const palco = useAnimationControls();
+  const fimAoAbrir = useRef(p?.status === 'fim');
 
-  // Baixa as artes das cartas ao abrir a mesa (sem piscar quando uma carta aparece)
-  useEffect(() => { precarregarCartas(); }, []);
+  const nome = useMemo(() => {
+    const mapa = new Map((p?.jogadores || []).map(j => [j.id, j.nome]));
+    return (id?: string | null) => (id === meuId ? 'Você' : (id && mapa.get(id)) || 'Alguém');
+  }, [p?.jogadores, meuId]);
 
-  // Erro some sozinho
+  // Ao abrir: baixa as artes, liga a música (se ativada). Ao fechar: cancela tudo.
+  useEffect(() => {
+    precarregarCartas();
+    audio.mesa(true);
+    return () => { audio.mesa(false); cancelarTudo(); useVoos.getState().limpar(); };
+  }, []);
+
+  // Libera o áudio no primeiro toque (regra dos navegadores)
+  useEffect(() => {
+    const f = () => audio.destravar();
+    window.addEventListener('pointerdown', f, { once: true });
+    return () => window.removeEventListener('pointerdown', f);
+  }, []);
+
+  // Cada estado novo do servidor vira animação (sempre depois da confirmação)
+  const anterior = useRef<Partida | null>(null);
+  useEffect(() => {
+    if (!p) return;
+    const acs = derivar(anterior.current, p);
+    anterior.current = p;
+    if (acs.length) reagir(acs, { meuId, seq: p.seq, nome });
+  }, [p, meuId, nome]);
+
+  // Tremida da mesa (Todos Unidos, +2) — respeita "sem tremor"
+  const tremor = useTremor(s => s.n);
+  useEffect(() => {
+    if (!tremor) return;
+    const f = useTremor.getState().forca * 3;
+    palco.start({ x: [0, -f, f, -f * 0.6, f * 0.6, 0], y: [0, f * 0.4, -f * 0.4, 0], transition: { duration: 0.35 } });
+  }, [tremor, palco]);
+
+  // Tique discreto nos últimos 5 segundos da minha vez
+  const segundos = Math.ceil(restanteMs / 1000);
+  useEffect(() => {
+    if (minhaVez && segundos > 0 && segundos <= 5) audio.tocar('tique');
+  }, [segundos, minhaVez]);
+
+  // Avisos somem sozinhos
   useEffect(() => {
     if (!erro) return;
     const t = setTimeout(limparErro, 3500);
     return () => clearTimeout(t);
   }, [erro, limparErro]);
-
-  // Sons: minha vez, vitória
-  const vezAnterior = useRef<string | null>(null);
-  const statusAnterior = useRef<string | null>(null);
   useEffect(() => {
-    if (!p) return;
-    if (p.vezId === meuId && vezAnterior.current !== meuId && p.status === 'jogando') som.vez();
-    if (p.status === 'fim' && statusAnterior.current === 'jogando') som.vitoria();
-    vezAnterior.current = p.vezId;
-    statusAnterior.current = p.status;
-  }, [p, meuId]);
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), 1600);
+    return () => clearTimeout(t);
+  }, [aviso]);
 
   // Adversários na ordem da mesa, começando depois de mim
   const adversarios = useMemo(() => {
@@ -150,296 +141,246 @@ export function UnidosMesa() {
     return ord.filter(j => j.id !== meuId);
   }, [p, meuId]);
 
+  const jogaveis = useMemo(() => new Set(p?.jogaveis || []), [p?.jogaveis]);
+
   if (!p || !aberta) return null;
   const eu = p.jogadores.find(j => j.id === meuId);
   const souHost = p.hostId === meuId;
-  const jogaveis = new Set(p.jogaveis);
 
+  // Manda a ação e espera o servidor. Demorando, mostra "Processando…"
   const fazer = async (evento: string, dados?: Record<string, unknown>) => {
-    if (enviando) return;
+    if (enviando) return false;
     setEnviando(true);
+    const t = setTimeout(() => setProcessando(true), 300);
     const ok = await acao(evento, dados);
+    clearTimeout(t);
+    setProcessando(false);
     setEnviando(false);
+    if (!ok) audio.tocar('invalido');
     return ok;
   };
 
-  const tocarCarta = async (c: Carta) => {
-    if (!minhaVez || !jogaveis.has(c.id)) return;
-    if (c.tipo === 'conexao' || c.tipo === 'todosunidos') { setEscolherCor(c); return; }
-    if (c.tipo === 'call') { setEscolherAlvo(c); return; }
-    if (await fazer('jogar', { cartaId: c.id })) som.jogar();
-  };
+  // Jogar uma carta: curingas pedem a cor, Call pede quem joga. A carta só
+  // sai da mão quando o servidor confirmar (o estado novo chega sem ela).
+  const aoJogar = (c: Carta, el: HTMLElement) => new Promise<boolean>(resolve => {
+    if (c.tipo === 'conexao' || c.tipo === 'todosunidos') { setSeletor({ tipo: 'cor', carta: c, el, resolver: resolve }); return; }
+    if (c.tipo === 'call') { setSeletor({ tipo: 'alvo', carta: c, el, resolver: resolve }); return; }
+    lembrarOrigem(c.id, el);
+    fazer('jogar', { cartaId: c.id }).then(resolve);
+  });
 
-  const tamanhoMao = typeof window !== 'undefined' && window.innerWidth < 640 ? 64 : 88;
-  const sobreposicao = Math.max(-tamanhoMao * 0.55, Math.min(8, (Math.min(typeof window !== 'undefined' ? window.innerWidth : 1200, 1100) - 40 - tamanhoMao) / Math.max(1, p.minhaMao.length - 1) - tamanhoMao));
+  const concluirSeletor = async (dados: { cor?: Cor; alvoId?: string }) => {
+    const s = seletor;
+    if (!s) return false;
+    lembrarOrigem(s.carta.id, s.el);
+    const ok = await fazer('jogar', { cartaId: s.carta.id, ...dados });
+    s.resolver(ok);
+    setSeletor(null);
+    return ok;
+  };
+  const cancelarSeletor = () => { seletor?.resolver(false); setSeletor(null); };
+
   const vencedor = p.jogadores.find(j => j.id === p.vencedorId);
+  const vezDe = p.jogadores.find(j => j.id === p.vezId);
+  const host = p.jogadores.find(j => j.id === p.hostId);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[65] flex flex-col text-white nx-safe-top nx-safe-bottom"
-      style={{ background: 'radial-gradient(ellipse at 50% 45%, #2a1550 0%, #120a22 55%, #07050d 100%)' }}
-      role="dialog" aria-label="UNidos"
-    >
-      {/* Cabeçalho */}
-      <div className="flex items-center gap-3 px-4 h-14 shrink-0 border-b border-white/[0.06]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-9 w-auto select-none" draggable={false} />
-        <span className="text-[12px] text-[#a99cb8] hidden sm:inline">
-          {p.status === 'lobby' ? 'Esperando jogadores' : p.status === 'jogando' ? `${p.monte} cartas no monte` : 'Fim de partida'}
-        </span>
-        <div className="ml-auto flex items-center gap-1">
-          <button onClick={() => setAberta(false)} title="Voltar para a chamada (a partida continua)"
-            className="h-9 px-3 rounded-lg text-[13px] text-[#cfc6dd] hover:bg-white/10 flex items-center gap-1.5">
-            <Minimize2 className="w-4 h-4" /> <span className="hidden sm:inline">Ver a chamada</span>
-          </button>
-          <button onClick={() => { if (p.status !== 'jogando' || window.confirm('Sair da partida? Suas cartas voltam para o monte.')) sair(); }}
-            title="Sair da mesa" className="h-9 px-3 rounded-lg text-[13px] text-[#ff8098] hover:bg-[#ed4245]/15 flex items-center gap-1.5">
-            <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sair</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Lobby */}
-      {p.status === 'lobby' && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 text-center">
-          <div className="flex -space-x-6">
-            {[{ id: 'a', cor: 'laranja', tipo: 'numero', valor: 0 }, { id: 'b', cor: null, tipo: 'todosunidos' }, { id: 'c', cor: 'roxo', tipo: 'numero', valor: 3 }].map((c, i) => (
-              <motion.div key={c.id} initial={{ y: 30, opacity: 0, rotate: 0 }} animate={{ y: 0, opacity: 1, rotate: (i - 1) * 12 }} transition={{ delay: i * 0.08 }}>
-                <CartaView carta={c as Carta} tamanho={86} />
-              </motion.div>
-            ))}
-          </div>
-          <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-20 sm:h-24 w-auto mx-auto mb-1 select-none" draggable={false} />
-            <p className="text-[#a99cb8] text-sm mt-1">Quem está na chamada vê o botão <b className="text-white">Entrar</b>. De 2 a 8 jogadores.</p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 max-w-xl">
-            {p.jogadores.map(j => (
-              <div key={j.id} className="flex flex-col items-center gap-1 w-20">
-                <div className="relative"><Avatar j={j} tamanho={52} />{j.id === p.hostId && <Crown className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 text-[#ffcc4d]" />}</div>
-                <span className="text-[12px] truncate max-w-full">{j.id === meuId ? 'Você' : j.nome}</span>
-              </div>
-            ))}
-          </div>
-          {souHost ? (
-            <button onClick={() => fazer('iniciar')} disabled={enviando}
-              className="h-12 px-8 rounded-2xl font-black text-[15px] flex items-center gap-2 disabled:opacity-60 shadow-[0_10px_30px_rgba(122,44,255,.35)]"
-              style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
-              {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />} Começar partida
+    <MotionConfig reducedMotion={modo.movimento ? 'never' : 'always'}>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[65] flex flex-col text-white nx-safe-top nx-safe-bottom overflow-hidden"
+        style={{ background: 'radial-gradient(ellipse at 50% 45%, #2a1550 0%, #120a22 55%, #07050d 100%)' }}
+        role="dialog" aria-label="UNidos"
+      >
+        {/* Cabeçalho */}
+        <div className="relative z-[52] flex items-center gap-2 px-3 sm:px-4 h-14 shrink-0 border-b border-white/[0.06]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-9 w-auto select-none" draggable={false} />
+          <span className="text-[12px] text-[#a99cb8] hidden sm:inline">
+            {p.status === 'lobby' ? 'Esperando jogadores' : p.status === 'jogando' ? `${p.monte} cartas no monte` : 'Fim de partida'}
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <button onClick={() => { mudarConfig({ mudo: !mudo }); audio.destravar(); }} title={mudo ? 'Ligar o som' : 'Tirar o som'} aria-pressed={mudo}
+              className="w-9 h-9 rounded-lg grid place-items-center text-[#cfc6dd] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              {mudo ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-          ) : (
-            <p className="text-[#a99cb8] text-sm flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Esperando quem abriu a mesa começar…</p>
-          )}
-          <div className="text-left text-[12.5px] text-[#a99cb8] max-w-md rounded-2xl bg-white/[0.04] border border-white/[0.06] px-4 py-3 space-y-1">
-            <p><b className="text-white">Como jogar:</b> jogue uma carta da mesma cor ou do mesmo número/símbolo da mesa.</p>
-            <p><b className="text-white">Bloqueio</b> pula o próximo · <b className="text-white">Troca</b> inverte o sentido · <b className="text-white">Call</b> escolhe quem joga · <b className="text-white">+2</b> e <b className="text-white">Todos Unidos (+4)</b> acumulam · <b className="text-white">Conexão</b> muda a cor.</p>
-            <p>Com 1 carta, aperte <b className="text-white">UNidos!</b> — se esquecer e alguém pegar, você compra 2.</p>
+            <button onClick={() => setAjustes(a => !a)} title="Ajustes de som e efeitos" aria-expanded={ajustes}
+              className="w-9 h-9 rounded-lg grid place-items-center text-[#cfc6dd] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              <Settings2 className="w-4 h-4" />
+            </button>
+            <button onClick={() => setAberta(false)} title="Voltar para a chamada (a partida continua)"
+              className="h-9 px-3 rounded-lg text-[13px] text-[#cfc6dd] hover:bg-white/10 flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              <Minimize2 className="w-4 h-4" /> <span className="hidden sm:inline">Ver a chamada</span>
+            </button>
+            <button onClick={() => { if (p.status !== 'jogando' || window.confirm('Sair da partida? Suas cartas voltam para o monte.')) sair(); }}
+              title="Sair da mesa" className="h-9 px-3 rounded-lg text-[13px] text-[#ff8098] hover:bg-[#ed4245]/15 flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sair</span>
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Partida */}
-      {p.status !== 'lobby' && (
-        <div className="flex-1 min-h-0 flex flex-col">
-          {/* Adversários */}
-          <div className="flex justify-center gap-1 sm:gap-3 px-2 pt-3 overflow-x-auto nx-no-scrollbar shrink-0">
-            {adversarios.map(j => (
-              <Adversario key={j.id} j={j} daVez={p.vezId === j.id} prazo={p.prazoLocal || 0} host={j.id === p.hostId}
-                onPegar={async () => { if (await fazer('pegar', { alvoId: j.id })) som.comprar(); }} />
-            ))}
-          </div>
-
-          {/* Mesa */}
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
-            <div className="flex items-center gap-6 sm:gap-10">
-              {/* Monte */}
-              <button
-                onClick={async () => { if (minhaVez && !p.comprada && await fazer('comprar')) som.comprar(); }}
-                disabled={!minhaVez || !!p.comprada}
-                className={cn('relative transition-transform', minhaVez && !p.comprada && 'hover:-translate-y-1 cursor-pointer')}
-                title={minhaVez ? (p.acumulado ? `Comprar ${p.acumulado}` : 'Comprar uma carta') : 'Monte'}
-              >
-                <div className="absolute top-1 left-1"><CartaVerso tamanho={tamanhoMao + 8} /></div>
-                <div className="absolute top-0.5 left-0.5"><CartaVerso tamanho={tamanhoMao + 8} /></div>
-                <div className="relative"><CartaVerso tamanho={tamanhoMao + 8} /></div>
-                {minhaVez && !p.comprada && (
-                  <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-black px-2.5 py-1 rounded-full bg-white text-[#120a22]">
-                    {p.acumulado ? `Comprar ${p.acumulado}` : 'Comprar'}
-                  </span>
-                )}
+        {/* Lobby */}
+        {p.status === 'lobby' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 text-center overflow-y-auto">
+            <div className="flex -space-x-6">
+              {[{ id: 'a', cor: 'laranja', tipo: 'numero', valor: 0 }, { id: 'b', cor: null, tipo: 'todosunidos' }, { id: 'c', cor: 'roxo', tipo: 'numero', valor: 3 }].map((c, i) => (
+                <motion.div key={c.id} initial={{ y: 30, opacity: 0, rotate: 0 }} animate={{ y: [30, 0, -4, 0], opacity: 1, rotate: (i - 1) * 12 }} transition={{ delay: i * 0.08, duration: 0.7 }}>
+                  <CartaView carta={c as Carta} tamanho={86} />
+                </motion.div>
+              ))}
+            </div>
+            <div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/unidos/cartas/logo.webp" alt="UNidos" className="h-20 sm:h-24 w-auto mx-auto mb-1 select-none" draggable={false} />
+              <p className="text-[#a99cb8] text-sm mt-1">Quem está na chamada vê o botão <b className="text-white">Entrar</b>. De 2 a 8 jogadores.</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 max-w-xl">
+              <AnimatePresence>
+                {p.jogadores.map(j => (
+                  <motion.div key={j.id} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}
+                    className="flex flex-col items-center gap-1 w-20">
+                    <div className="relative"><Avatar j={j} tamanho={52} />{j.id === p.hostId && <Crown className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 text-[#ffcc4d]" />}</div>
+                    <span className="text-[12px] truncate max-w-full">{j.id === meuId ? 'Você' : j.nome}</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            {souHost ? (
+              <button onClick={() => fazer('iniciar')} disabled={enviando}
+                className="h-12 px-8 rounded-2xl font-black text-[15px] flex items-center gap-2 disabled:opacity-60 shadow-[0_10px_30px_rgba(122,44,255,.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
+                {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />} Começar partida
               </button>
+            ) : (
+              <p className="text-[#a99cb8] text-sm flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Esperando quem abriu a mesa começar…</p>
+            )}
+            <div className="text-left text-[12.5px] text-[#a99cb8] max-w-md rounded-2xl bg-white/[0.04] border border-white/[0.06] px-4 py-3 space-y-1">
+              <p><b className="text-white">Como jogar:</b> jogue uma carta da mesma cor ou do mesmo número/símbolo da mesa. Clique para escolher e clique de novo (ou arraste até a mesa) para jogar.</p>
+              <p><b className="text-white">Bloqueio</b> pula o próximo · <b className="text-white">Troca</b> inverte o sentido · <b className="text-white">Call</b> escolhe quem joga · <b className="text-white">+2</b> e <b className="text-white">Todos Unidos (+4)</b> acumulam · <b className="text-white">Conexão</b> muda a cor.</p>
+              <p>Com 1 carta, aperte <b className="text-white">UNidos!</b> — se esquecer e alguém pegar, você compra 2.</p>
+            </div>
+          </div>
+        )}
 
-              {/* Carta da mesa */}
-              <div className="relative">
-                {p.corAtual && (
-                  <div className="absolute -inset-4 rounded-[28px] blur-xl opacity-60 transition-colors duration-500" style={{ background: COR_HEX[p.corAtual].base }} />
+        {/* Partida */}
+        {p.status !== 'lobby' && (
+          <motion.div animate={palco} className="flex-1 min-h-0 flex flex-col">
+            {/* Adversários */}
+            <div className="flex justify-center gap-1 sm:gap-3 px-2 pt-2 overflow-x-auto nx-no-scrollbar shrink-0">
+              {adversarios.map(j => (
+                <Adversario key={j.id} j={j} daVez={p.status === 'jogando' && p.vezId === j.id} prazo={p.prazoLocal || 0} host={j.id === p.hostId}
+                  onPegar={() => { fazer('pegar', { alvoId: j.id }); }} />
+              ))}
+            </div>
+
+            {/* Mesa */}
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-5">
+              <div className="flex items-center gap-8 sm:gap-14">
+                <Monte tamanho={tamanhoMao + 8} pode={minhaVez && !p.comprada && !enviando} acumulado={p.acumulado} total={p.monte}
+                  onComprar={() => { audio.destravar(); fazer('comprar'); }} />
+                <Pilha topo={p.topo} corAtual={p.corAtual} acumulado={p.acumulado} tamanho={tamanhoMao + 22}
+                  jogadorId={p.ultima?.acao === 'jogou' ? p.ultima.jogadorId : null} meuId={meuId} modo={modo}
+                  arrasto={arrasto} processando={processando}
+                  onPouso={c => impactoNaPilha(c, p.corAtual)} />
+              </div>
+
+              <div className="flex items-center gap-2 text-[13px] text-[#cfc6dd] min-h-[22px] px-4 text-center mt-4">
+                {p.status === 'jogando' && (
+                  <motion.span key={p.sentido} initial={{ rotate: p.sentido === 1 ? -180 : 180, scale: 0.6 }} animate={{ rotate: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 14 }}
+                    title={p.sentido === 1 ? 'Sentido horário' : 'Sentido anti-horário'} className="shrink-0">
+                    {p.sentido === 1 ? <RotateCw className="w-4 h-4 text-[#a99cb8]" aria-label="sentido horário" /> : <RotateCcw className="w-4 h-4 text-[#ffb27d]" aria-label="sentido anti-horário" />}
+                  </motion.span>
                 )}
-                <AnimatePresence mode="popLayout">
-                  {p.topo && (
-                    <motion.div key={p.topo.id}
-                      initial={{ scale: 1.25, rotate: -14, opacity: 0, y: 40 }} animate={{ scale: 1, rotate: 0, opacity: 1, y: 0 }}
-                      transition={{ type: 'spring', stiffness: 320, damping: 22 }} className="relative">
-                      <CartaView carta={p.topo} tamanho={tamanhoMao + 22} corEscolhida={p.corAtual} />
+                <span>{textoUltima(p, meuId)}</span>
+              </div>
+            </div>
+
+            {/* Minha área */}
+            {eu && p.status === 'jogando' && (
+              <div className="shrink-0 pb-3 relative">
+                <div className="flex items-center justify-center gap-2.5 mb-1 px-3 min-h-[44px] flex-wrap">
+                  <AvatarMesa j={eu} tamanho={34} daVez={minhaVez} restanteMs={restanteMs} alvo={`jogador:${meuId}`} />
+                  {minhaVez ? (
+                    <span className={cn('text-[13px] font-black px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors', segundos <= 6 && 'animate-pulse')}
+                      style={{ background: segundos <= 6 ? 'linear-gradient(135deg,#ff4d6d,#b3204a)' : 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
+                      Sua vez <span className="tabular-nums bg-black/30 rounded-full px-1.5">{segundos}s</span>
+                    </span>
+                  ) : (
+                    <span className="text-[12.5px] text-[#a99cb8]">Vez de <b className="text-white">{vezDe?.nome}</b></span>
+                  )}
+                  {minhaVez && p.comprada && (
+                    <button onClick={() => fazer('passar')} disabled={enviando}
+                      className="h-9 px-4 rounded-full text-[13px] font-bold bg-white/10 hover:bg-white/15 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">Passar a vez</button>
+                  )}
+                  {p.minhaMao.length <= 2 && !eu.gritou && (
+                    <motion.button initial={{ scale: 0.8 }} animate={modo.reduzido ? { scale: 1 } : { scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.1 }}
+                      onClick={() => { fazer('gritar'); }}
+                      className="h-10 px-5 rounded-full text-[15px] font-black text-[#0a0713] shadow-[0_6px_20px_rgba(255,106,0,.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                      style={{ background: 'linear-gradient(135deg,#ffcf8a,#ff6a00)' }}>
+                      UNidos!
+                    </motion.button>
+                  )}
+                  {eu.gritou && p.minhaMao.length <= 2 && <span className="text-[12px] font-black text-[#ffb27d]">Você gritou UNidos!</span>}
+                </div>
+                <Mao cartas={p.minhaMao} jogaveis={jogaveis} minhaVez={minhaVez} ocupado={enviando} umClique={umClique}
+                  modo={modo} tamanho={tamanhoMao} distribuir={!!anterior.current && anterior.current.status !== 'jogando'} aoJogar={aoJogar} aoArrastar={setArrasto} avisar={setAviso} />
+                <AnimatePresence>
+                  {aviso && (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="absolute left-1/2 -translate-x-1/2 top-12 z-[20] px-3 py-1.5 rounded-full text-[12.5px] font-semibold bg-black/75 border border-white/10 whitespace-nowrap pointer-events-none"
+                      role="status">
+                      {aviso}
                     </motion.div>
                   )}
                 </AnimatePresence>
-                {p.acumulado > 0 && (
-                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
-                    className="absolute -top-3 -right-4 text-[13px] font-black px-2.5 py-1 rounded-full bg-[#ed4245] text-white shadow-lg">
-                    +{p.acumulado}
-                  </motion.span>
-                )}
               </div>
-            </div>
+            )}
+            {!eu && p.status === 'jogando' && (
+              <p className="text-center text-[13px] text-[#a99cb8] pb-6">Você está assistindo esta partida.</p>
+            )}
+          </motion.div>
+        )}
 
-            <div className="flex items-center gap-2 text-[13px] text-[#cfc6dd] min-h-[22px] px-4 text-center">
-              {p.status === 'jogando' && (p.sentido === 1 ? <RotateCw className="w-4 h-4 text-[#a99cb8] shrink-0" /> : <RotateCcw className="w-4 h-4 text-[#a99cb8] shrink-0" />)}
-              <span>{textoUltima(p, meuId)}</span>
-            </div>
-          </div>
-
-          {/* Minha área */}
-          {eu && p.status === 'jogando' && (
-            <div className="shrink-0 pb-5">
-              <div className="flex items-center justify-center gap-2 mb-2 px-3 min-h-[40px] flex-wrap">
-                {minhaVez ? (
-                  <span className="text-[13px] font-black px-3 py-1.5 rounded-full text-white flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
-                    Sua vez <span className="tabular-nums bg-black/30 rounded-full px-1.5">{restante}s</span>
-                  </span>
-                ) : (
-                  <span className="text-[12.5px] text-[#a99cb8]">Vez de {p.jogadores.find(j => j.id === p.vezId)?.nome}</span>
-                )}
-                {minhaVez && p.comprada && (
-                  <button onClick={() => fazer('passar')} className="h-9 px-4 rounded-full text-[13px] font-bold bg-white/10 hover:bg-white/15">Passar a vez</button>
-                )}
-                {p.minhaMao.length <= 2 && !eu.gritou && (
-                  <motion.button initial={{ scale: 0.8 }} animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.1 }}
-                    onClick={async () => { if (await fazer('gritar')) som.gritar(); }}
-                    className="h-10 px-5 rounded-full text-[15px] font-black text-[#0a0713] shadow-[0_6px_20px_rgba(255,106,0,.45)]"
-                    style={{ background: 'linear-gradient(135deg,#ffcf8a,#ff6a00)' }}>
-                    UNidos!
-                  </motion.button>
-                )}
-                {eu.gritou && p.minhaMao.length <= 2 && <span className="text-[12px] font-black text-[#ffb27d]">Você gritou UNidos!</span>}
-              </div>
-              {/* Mão */}
-              <div className="flex justify-center px-4 overflow-x-auto nx-no-scrollbar pt-4">
-                <div className="flex items-end">
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {p.minhaMao.map((c, i) => {
-                      const pode = minhaVez && jogaveis.has(c.id);
-                      return (
-                        <motion.button
-                          key={c.id} layout
-                          initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -80, opacity: 0, scale: 0.8 }}
-                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          onClick={() => tocarCarta(c)}
-                          disabled={!pode || enviando}
-                          className={cn('relative shrink-0 transition-transform duration-150', pode ? 'hover:-translate-y-4 cursor-pointer' : 'cursor-default')}
-                          style={{ marginLeft: i === 0 ? 0 : sobreposicao, zIndex: i }}
-                          title={nomeCarta(c)}
-                        >
-                          <CartaView carta={c} tamanho={tamanhoMao} jogavel={pode} apagada={minhaVez && !pode} />
-                        </motion.button>
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-          )}
-          {!eu && p.status === 'jogando' && (
-            <p className="text-center text-[13px] text-[#a99cb8] pb-6">Você está assistindo esta partida.</p>
-          )}
-        </div>
-      )}
-
-      {/* Fim */}
-      <AnimatePresence>
+        {/* Fim de partida */}
         {p.status === 'fim' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.85, y: 20 }} animate={{ scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-              className="w-full max-w-sm rounded-3xl border border-white/10 p-6 text-center" style={{ background: 'linear-gradient(160deg,#2a1550,#120a22)' }}>
-              <Trophy className="w-12 h-12 mx-auto text-[#ffcc4d]" />
-              {vencedor && <div className="mt-3 flex justify-center"><Avatar j={vencedor} tamanho={64} /></div>}
-              <h3 className="text-2xl font-black mt-3">{vencedor ? (vencedor.id === meuId ? 'Você venceu!' : `${vencedor.nome} venceu!`) : 'Fim de partida'}</h3>
-              <p className="text-[#a99cb8] text-sm mt-1">{vencedor?.id === meuId ? 'Zerou a mão primeiro. Que jogada!' : 'Bora a revanche?'}</p>
-              <div className="flex gap-2 mt-5">
-                {souHost ? (
-                  <button onClick={() => fazer('revanche')} disabled={enviando}
-                    className="flex-1 h-11 rounded-xl font-black flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,#ff6a00,#7a2cff)' }}>
-                    <Play className="w-4 h-4" /> Jogar de novo
-                  </button>
-                ) : (
-                  <p className="flex-1 text-[12.5px] text-[#a99cb8] self-center">Quem abriu a mesa pode começar outra.</p>
-                )}
-                <button onClick={() => sair()} className="h-11 px-4 rounded-xl font-bold bg-white/10 hover:bg-white/15">Sair</button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <PainelFim key={p.seq} vencedor={vencedor} meuId={meuId} pontos={p.pontos ?? 0} duracao={p.duracao ?? 0}
+            souHost={souHost} hostNome={host?.nome || 'quem abriu a mesa'} enviando={enviando}
+            atraso={fimAoAbrir.current ? 0 : modo.reduzido ? 600 : 1350}
+            onRevanche={() => { fimAoAbrir.current = false; fazer('revanche'); }} onVoltar={() => setAberta(false)} onSair={() => sair()} />
         )}
-      </AnimatePresence>
 
-      {/* Escolher a cor (Conexão / Todos Unidos) */}
-      <AnimatePresence>
-        {escolherCor && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center p-4" onClick={() => setEscolherCor(null)}>
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}
-              className="rounded-3xl border border-white/10 p-5 text-center bg-[#140d22]">
-              <p className="font-black text-lg mb-4">Escolha a cor</p>
-              <div className="grid grid-cols-2 gap-3">
-                {(Object.keys(COR_HEX) as Cor[]).map(cor => (
-                  <button key={cor} onClick={async () => { const c = escolherCor; setEscolherCor(null); if (await fazer('jogar', { cartaId: c.id, cor })) som.jogar(); }}
-                    className="w-32 h-20 rounded-2xl font-black text-[15px] hover:scale-105 transition-transform border-2 border-white/10"
-                    style={{ background: `linear-gradient(150deg, ${COR_HEX[cor].claro} -40%, ${COR_HEX[cor].base} 50%, ${COR_HEX[cor].escuro} 140%)`,
-                      color: cor === 'prata' || cor === 'dourado' ? '#1a1406' : '#fff' }}>
-                    {COR_HEX[cor].nome}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Escolher a cor / quem joga */}
+        <AnimatePresence>
+          {seletor?.tipo === 'cor' && (
+            <SeletorCor key="cor" carta={seletor.carta} aoEscolher={cor => concluirSeletor({ cor })} aoCancelar={cancelarSeletor} />
+          )}
+          {seletor?.tipo === 'alvo' && (
+            <SeletorAlvo key="alvo" jogadores={adversarios} aoEscolher={alvoId => concluirSeletor({ alvoId })} aoCancelar={cancelarSeletor} />
+          )}
+        </AnimatePresence>
 
-      {/* Escolher quem joga agora (Call) */}
-      <AnimatePresence>
-        {escolherAlvo && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center p-4" onClick={() => setEscolherAlvo(null)}>
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}
-              className="rounded-3xl border border-white/10 p-5 w-full max-w-sm bg-[#140d22]">
-              <p className="font-black text-lg mb-1 text-center">Quem joga agora?</p>
-              <p className="text-[12.5px] text-[#a99cb8] mb-4 text-center">A vez pula direto para a pessoa que você escolher.</p>
-              <div className="space-y-2">
-                {adversarios.map(j => (
-                  <button key={j.id} onClick={async () => { const c = escolherAlvo; setEscolherAlvo(null); if (await fazer('jogar', { cartaId: c.id, alvoId: j.id })) som.jogar(); }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] text-left">
-                    <Avatar j={j} tamanho={38} />
-                    <span className="flex-1 font-semibold truncate">{j.nome}</span>
-                    <span className="text-[13px] font-black text-[#cbb3ff] flex items-center gap-1"><Hand className="w-3.5 h-3.5" /> {j.cartas}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>{ajustes && <Ajustes onFechar={() => setAjustes(false)} />}</AnimatePresence>
 
-      {/* Aviso de erro */}
-      <AnimatePresence>
-        {erro && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-            className="absolute z-30 bottom-[calc(env(safe-area-inset-bottom)+16px)] inset-x-0 mx-auto w-max max-w-[90vw] px-4 py-2.5 rounded-xl text-sm bg-[#3a1220] border border-[#ed4245]/40 text-[#ffd0d8] flex items-center gap-2">
-            {erro}
-            <button onClick={limparErro} className="text-white/70 hover:text-white" title="Fechar"><X className="w-4 h-4" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+        {/* Aviso de erro do servidor (a carta já voltou para a mão) */}
+        <AnimatePresence>
+          {erro && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+              className="absolute z-[60] bottom-[calc(env(safe-area-inset-bottom)+16px)] inset-x-0 mx-auto w-max max-w-[90vw] px-4 py-2.5 rounded-xl text-sm bg-[#3a1220] border border-[#ed4245]/40 text-[#ffd0d8] flex items-center gap-2"
+              role="alert">
+              {erro}
+              <button onClick={limparErro} className="text-white/70 hover:text-white" title="Fechar"><X className="w-4 h-4" /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Camadas dos efeitos (não bloqueiam cliques) */}
+        <CamadaEspeciais meuId={meuId} nome={nome} />
+        <CamadaVoos />
+        <CamadaParticulas />
+
+        {/* Leitor de tela: o que acabou de acontecer */}
+        <p className="sr-only" aria-live="polite">{p.status === 'jogando' ? textoUltima(p, meuId) : ''}{minhaVez ? '. Sua vez.' : ''}</p>
+      </motion.div>
+    </MotionConfig>
   );
 }
