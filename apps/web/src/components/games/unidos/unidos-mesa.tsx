@@ -117,9 +117,13 @@ export function UnidosMesa() {
 
   // Tique discreto nos últimos 5 segundos da minha vez
   const segundos = Math.ceil(restanteMs / 1000);
+  // (só com a mesa aberta na tela, sendo jogador da partida e com a janela à vista)
   useEffect(() => {
-    if (minhaVez && segundos > 0 && segundos <= 5) audio.tocar('tique');
-  }, [segundos, minhaVez]);
+    if (!minhaVez || segundos <= 0 || segundos > 5) return;
+    const u = useUnidos.getState();
+    if (!u.aberta || !u.partida?.jogadores.some(j => j.id === meuId) || document.visibilityState !== 'visible') return;
+    audio.tocar('tique');
+  }, [segundos, minhaVez, meuId]);
 
   // Avisos somem sozinhos
   useEffect(() => {
