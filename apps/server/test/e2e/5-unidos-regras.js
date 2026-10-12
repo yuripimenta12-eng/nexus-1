@@ -157,6 +157,11 @@ check('última carta vence (mesmo sendo +2)', e.status === 'fim' && e.vencedorId
 check('pontos = cartas que sobraram com os outros (2+50+3+20)', J.visao(e, 'b').pontos === 75, J.visao(e, 'b').pontos);
 check('duração da partida medida do início ao fim', J.visao(e, 'b').duracao === 90_000, J.visao(e, 'b').duracao);
 check('depois do fim ninguém joga', lanca(() => J.comprar(e, 'b', rng), 'não está rolando'));
+J.sair(e, 'c');
+J.entrar(e, pessoa('c'));
+check('quem saiu de uma mesa terminada senta de novo (para a revanche)', e.jogadores.some(p => p.id === 'c'));
+J.iniciar(e, rng, 0, 30_000);
+check('a revanche dá cartas para quem sentou depois do fim', e.status === 'jogando' && e.jogadores.every(p => p.mao.length === 7));
 
 e = mesa(3);
 cena(e, 1, carta('t', 'roxo', 'numero', 5), [[carta('a1', 'verde', 'numero', 1)], [carta('b1', 'verde', 'numero', 1)], [carta('c1', 'verde', 'numero', 1)]]);

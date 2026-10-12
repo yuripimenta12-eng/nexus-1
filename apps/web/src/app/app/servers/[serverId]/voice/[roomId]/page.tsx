@@ -1233,7 +1233,7 @@ export default function VoicePage() {
             <ControlButton
               onClick={() => { const u = useUnidos.getState(); if (u.partida) u.setAberta(true); else u.entrarMesa(); }}
               active={!!unidosSala}
-              title={unidosSala ? (unidosSala.status === 'lobby' ? `Entrar na mesa de UNidos de ${unidosSala.hostNome}` : 'Mesa de UNidos rolando') : 'Jogar UNidos com quem está na chamada'}
+              title={unidosSala ? (unidosSala.status === 'lobby' ? `Entrar na mesa de UNidos de ${unidosSala.hostNome}` : unidosSala.status === 'fim' ? 'Entrar na mesa de UNidos (revanche)' : 'Mesa de UNidos rolando') : 'Jogar UNidos com quem está na chamada'}
             >
               <span className="relative">
                 <Gamepad2 className="w-5 h-5" />

@@ -204,7 +204,8 @@ export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
       const sala = this.naSala(c, d?.voiceRoomId);
       const existente = this.partidas.get(this.porSala.get(sala) || '');
       if (existente) {
-        if (existente.status === 'lobby') J.entrar(existente, await this.perfil(uid));
+        // Mesa esperando ou terminada: senta (a terminada vira a revanche). Rolando: só assiste
+        if (existente.status !== 'jogando') J.entrar(existente, await this.perfil(uid));
         this.enviar(existente);
         return { ok: true, partida: J.visao(existente, uid) };
       }

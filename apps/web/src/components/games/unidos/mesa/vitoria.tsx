@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, Crown, Loader2, LogOut, Play, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Crown, Loader2, Play, Undo2 } from 'lucide-react';
 import type { JogadorVisao } from '../unidos.store';
 import { Avatar } from './jogadores';
 
@@ -14,10 +14,10 @@ function tempo(ms: number) {
 
 // Fim de partida: aparece depois que a última carta bate na mesa. Não trava
 // a tela: dá para recolher e olhar a mesa, e os botões do topo seguem ativos.
-export function PainelFim({ vencedor, meuId, pontos, duracao, souHost, hostNome, enviando, atraso, onRevanche, onVoltar, onSair }: {
+export function PainelFim({ vencedor, meuId, pontos, duracao, souHost, hostNome, enviando, atraso, onRevanche, onVoltar }: {
   vencedor: JogadorVisao | undefined; meuId: string; pontos: number; duracao: number;
   souHost: boolean; hostNome: string; enviando: boolean; atraso: number;
-  onRevanche: () => void; onVoltar: () => void; onSair: () => void;
+  onRevanche: () => void; onVoltar: () => void; // voltar = sair da mesa e ficar só na chamada
 }) {
   const [visivel, setVisivel] = useState(atraso <= 0);
   const [recolhido, setRecolhido] = useState(false);
@@ -95,9 +95,6 @@ export function PainelFim({ vencedor, meuId, pontos, duracao, souHost, hostNome,
           <button onClick={onVoltar}
             className="h-11 rounded-2xl font-black tracking-wide bg-white/10 hover:bg-white/15 flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <Undo2 className="w-4 h-4" /> VOLTAR PARA A SALA
-          </button>
-          <button onClick={onSair} className="h-8 text-[12px] font-semibold text-[#ff8098] hover:underline flex items-center justify-center gap-1">
-            <LogOut className="w-3.5 h-3.5" /> Sair da mesa
           </button>
         </div>
       </motion.div>

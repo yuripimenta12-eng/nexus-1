@@ -98,7 +98,8 @@ export function novaPartida(id: string, voiceRoomId: string, host: { id: string;
 }
 
 export function entrar(e: Estado, j: { id: string; nome: string; avatarUrl: string | null }) {
-  if (e.status !== 'lobby') erro('A partida já começou');
+  // Rolando não entra; esperando ou já terminada (para a revanche) entra
+  if (e.status === 'jogando') erro('A partida já começou');
   if (e.jogadores.some(p => p.id === j.id)) return;
   if (e.jogadores.length >= MAX_JOGADORES) erro(`A mesa está cheia (máximo ${MAX_JOGADORES})`);
   e.jogadores.push({ ...j, mao: [], gritou: false, ausente: false });

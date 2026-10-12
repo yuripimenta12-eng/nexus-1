@@ -346,7 +346,7 @@ export function UnidosMesa() {
           <PainelFim key={p.seq} vencedor={vencedor} meuId={meuId} pontos={p.pontos ?? 0} duracao={p.duracao ?? 0}
             souHost={souHost} hostNome={host?.nome || 'quem abriu a mesa'} enviando={enviando}
             atraso={fimAoAbrir.current ? 0 : modo.reduzido ? 600 : 1350}
-            onRevanche={() => { fimAoAbrir.current = false; fazer('revanche'); }} onVoltar={() => setAberta(false)} onSair={() => sair()} />
+            onRevanche={() => { fimAoAbrir.current = false; fazer('revanche'); }} onVoltar={() => sair()} />
         )}
 
         {/* Escolher a cor / quem joga */}

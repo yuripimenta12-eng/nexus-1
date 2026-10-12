@@ -112,6 +112,8 @@ class GerenciadorAudio {
   }
 
   tocar(nome: NomeSom) {
+    // Mesa fechada (minimizada ou saiu): nenhum som do jogo
+    if (!this.mesaAberta) return;
     const ctx = this.garantir();
     if (!ctx || useConfigUnidos.getState().mudo) return;
     // Não empilha o mesmo som disparado várias vezes no mesmo instante
