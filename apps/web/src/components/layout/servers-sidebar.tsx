@@ -6,6 +6,7 @@ import { Plus, Settings, X, Loader2, ShieldCheck, BellOff } from 'lucide-react';
 import { useMutes } from '@/lib/mutes';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { imagemOtimizavel } from '@/lib/imagem';
 import { cn, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
@@ -82,7 +83,7 @@ export function ServersSidebar() {
           onClick={() => router.push(`/app/servers/${server.id}`)}
         >
           {server.iconUrl ? (
-            <Image src={server.iconUrl} alt={server.name} width={48} height={48} className="object-cover" />
+            <Image src={server.iconUrl} alt={server.name} width={48} height={48} className="object-cover" unoptimized={!imagemOtimizavel(server.iconUrl)} />
           ) : (
             <span className="text-sm font-bold">{getInitials(server.name)}</span>
           )}

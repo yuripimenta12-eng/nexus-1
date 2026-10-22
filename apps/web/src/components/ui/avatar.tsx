@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { imagemOtimizavel } from '@/lib/imagem';
 import { cn, getInitials } from '@/lib/utils';
 
 type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -26,7 +27,7 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
   if (src) {
     return (
       <div className={cn('rounded-full overflow-hidden shrink-0', wrapper, className)}>
-        <Image src={src} alt={name} width={64} height={64} className="w-full h-full object-cover" />
+        <Image src={src} alt={name} width={64} height={64} className="w-full h-full object-cover" unoptimized={!imagemOtimizavel(src)} />
       </div>
     );
   }
