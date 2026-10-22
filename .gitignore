@@ -53,3 +53,11 @@ env-novo.txt
 
 # Artes originais do UNidos (grandes); as cartas prontas ficam em apps/web/public/unidos
 unidos-artes/
+
+# Arquivos locais com senhas/segredos: nunca vão para o GitHub (repositório público)
+SENHA-*.txt
+SENHA*.txt
+ENVIAR-ENV.bat
+enviar-env.ps1
+HANDOFF-CLAUDE-CODE.md
+*.senha
