@@ -1,7 +1,10 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as AWS from 'aws-sdk';
-import * as sharp from 'sharp';
+import type SharpFn from 'sharp';
+// sharp 0.35: no CommonJS o require devolve a própria função (os tipos vêm como ESM)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sharp: typeof SharpFn = require('sharp');
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
