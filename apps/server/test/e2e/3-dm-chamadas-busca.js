@@ -100,9 +100,6 @@ const arquivo = (conteudo, tipo, nome) => { const f = new FormData(); f.append('
     r = await call('POST', `/dms/${B.id}/attachment`, arquivo('conteudo de teste', 'text/plain', 'notas "x".txt'), tA, true);
     check('arquivo na DM', r.status === 201 && r.data?.attachments?.length === 1, JSON.stringify(r.data));
     if (r.data?.attachments?.[0]) enviados.push(r.data.attachments[0].url);
-    r = await call('POST', `/dms/${B.id}/attachment`, arquivo(Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]), 'audio/webm;codecs=opus', 'voz.webm'), tA, true);
-    check('mensagem de voz na DM', r.status === 201 && r.data?.attachments?.[0]?.mimeType === 'audio/webm', JSON.stringify(r.data));
-    if (r.data?.attachments?.[0]) enviados.push(r.data.attachments[0].url);
     // Imagem de verdade (PNG 1x1): passa pelo sharp e vira WebP
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
     r = await call('POST', `/dms/${B.id}/attachment`, arquivo(png, 'image/png', 'foto.png'), tA, true);
@@ -111,6 +108,9 @@ const arquivo = (conteudo, tipo, nome) => { const f = new FormData(); f.append('
     if (img) enviados.push(img.url);
     r = await call('POST', `/dms/${B.id}/attachment`, arquivo(Buffer.from('nao sou imagem'), 'image/png', 'falsa.png'), tA, true);
     check('imagem corrompida é recusada sem derrubar o servidor', r.status >= 400 && r.status < 600 && (await call('GET', '/dms/conversations', null, tA)).status === 200, r.status);
+    r = await call('POST', `/dms/${B.id}/attachment`, arquivo(Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]), 'audio/webm;codecs=opus', 'voz.webm'), tA, true);
+    check('mensagem de voz na DM', r.status === 201 && r.data?.attachments?.[0]?.mimeType === 'audio/webm', JSON.stringify(r.data));
+    if (r.data?.attachments?.[0]) enviados.push(r.data.attachments[0].url);
     r = await call('POST', `/dms/${B.id}/attachment`, arquivo('<html>', 'text/html', 'pagina.html'), tA, true);
     check('tipo perigoso (HTML) é recusado', r.status === 400);
     r = await call('GET', '/dms/conversations', null, tB);
