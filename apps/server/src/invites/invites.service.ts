@@ -39,6 +39,36 @@ export class InvitesService {
     });
   }
 
+  // Prévia do convite (nome, ícone e membros do servidor) para mostrar antes
+  // de aceitar — no link aberto e no cartão de convite dentro do chat
+  async preview(code: string, userId: string) {
+    const invite = await this.prisma.invite.findUnique({
+      where: { code },
+      include: {
+        server: {
+          select: { id: true, name: true, iconUrl: true, maxMembers: true, _count: { select: { members: true } } },
+        },
+      },
+    });
+    if (!invite || !invite.server) throw new NotFoundException('Convite inválido');
+    let motivo: string | null = null;
+    if (invite.expiresAt && invite.expiresAt < new Date()) motivo = 'Convite expirado';
+    else if (invite.maxUses !== null && invite.uses >= invite.maxUses) motivo = 'Limite de usos atingido';
+    else if (invite.server._count.members >= invite.server.maxMembers) motivo = 'Servidor cheio';
+    const membro = await this.serversService.checkMembership(invite.serverId, userId);
+    return {
+      code: invite.code,
+      server: {
+        id: invite.server.id,
+        name: invite.server.name,
+        iconUrl: invite.server.iconUrl,
+        memberCount: invite.server._count.members,
+      },
+      alreadyMember: !!membro && !membro.banned,
+      invalidReason: membro?.banned ? 'Você está banido deste servidor' : motivo,
+    };
+  }
+
   async use(code: string, userId: string) {
     const invite = await this.prisma.invite.findUnique({ where: { code } });
     if (!invite) throw new NotFoundException('Convite inválido');

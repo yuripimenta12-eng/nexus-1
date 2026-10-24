@@ -22,6 +22,11 @@ export class InvitesController {
     return this.invitesService.getForServer(serverId, userId);
   }
 
+  @Get(':code')
+  preview(@Param('code') code: string, @CurrentUser('id') userId: string) {
+    return this.invitesService.preview(code, userId);
+  }
+
   @Post(':code/use')
   use(@Param('code') code: string, @CurrentUser('id') userId: string) {
     return this.invitesService.use(code, userId);

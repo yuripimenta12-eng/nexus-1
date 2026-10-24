@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
-  UserPlus, Bell, BellOff, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock,
+  UserPlus, Bell, BellOff, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock, ArrowRightLeft,
 } from 'lucide-react';
 import { useMutes } from '@/lib/mutes';
 import { useSocketStore } from '@/stores/socket.store';
@@ -62,6 +62,11 @@ export function AppSidebar() {
   const [voicePresence, setVoicePresence] = useState<Record<string, PresenceUser[]>>({});
   const [serverMenuOpen, setServerMenuOpen] = useState(false);
   const [menuToast, setMenuToast] = useState<string | null>(null);
+  // Mover alguém de call (dono/admin/moderador): arrastar o nome até outra
+  // sala, ou clique direito no nome → "Mover para"
+  const [arrastando, setArrastando] = useState<{ userId: string; fromRoomId: string } | null>(null);
+  const [alvoDrop, setAlvoDrop] = useState<string | null>(null);
+  const [menuMover, setMenuMover] = useState<{ userId: string; nome: string; fromRoomId: string; x: number; y: number } | null>(null);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
   // Não-lidas por canal (badge) + menções (badge vermelho + som)
@@ -151,6 +156,30 @@ export function AppSidebar() {
   // Dono/admin podem criar, editar e restringir salas de voz por cargo
   const myRole = server?.members?.find(m => m.userId === user?.id)?.role;
   const canManageVoice = myRole === 'OWNER' || myRole === 'ADMIN';
+  const podeMover = canDo('move_members');
+
+  const moverPara = async (userId: string, nome: string, fromRoomId: string, toRoomId: string) => {
+    setMenuMover(null);
+    if (fromRoomId === toRoomId) return;
+    const sala = server?.voiceRooms.find(r => r.id === toRoomId)?.name || 'outra sala';
+    try {
+      await api.post(`/voice/rooms/${fromRoomId}/move/${userId}`, { toRoomId });
+      setMenuToast(`${nome} foi movido para ${sala}`);
+    } catch (e: any) {
+      setMenuToast(e?.response?.data?.message || 'Não foi possível mover');
+    }
+    setTimeout(() => setMenuToast(null), 3000);
+  };
+
+  // Fecha o menu "Mover para" ao clicar fora / apertar Esc
+  useEffect(() => {
+    if (!menuMover) return;
+    const fechar = () => setMenuMover(null);
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar(); };
+    window.addEventListener('click', fechar);
+    window.addEventListener('keydown', tecla);
+    return () => { window.removeEventListener('click', fechar); window.removeEventListener('keydown', tecla); };
+  }, [menuMover]);
 
   const handleVoiceSaved = (room: VoiceRoom, created: boolean) => {
     setServer(prev => {
@@ -305,6 +334,37 @@ export function AppSidebar() {
         )}
       </AnimatePresence>
 
+      {/* Menu "Mover para" (clique direito no nome de quem está na call) */}
+      {menuMover && server && (
+        <div
+          role="menu"
+          onClick={e => e.stopPropagation()}
+          className="fixed z-[70] min-w-[200px] max-w-[260px] rounded-xl bg-[var(--th-panel-2)] border border-[var(--th-line-2)] shadow-2xl p-1.5"
+          style={{
+            left: Math.min(menuMover.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 270),
+            top: Math.min(menuMover.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 60 - server.voiceRooms.length * 34),
+          }}
+        >
+          <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-bold text-[#9a8fab] truncate">
+            Mover {menuMover.nome} para…
+          </p>
+          {server.voiceRooms.filter(r => r.id !== menuMover.fromRoomId).map(r => (
+            <button
+              key={r.id}
+              role="menuitem"
+              onClick={() => moverPara(menuMover.userId, menuMover.nome, menuMover.fromRoomId, r.id)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-[#d9d2e3] hover:bg-[#7a2cff] hover:text-white text-left"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span className="truncate">{r.name}</span>
+            </button>
+          ))}
+          {server.voiceRooms.length < 2 && (
+            <p className="px-2.5 py-1.5 text-[12px] text-[#9a8fab]">Crie outra sala de voz para poder mover.</p>
+          )}
+        </div>
+      )}
+
       {/* Toast do menu */}
       {menuToast && (
         <div className="absolute top-[74px] left-2 right-2 z-50 rounded-lg bg-[var(--th-panel-2)] border border-[var(--th-line-2)]
@@ -423,9 +483,26 @@ export function AppSidebar() {
               >
                 <button
                   onClick={() => router.push(`/app/servers/${serverId}/voice/${room.id}`)}
+                  onDragOver={(e) => {
+                    if (!arrastando || arrastando.fromRoomId === room.id) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (alvoDrop !== room.id) setAlvoDrop(room.id);
+                  }}
+                  onDragLeave={() => { if (alvoDrop === room.id) setAlvoDrop(null); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setAlvoDrop(null);
+                    const a = arrastando;
+                    setArrastando(null);
+                    if (!a) return;
+                    const nome = voicePresence[a.fromRoomId]?.find(p => p.id === a.userId)?.displayName || 'Membro';
+                    moverPara(a.userId, nome, a.fromRoomId, room.id);
+                  }}
                   className={cn(
                     'sidebar-item w-full group/sala',
                     (activeRoomId === room.id || voiceRoomId === room.id) && 'active',
+                    alvoDrop === room.id && 'ring-2 ring-[#c887ff] bg-[#c887ff]/15',
                   )}
                   title={(room.allowedRoleIds?.length ?? 0) > 0 ? 'Sala restrita a cargos' : undefined}
                 >
@@ -460,8 +537,26 @@ export function AppSidebar() {
                     {voicePresence[room.id].map((u) => {
                       // Na sala em que EU estou, sei quem está falando agora
                       const falando = voiceRoomId === room.id && !!speakingIds?.has(u.id);
+                      const movivel = podeMover && u.id !== user?.id;
                       return (
-                      <div key={u.id} className="flex items-center gap-2 py-1">
+                      <div
+                        key={u.id}
+                        className={cn('flex items-center gap-2 py-1 rounded-md', movivel && 'cursor-grab active:cursor-grabbing hover:bg-white/5 -mx-1 px-1',
+                          arrastando?.userId === u.id && 'opacity-50')}
+                        draggable={movivel}
+                        title={movivel ? 'Arraste para outra sala para mover (ou clique com o botão direito)' : undefined}
+                        onDragStart={movivel ? (e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', u.displayName);
+                          setArrastando({ userId: u.id, fromRoomId: room.id });
+                        } : undefined}
+                        onDragEnd={() => { setArrastando(null); setAlvoDrop(null); }}
+                        onContextMenu={movivel ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuMover({ userId: u.id, nome: u.displayName, fromRoomId: room.id, x: e.clientX, y: e.clientY });
+                        } : undefined}
+                      >
                         <span className={cn(
                           'shrink-0 rounded-full transition-shadow duration-200',
                           falando ? 'shadow-[0_0_0_2px_#ff6a00,0_0_10px_rgba(255,106,0,0.55)]' : 'shadow-[0_0_0_1.5px_rgba(66,230,164,0.55)]',

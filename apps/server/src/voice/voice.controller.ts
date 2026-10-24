@@ -68,4 +68,15 @@ export class VoiceController {
   ) {
     return this.voiceService.kickParticipant(roomId, targetUserId, requesterId);
   }
+
+  // Mover participante para outra sala do servidor (dono/admin/moderador)
+  @Post('rooms/:roomId/move/:targetUserId')
+  move(
+    @Param('roomId') roomId: string,
+    @Param('targetUserId') targetUserId: string,
+    @CurrentUser('id') requesterId: string,
+    @Body('toRoomId') toRoomId: string,
+  ) {
+    return this.voiceService.moveParticipant(roomId, targetUserId, requesterId, String(toRoomId || ''));
+  }
 }

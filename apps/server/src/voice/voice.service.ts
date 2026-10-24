@@ -1,10 +1,11 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
 import { RolesService } from '../roles/roles.service';
 import { RedisService } from '../redis/redis.service';
+import { NexusGateway } from '../gateway/nexus.gateway';
 import {
   canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE,
   RoomAccessInfo, MemberAccessInfo,
@@ -20,6 +21,7 @@ export class VoiceService {
     private serversService: ServersService,
     private redis: RedisService,
     private roles: RolesService,
+    private gateway: NexusGateway,
   ) {
     this.roomService = new RoomServiceClient(
       this.config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
@@ -379,6 +381,51 @@ export class VoiceService {
     await this.roles.requireAllowed(voiceRoom.serverId, requesterId, 'move_members', ['OWNER', 'ADMIN', 'MODERATOR'] as any, 'Seu cargo não pode desconectar membros');
 
     await this.roomService.removeParticipant(voiceRoom.livekitRoom, targetUserId);
+  }
+
+  // Mover alguém de uma sala para outra do mesmo servidor (dono/admin/moderador
+  // ou cargo com "Mover membros"). O app da pessoa recebe o aviso e troca de
+  // sala sozinho — ela não precisa clicar em nada.
+  async moveParticipant(fromRoomId: string, targetUserId: string, requesterId: string, toRoomId: string) {
+    if (!toRoomId || toRoomId === fromRoomId) throw new BadRequestException('Escolha outra sala');
+    const [from, to] = await Promise.all([
+      this.prisma.voiceRoom.findUnique({ where: { id: fromRoomId }, include: { server: { select: { ownerId: true } } } }),
+      this.prisma.voiceRoom.findUnique({ where: { id: toRoomId }, include: { allowedRoles: { select: { id: true } } } }),
+    ]);
+    if (!from || !to) throw new NotFoundException('Sala de voz não encontrada');
+    if (from.serverId !== to.serverId) throw new BadRequestException('As salas precisam ser do mesmo servidor');
+    if (targetUserId === from.server.ownerId && requesterId !== from.server.ownerId) {
+      throw new ForbiddenException('Não é possível mover o dono do servidor');
+    }
+
+    await this.roles.requireAllowed(from.serverId, requesterId, 'move_members', ['OWNER', 'ADMIN', 'MODERATOR'] as any, 'Seu cargo não pode mover membros');
+
+    // A pessoa precisa estar mesmo na sala de origem (o LiveKit é a fonte da verdade)
+    const naSala = await this.roomService.listParticipants(from.livekitRoom)
+      .then(ps => ps.some(p => p.identity === targetUserId))
+      .catch(() => false);
+    if (!naSala) throw new BadRequestException('Essa pessoa não está mais nesta sala');
+
+    const member = await this.getMemberWithRoles(from.serverId, targetUserId);
+    if (!member || member.banned) throw new ForbiddenException('Essa pessoa não é membro do servidor');
+    if (!this.canAccessRoom(to, member, from.server.ownerId)) {
+      throw new ForbiddenException('Essa pessoa não tem o cargo para entrar nessa sala');
+    }
+    const naDestino = await this.roomService.listParticipants(to.livekitRoom).then(ps => ps.length).catch(() => 0);
+    if (to.maxUsers && naDestino >= to.maxUsers) throw new BadRequestException('A sala de destino está cheia');
+
+    const quem = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { username: true, profile: { select: { displayName: true } } },
+    });
+    this.gateway.emitToUser(targetUserId, 'voice:moved', {
+      serverId: from.serverId,
+      fromRoomId,
+      toRoomId,
+      toRoomName: to.name,
+      by: quem?.profile?.displayName || quem?.username || 'Um administrador',
+    });
+    return { ok: true };
   }
 
   // ── Helper: cria ou retorna sessão de chamada atual ───────────

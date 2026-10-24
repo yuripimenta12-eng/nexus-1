@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import { AttachmentView, GifView, isGifUrl } from '@/components/chat/media';
 import { VoiceRecorderButton } from '@/components/chat/voice-recorder';
 import { GifButton } from '@/components/chat/gif-picker';
+import { CartaoConvite, LinkMensagem } from '@/components/chat/links-mensagem';
+import { codigosDeConviteNoTexto } from '@/lib/convite';
 import { useMutes } from '@/lib/mutes';
 import { useServerPerms } from '@/lib/perms';
 import { playMention } from '@/lib/sounds';
@@ -26,16 +28,18 @@ function genClientMsgId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Render rico: emojis customizados (:nome:) + menções (@usuario) destacadas */
+/** Render rico: links clicáveis, emojis customizados (:nome:) + menções (@usuario) destacadas */
 function renderRich(
   text: string,
   map: Record<string, string>,
   myNames: string[], // username e displayName do usuário atual (minúsculos)
 ): React.ReactNode {
   if (!text) return text;
-  const parts = text.split(/(:[a-z0-9_]+:|@[\wÀ-ÿ.]+)/g);
+  // O link vem primeiro: um "@" dentro de uma URL não vira menção
+  const parts = text.split(/(https?:\/\/[^\s<>"']+|:[a-z0-9_]+:|@[\wÀ-ÿ.]+)/g);
   if (parts.length === 1) return text;
   return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) return <LinkMensagem key={i} url={part} />;
     const emoji = part.match(/^:([a-z0-9_]+):$/);
     if (emoji && map[emoji[1]]) {
       // eslint-disable-next-line @next/next/no-img-element
@@ -1099,6 +1103,9 @@ function MessageRow({
             )}
           </p>
         )}
+
+        {/* Convites de servidor: entra com um clique */}
+        {!msg.deleted && !msg.pending && codigosDeConviteNoTexto(msg.content).map(c => <CartaoConvite key={c} code={c} />)}
 
         {/* Attachments */}
         {msg.attachments?.length > 0 && !msg.deleted && (

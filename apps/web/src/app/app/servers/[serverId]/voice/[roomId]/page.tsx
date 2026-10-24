@@ -416,7 +416,11 @@ export default function VoicePage() {
   };
 
   // ── Pré-lobby: só entra na sala quando o usuário clicar ───────
-  const [inLobby, setInLobby] = useState(true);
+  // Já conectado nesta sala (voltou para ela, ou foi movido para cá): sem pré-lobby
+  const [inLobby, setInLobby] = useState(() => {
+    const s = useVoiceStore.getState();
+    return !(s.isConnected && s.voiceRoomId === roomId);
+  });
   const [lobbyInfo, setLobbyInfo] = useState<{ name: string; people: { id: string; displayName: string; avatarUrl: string | null }[] } | null>(null);
 
   useEffect(() => {

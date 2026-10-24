@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { Users, Check, X, Loader2, MessageSquare } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { avisarServidoresMudaram } from '@/lib/convite';
+import { Avatar } from '@/components/ui/avatar';
 
 export default function InvitePage() {
   const params = useParams();
@@ -15,6 +17,8 @@ export default function InvitePage() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'joining' | 'success' | 'error'>('loading');
   const [serverInfo, setServerInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  // Prévia: de qual servidor é o convite (nome, ícone, membros)
+  const [previa, setPrevia] = useState<{ server: { id: string; name: string; iconUrl: string | null; memberCount: number }; alreadyMember: boolean } | null>(null);
 
   useEffect(() => {
     // Espera o estado persistido carregar antes de decidir
@@ -29,7 +33,19 @@ export default function InvitePage() {
       router.push('/auth/register');
       return;
     }
-    setStatus('ready');
+    api.get(`/invites/${code}`)
+      .then(({ data }) => {
+        if (data.invalidReason) { setErrorMsg(data.invalidReason); setStatus('error'); return; }
+        // Já é membro: nem precisa aceitar, vai direto para o servidor
+        if (data.alreadyMember) { router.replace(`/app/servers/${data.server.id}`); return; }
+        setPrevia(data);
+        setStatus('ready');
+      })
+      .catch((err: any) => {
+        // Sem prévia (ex.: servidor antigo da API): ainda dá para tentar aceitar
+        if (err?.response?.status === 404) { setErrorMsg('Convite inválido ou expirado.'); setStatus('error'); return; }
+        setStatus('ready');
+      });
   }, [hasHydrated, isAuthenticated, code, router]);
 
   const handleJoin = async () => {
@@ -37,6 +53,7 @@ export default function InvitePage() {
     try {
       const { data } = await api.post(`/invites/${code}/use`);
       setServerInfo(data.server);
+      avisarServidoresMudaram();
       setStatus('success');
       setTimeout(() => {
         router.push(`/app/servers/${data.server.id}`);
@@ -71,9 +88,22 @@ export default function InvitePage() {
           {status === 'ready' && (
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">Você foi convidado!</h2>
-              <p className="text-muted mb-6">Clique em aceitar para entrar no servidor.</p>
+              {previa ? (
+                <div className="flex items-center gap-3 text-left bg-background/60 border border-border rounded-xl p-3 mb-6">
+                  <Avatar src={previa.server.iconUrl} name={previa.server.name} size="lg" />
+                  <div className="min-w-0">
+                    <p className="text-white font-bold truncate">{previa.server.name}</p>
+                    <p className="text-muted text-sm flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5" aria-hidden />
+                      {previa.server.memberCount} membro{previa.server.memberCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted mb-6">Clique em aceitar para entrar no servidor.</p>
+              )}
               <button onClick={handleJoin} className="btn-primary w-full">
-                Aceitar convite
+                Entrar no servidor
               </button>
             </div>
           )}

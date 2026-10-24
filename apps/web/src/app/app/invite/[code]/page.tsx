@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle, Hash } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
+import { avisarServidoresMudaram } from '@/lib/convite';
 
 export default function InvitePage() {
   const params = useParams<{ code: string }>();
@@ -36,6 +37,7 @@ export default function InvitePage() {
         const name = data?.server?.name ?? data?.invite?.server?.name ?? '';
         const serverId = data?.server?.id ?? data?.invite?.server?.id ?? data?.serverId ?? '';
         setServerName(name);
+        avisarServidoresMudaram();
         setStatus('success');
         // Redirect to server after short delay
         setTimeout(() => {

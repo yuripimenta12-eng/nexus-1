@@ -15,6 +15,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { GlobalCallAudio } from '@/components/voice/global-call-audio';
 import { DmCallOverlay } from '@/components/dm/dm-call-overlay';
 import { CallHotkeys } from '@/components/voice/call-hotkeys';
+import { MovidoDeSala } from '@/components/voice/movido-de-sala';
 import { UnidosHost } from '@/components/games/unidos/unidos-host';
 import { PushPrompt } from '@/components/layout/push-prompt';
 import { useMutes } from '@/lib/mutes';
@@ -80,6 +81,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <DmCallOverlay />
       {/* Atalhos de teclado da chamada (silenciar/ensurdecer) */}
       <CallHotkeys />
+      {/* Admin moveu você para outra sala de voz: troca sozinho */}
+      <MovidoDeSala />
       {/* UNidos: jogo de cartas da chamada */}
       <UnidosHost />
       <PushPrompt />

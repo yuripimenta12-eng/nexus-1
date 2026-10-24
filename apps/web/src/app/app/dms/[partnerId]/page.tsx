@@ -15,6 +15,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { AttachmentView, GifView, isGifUrl } from '@/components/chat/media';
 import { VoiceRecorderButton } from '@/components/chat/voice-recorder';
 import { GifButton } from '@/components/chat/gif-picker';
+import { CartaoConvite, textoComLinks } from '@/components/chat/links-mensagem';
+import { codigosDeConviteNoTexto } from '@/lib/convite';
 import api from '@/lib/api';
 
 /* ── Types ───────────────────────────────────── */
@@ -554,12 +556,14 @@ export default function DmPage() {
                               wordBreak: 'break-word',
                               whiteSpace: 'pre-wrap',
                             }}>
-                              {msg.content}
+                              {textoComLinks(msg.content, isMe)}
                               {msg.edited && (
                                 <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>(editado)</span>
                               )}
                             </div>
                           )}
+                          {/* Convite de servidor: entra com um clique */}
+                          {hasBubble && codigosDeConviteNoTexto(msg.content).map(c => <CartaoConvite key={c} code={c} />)}
                           {!!msg.attachments?.length && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: hasBubble ? 6 : 0, alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                               {msg.attachments.map((a, k) => (

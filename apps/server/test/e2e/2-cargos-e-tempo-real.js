@@ -108,6 +108,35 @@ function socket(token) {
     check('com o cargo cria canal', r.status === 201 || r.status === 200, JSON.stringify(r.data));
     await call('DELETE', `/servers/${serverId}/roles/${ajudante.id}/members/${B.id}`, null, tA);
 
+    console.log('● Prévia do convite (cartão no chat)');
+    r = await call('POST', `/invites/servers/${serverId}`, { expiresInHours: 1 }, tA);
+    const codigo = r.data?.code;
+    r = await call('GET', `/invites/${codigo}`, null, tC);
+    check('quem não é membro vê nome e membros do servidor', r.status === 200 && r.data?.server?.name === `Teste ${rnd}` && r.data.server.memberCount >= 2 && r.data.alreadyMember === false && r.data.invalidReason === null, JSON.stringify(r.data));
+    check('prévia não expõe dados internos', r.status === 200 && Object.keys(r.data.server).sort().join() === 'iconUrl,id,memberCount,name', JSON.stringify(r.data?.server));
+    r = await call('GET', `/invites/${codigo}`, null, tB);
+    check('membro vê "já é membro"', r.status === 200 && r.data?.alreadyMember === true);
+    r = await call('GET', `/invites/naoexiste${rnd}`, null, tC);
+    check('convite inexistente dá 404', r.status === 404);
+    r = await call('GET', `/invites/${codigo}`, null, null);
+    check('prévia exige login', r.status === 401);
+    await prisma.invite.update({ where: { code: codigo }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    r = await call('GET', `/invites/${codigo}`, null, tC);
+    check('convite vencido avisa o motivo', r.status === 200 && r.data?.invalidReason === 'Convite expirado');
+
+    console.log('● Mover membro entre salas de voz');
+    const sala2 = await prisma.voiceRoom.create({ data: { serverId, name: 'Sala 2 teste', livekitRoom: `teste2-${rnd}` } });
+    r = await call('POST', `/voice/rooms/${sala.id}/move/${C.id}`, { toRoomId: sala2.id }, tB);
+    check('membro comum não move ninguém', r.status === 403, String(r.status));
+    r = await call('POST', `/voice/rooms/${sala.id}/move/${A.id}`, { toRoomId: sala2.id }, tB);
+    check('ninguém move o dono', r.status === 403, String(r.status));
+    r = await call('POST', `/voice/rooms/${sala.id}/move/${B.id}`, { toRoomId: sala2.id }, tC);
+    check('quem não é do servidor não move', r.status === 403, String(r.status));
+    r = await call('POST', `/voice/rooms/${sala.id}/move/${B.id}`, { toRoomId: sala.id }, tA);
+    check('mover para a mesma sala é recusado', r.status === 400, String(r.status));
+    r = await call('POST', `/voice/rooms/${sala.id}/move/${B.id}`, { toRoomId: sala2.id }, tA);
+    check('dono não move quem não está na call', r.status === 400 && /não está/.test(r.data?.message || ''), JSON.stringify(r.data));
+
     console.log('● Mensagens');
     r = await call('POST', `/channels/${ch.id}/messages`, { content: 'oi do membro' }, tB);
     check('membro envia mensagem', r.status === 201, JSON.stringify(r.data));

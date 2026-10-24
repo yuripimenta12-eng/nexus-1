@@ -49,7 +49,7 @@ const PERM_GROUPS: PermGroup[] = [
       { key: 'speak', label: 'Falar', desc: 'Permite usar o microfone nas salas de voz. Sem ela, o membro só ouve.' },
       { key: 'video', label: 'Vídeo', desc: 'Permite abrir a câmera e compartilhar a tela (e o áudio da tela).' },
       { key: 'mute_members', label: 'Silenciar membros', desc: 'Permite silenciar outros membros para todos nas salas de voz.' },
-      { key: 'move_members', label: 'Desconectar membros', desc: 'Permite tirar membros de uma sala de voz.' },
+      { key: 'move_members', label: 'Mover e desconectar membros', desc: 'Permite arrastar membros para outra sala de voz ou tirá-los da sala.' },
     ],
   },
   {
