@@ -14,6 +14,7 @@ import {
   DisconnectReason,
   LocalAudioTrack,
   AudioPresets,
+  VideoPreset,
 } from 'livekit-client';
 
 export interface VoiceParticipant {
@@ -696,17 +697,31 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     };
 
     const opts = qualityMap[quality];
+    // 60fps = jogo/vídeo: prioriza a fluidez. 30fps = texto/telas: prioriza a nitidez.
+    const movimento = opts.frameRate >= 60;
 
     await room.localParticipant.setScreenShareEnabled(
       true,
       {
         resolution: { width: opts.width, height: opts.height, frameRate: opts.frameRate },
         audio: true, // captura áudio do sistema quando suportado
+        contentHint: movimento ? 'motion' : 'detail',
       },
       {
         // O bitrate vai nas opções de PUBLICAÇÃO — antes ia junto da resolução
         // e era ignorado: toda live saía no encoding padrão (mais baixo).
         screenShareEncoding: { maxBitrate: opts.maxBitrate, maxFramerate: opts.frameRate },
+        // H.264 usa o codificador da placa de vídeo (NVIDIA/AMD/Intel); o VP8
+        // padrão codifica no processador e engasgava em 1080p60.
+        videoCodec: 'h264',
+        backupCodec: false,
+        // O padrão da tela é "manter a resolução": sem folga de CPU/rede, o
+        // navegador derrubava os quadros e a live travava. Em 60fps, mantém a
+        // fluidez (baixa um pouco a nitidez se precisar).
+        degradationPreference: movimento ? 'maintain-framerate' : 'balanced',
+        // Camada reserva para quem tem internet fraca: leve (540p a 15fps),
+        // para não pesar no PC de quem transmite.
+        screenShareSimulcastLayers: [new VideoPreset(960, 540, 800_000, 15)],
       },
     );
 
