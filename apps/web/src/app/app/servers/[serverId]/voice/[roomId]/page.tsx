@@ -30,6 +30,7 @@ import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
+import { AvisoLimiteLive, SeloQualidade, SeletorQualidadeLive } from '@/components/voice/live-qualidade';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -75,6 +76,7 @@ export default function VoicePage() {
     liveEndedNotice, clearLiveEndedNotice,
     reconnecting,
   } = useVoiceStore();
+  const voiceRoom = useVoiceStore(s => s.room);
 
   const askScreenQuality = useMediaStore(s => s.askScreenQuality);
   const [screenQuality, setScreenQuality] = useState<'720p30' | '720p60' | '1080p30' | '1080p60'>(
@@ -659,6 +661,10 @@ export default function VoicePage() {
       {/* Áudio remoto: tocado pelo GlobalCallAudio no layout do app
           (continua tocando ao navegar para chat/configurações) */}
 
+      {/* Quem transmite: aviso quando o PC ou a internet estão no limite
+          (fica dentro do palco para aparecer também em tela cheia) */}
+      {localScreenSharing && voiceRoom && <AvisoLimiteLive participante={voiceRoom.localParticipant} />}
+
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
         <div className="flex-1 flex flex-col min-w-0">
@@ -769,6 +775,7 @@ export default function VoicePage() {
                     <LiveBadge />
                     <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                     {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
+                    <SeloQualidade participante={primaryScreenSharer.participant} />
                     {streamSemAudio(primaryScreenSharer) && (
                       <span className="text-[#ffce73] font-normal" title="O transmissor compartilhou uma janela (sem som) ou não marcou 'Compartilhar áudio'">
                         · 🔇 sem áudio
@@ -808,6 +815,9 @@ export default function VoicePage() {
                   >
                     <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
                   </button>
+                )}
+                {!(primaryScreenSharer.participant instanceof LocalParticipant) && !showCam && (
+                  <SeletorQualidadeLive participante={primaryScreenSharer.participant} />
                 )}
               </div>
 
@@ -1048,6 +1058,7 @@ export default function VoicePage() {
                                         bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
                           <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                           {isLocal ? 'Sua tela (prévia)' : (p.participant.name || p.identity)}
+                          <SeloQualidade participante={p.participant} pequeno />
                         </div>
                         <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">

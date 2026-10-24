@@ -719,9 +719,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         // navegador derrubava os quadros e a live travava. Em 60fps, mantém a
         // fluidez (baixa um pouco a nitidez se precisar).
         degradationPreference: movimento ? 'maintain-framerate' : 'balanced',
-        // Camada reserva para quem tem internet fraca: leve (540p a 15fps),
-        // para não pesar no PC de quem transmite.
-        screenShareSimulcastLayers: [new VideoPreset(960, 540, 800_000, 15)],
+        // Camada "Leve" (quem assiste escolhe, ou a rede fraca puxa): 540p a
+        // 30fps — fluida para jogo e ~1/8 do trabalho do 1080p60.
+        screenShareSimulcastLayers: [new VideoPreset(960, 540, 1_200_000, 30)],
       },
     );
 
