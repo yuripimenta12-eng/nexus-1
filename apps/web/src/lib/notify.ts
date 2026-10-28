@@ -27,7 +27,7 @@ export function showDesktopNotification(title: string, body: string) {
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
   try {
-    const n = new Notification(title, { body, icon: '/nexus-logo.png', silent: true });
+    const n = new Notification(title, { body, icon: '/icon-192.png', silent: true });
     n.onclick = () => { window.focus(); n.close(); };
   } catch { /* sem suporte */ }
 }
