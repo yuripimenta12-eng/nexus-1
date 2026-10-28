@@ -83,21 +83,28 @@ async function detectGame() {
   return null;
 }
 
-// Verifica de tempos em tempos e chama onChange só quando muda
-function startGameWatcher(onChange, isEnabled, everyMs = 20000) {
+// Verifica de tempos em tempos e chama onChange só quando muda. Com um jogo
+// aberto, olha bem menos (listar os programas custa CPU bem no meio da partida).
+function startGameWatcher(onChange, isEnabled, everyMs = 20000, duranteJogoMs = 90000) {
   let current = null;
   let stopped = false;
+  let t = null;
+  let olhando = false;
   const tick = async () => {
-    if (stopped) return;
+    if (stopped || olhando) return;
+    olhando = true;
+    clearTimeout(t);
     const game = isEnabled() ? await detectGame().catch(() => null) : null;
+    olhando = false;
+    if (stopped) return;
     if (game !== current) { current = game; onChange(current); }
+    t = setTimeout(tick, current ? duranteJogoMs : everyMs);
   };
   tick();
-  const t = setInterval(tick, everyMs);
   return {
     current: () => current,
     refresh: tick,
-    stop: () => { stopped = true; clearInterval(t); },
+    stop: () => { stopped = true; clearTimeout(t); },
   };
 }
 

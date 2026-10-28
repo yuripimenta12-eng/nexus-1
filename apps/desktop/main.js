@@ -54,6 +54,10 @@ function savePrefs() {
   try { fs.writeFileSync(prefsFile(), JSON.stringify(prefs)); } catch { /* não é crítico */ }
 }
 
+// Aceleração de hardware: ligada por padrão. Desligar tira o Nexus da placa de
+// vídeo (como no Discord) — ajuda quem perde FPS no jogo. Vale ao reabrir o app.
+if (loadPrefs().semAceleracao) app.disableHardwareAcceleration();
+
 // ── "Jogando …" ──────────────────────────────────────────────────
 let gameWatcher = null;
 function sendGame(name) {
@@ -201,6 +205,25 @@ function buildTrayMenu() {
         prefs.mostrarJogo = item.checked;
         savePrefs();
         gameWatcher?.refresh();
+      },
+    },
+    {
+      label: 'Aceleração de hardware (desligue se o jogo perder FPS)',
+      type: 'checkbox',
+      checked: !prefs.semAceleracao,
+      click: async (item) => {
+        prefs.semAceleracao = !item.checked;
+        savePrefs();
+        const { response } = await dialog.showMessageBox({
+          type: 'question',
+          title: 'Nexus Link',
+          message: 'Reiniciar o Nexus agora para aplicar?',
+          detail: 'Se estiver numa chamada, você sai e volta em alguns segundos.',
+          buttons: ['Reiniciar agora', 'Depois'],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (response === 0) { quitting = true; app.relaunch(); app.quit(); }
       },
     },
     { label: 'Recarregar', click: () => { showWindow(); win.loadURL(START_URL); } },

@@ -1073,3 +1073,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .unidos-holo, .unidos-fala, .unidos-pulso-vez, .unidos-contorno { animation: none !important; }
 }
+
+/* Janela do Nexus sem foco (jogando com ele aberto): animações em loop param.
+   O anel de quem fala, as barrinhas e os brilhos redesenham a tela na taxa do
+   monitor e roubavam FPS do jogo. A cor de "falando" continua aparecendo. */
+html.nx-sem-foco *,
+html.nx-sem-foco *::before,
+html.nx-sem-foco *::after {
+  animation-play-state: paused !important;
+}

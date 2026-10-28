@@ -62,6 +62,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [hasHydrated, isAuthenticated, refreshUser]);
 
+  // Jogando com o Nexus aberto: janela sem foco (o jogo na frente) ou escondida
+  // congela as animações em loop (anel de quem fala, barrinhas, brilhos). Cada
+  // uma redesenha a tela na taxa do monitor e disputa a placa de vídeo com o jogo.
+  useEffect(() => {
+    const html = document.documentElement;
+    const atualizar = () => {
+      // Foco num iframe da própria página (ex.: vídeo) ainda conta como focado
+      html.classList.toggle('nx-sem-foco', document.hidden || !document.hasFocus());
+    };
+    const aoSair = () => setTimeout(atualizar, 0);
+    atualizar();
+    window.addEventListener('blur', aoSair);
+    window.addEventListener('focus', atualizar);
+    document.addEventListener('visibilitychange', atualizar);
+    return () => {
+      window.removeEventListener('blur', aoSair);
+      window.removeEventListener('focus', atualizar);
+      document.removeEventListener('visibilitychange', atualizar);
+      html.classList.remove('nx-sem-foco');
+    };
+  }, []);
+
   // Fecha o menu mobile ao navegar para outra tela
   useEffect(() => { closeMobileNav(); }, [pathname, closeMobileNav]);
 
