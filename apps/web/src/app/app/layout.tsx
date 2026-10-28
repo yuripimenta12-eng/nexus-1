@@ -18,6 +18,7 @@ import { CallHotkeys } from '@/components/voice/call-hotkeys';
 import { MovidoDeSala } from '@/components/voice/movido-de-sala';
 import { UnidosHost } from '@/components/games/unidos/unidos-host';
 import { PushPrompt } from '@/components/layout/push-prompt';
+import { AtualizacaoApp } from '@/components/layout/atualizacao-app';
 import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
 
@@ -108,6 +109,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* UNidos: jogo de cartas da chamada */}
       <UnidosHost />
       <PushPrompt />
+      {/* App de PC: versão nova baixada, pronta para instalar */}
+      <AtualizacaoApp />
 
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div

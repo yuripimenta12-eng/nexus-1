@@ -1,6 +1,6 @@
 {
   "name": "nexus-desktop",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Nexus Link para Windows",
   "author": "Nexus Link",
   "main": "main.js",
@@ -39,10 +39,19 @@
       "artifactName": "Nexus-Link-Setup-${version}.${ext}",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download"
+      }
+    ]
   },
   "devDependencies": {
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.10"
   }
 }

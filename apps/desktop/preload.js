@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('nexusDesktop', {
     ipcRenderer.on('hotkey', handler);
     return () => ipcRenderer.removeListener('hotkey', handler);
   },
+  // Atualização do app: versão nova já baixada (ou null), aviso e instalar agora
+  getUpdate: () => ipcRenderer.invoke('update:get'),
+  onUpdate: (cb) => {
+    const handler = (_e, version) => cb(typeof version === 'string' ? version : null);
+    ipcRenderer.on('update:ready', handler);
+    return () => ipcRenderer.removeListener('update:ready', handler);
+  },
+  installUpdate: () => ipcRenderer.send('update:install'),
   // "Jogando …": jogo aberto agora (ou null) e aviso quando mudar
   getGame: () => ipcRenderer.invoke('activity:get'),
   onGame: (cb) => {

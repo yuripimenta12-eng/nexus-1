@@ -6,6 +6,9 @@ export function isDesktopApp(): boolean {
 interface DesktopBridge {
   getGame?: () => Promise<string | null>;
   onGame?: (cb: (name: string | null) => void) => () => void;
+  getUpdate?: () => Promise<string | null>;
+  onUpdate?: (cb: (version: string | null) => void) => () => void;
+  installUpdate?: () => void;
 }
 
 function bridge(): DesktopBridge | null {
@@ -30,4 +33,18 @@ export function startGameActivity(emit: (name: string | null) => void): () => vo
 export function currentGameResend(emit: (name: string | null) => void) {
   const b = bridge();
   b?.getGame?.().then(n => { if (n) emit(n); }).catch(() => {});
+}
+
+// Atualização do app de PC (1.5.0+): avisa quando a versão nova já foi
+// baixada. Versões antigas do app não têm a função: nada acontece.
+export function watchAppUpdate(cb: (version: string) => void): () => void {
+  const b = bridge();
+  if (!b?.onUpdate || !b.getUpdate) return () => {};
+  const off = b.onUpdate(v => { if (v) cb(v); });
+  b.getUpdate().then(v => { if (v) cb(v); }).catch(() => {});
+  return off;
+}
+
+export function installAppUpdate() {
+  bridge()?.installUpdate?.();
 }

@@ -8,6 +8,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 const { startGameWatcher } = require('./games');
 
 const APP_URL = 'https://www.nexuslink.art';
@@ -62,6 +63,43 @@ if (loadPrefs().semAceleracao) app.disableHardwareAcceleration();
 let gameWatcher = null;
 function sendGame(name) {
   if (win && !win.isDestroyed()) win.webContents.send('activity:game', name);
+}
+
+// ── Atualização automática ───────────────────────────────────────
+// Procura versão nova na release mais recente do GitHub (latest.yml), baixa
+// em segundo plano e instala ao sair do Nexus — ou na hora, se a pessoa
+// clicar em "Reiniciar para atualizar". O arquivo baixado só é instalado se
+// bater com o sha512 publicado junto.
+let updateReady = null; // versão já baixada, esperando reiniciar
+function sendUpdate() {
+  if (updateReady && win && !win.isDestroyed()) win.webContents.send('update:ready', updateReady);
+}
+function installUpdate() {
+  if (!updateReady) return;
+  quitting = true;
+  autoUpdater.quitAndInstall(true, true); // instala em silêncio e reabre o Nexus
+}
+function setupUpdater() {
+  if (!app.isPackaged) return; // rodando pelo código (npm start): nada a atualizar
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    updateReady = info.version;
+    if (tray) tray.setContextMenu(buildTrayMenu());
+    sendUpdate();
+    // Sem balão no meio de uma partida: o aviso fica no site e na bandeja
+    if (tray && !gameWatcher?.current()) {
+      tray.displayBalloon({
+        iconType: 'info',
+        title: 'Atualização do Nexus pronta',
+        content: `A versão ${info.version} entra quando você fechar o Nexus. Para instalar agora: botão direito aqui → "Reiniciar para atualizar".`,
+      });
+    }
+  });
+  autoUpdater.on('error', () => { /* sem internet ou GitHub fora: tenta de novo mais tarde */ });
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  setTimeout(check, 30_000); // depois de abrir, para não pesar na inicialização
+  setInterval(check, 4 * 60 * 60 * 1000);
 }
 
 const isAllowed = (url) => {
@@ -127,6 +165,7 @@ function createWindow() {
 
   // Notificações da página: clicar traz a janela de volta (mesmo se estiver na bandeja)
   win.webContents.on('did-finish-load', () => {
+    sendUpdate(); // página recarregou: repete o aviso de atualização pronta
     win.webContents.executeJavaScript(`(() => {
       const N = window.Notification;
       if (!N || N.__nexus || !window.nexusDesktop) return;
@@ -187,6 +226,7 @@ function abrirComWindows() {
 
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
+    ...(updateReady ? [{ label: `Reiniciar para atualizar (versão ${updateReady})`, click: installUpdate }] : []),
     { label: 'Abrir o Nexus', click: showWindow },
     { type: 'separator' },
     {
@@ -368,6 +408,10 @@ ipcMain.handle('hotkeys:set', (_e, map) => {
   return ok;
 });
 
+// Atualização: o site pergunta se já tem versão baixada e pede para instalar
+ipcMain.handle('update:get', () => updateReady);
+ipcMain.on('update:install', installUpdate);
+
 // O site pergunta o jogo atual (ao abrir/recarregar a página)
 ipcMain.handle('activity:get', () => (prefs.mostrarJogo ? gameWatcher?.current() ?? null : null));
 
@@ -384,6 +428,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   gameWatcher = startGameWatcher(sendGame, () => prefs.mostrarJogo);
+  setupUpdater();
 });
 
 app.on('window-all-closed', () => { /* continua na bandeja */ });
