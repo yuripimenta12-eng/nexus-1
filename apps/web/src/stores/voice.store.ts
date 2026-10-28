@@ -690,22 +690,26 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
 
     // Configurações de qualidade para screen share
     const qualityMap = {
-      '720p30':  { width: 1280, height: 720, frameRate: 30, maxBitrate: 2_000_000 },
-      '720p60':  { width: 1280, height: 720, frameRate: 60, maxBitrate: 3_500_000 },
-      '1080p30': { width: 1920, height: 1080, frameRate: 30, maxBitrate: 4_000_000 },
+      '720p30':  { width: 1280, height: 720, frameRate: 30, maxBitrate: 3_000_000 },
+      '720p60':  { width: 1280, height: 720, frameRate: 60, maxBitrate: 4_500_000 },
+      '1080p30': { width: 1920, height: 1080, frameRate: 30, maxBitrate: 5_000_000 },
       '1080p60': { width: 1920, height: 1080, frameRate: 60, maxBitrate: 8_000_000 },
     };
 
     const opts = qualityMap[quality];
-    // 60fps = jogo/vídeo: prioriza a fluidez. 30fps = texto/telas: prioriza a nitidez.
-    const movimento = opts.frameRate >= 60;
+    // Em 720p a camada "Leve" (540p) quase não economiza para quem assiste e
+    // obriga o PC de quem transmite a comprimir o vídeo duas vezes.
+    const camadaLeve = opts.height > 720;
 
     await room.localParticipant.setScreenShareEnabled(
       true,
       {
         resolution: { width: opts.width, height: opts.height, frameRate: opts.frameRate },
         audio: true, // captura áudio do sistema quando suportado
-        contentHint: movimento ? 'motion' : 'detail',
+        // Sempre "movimento": as lives são quase sempre jogo/vídeo. Com "detail"
+        // (texto) o navegador descarta quadros para manter cada um nítido — a
+        // live de jogo em 720p30 caía para ~8 fps.
+        contentHint: 'motion',
       },
       {
         // O bitrate vai nas opções de PUBLICAÇÃO — antes ia junto da resolução
@@ -716,12 +720,13 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         videoCodec: 'h264',
         backupCodec: false,
         // O padrão da tela é "manter a resolução": sem folga de CPU/rede, o
-        // navegador derrubava os quadros e a live travava. Em 60fps, mantém a
-        // fluidez (baixa um pouco a nitidez se precisar).
-        degradationPreference: movimento ? 'maintain-framerate' : 'balanced',
+        // navegador derrubava os quadros e a live travava. Mantém a fluidez
+        // (baixa um pouco a nitidez se precisar).
+        degradationPreference: 'maintain-framerate',
         // Camada "Leve" (quem assiste escolhe, ou a rede fraca puxa): 540p a
-        // 30fps — fluida para jogo e ~1/8 do trabalho do 1080p60.
-        screenShareSimulcastLayers: [new VideoPreset(960, 540, 1_200_000, 30)],
+        // 30fps — fluida para jogo e ~1/8 do trabalho do 1080p60. Só no 1080p.
+        simulcast: camadaLeve,
+        screenShareSimulcastLayers: camadaLeve ? [new VideoPreset(960, 540, 1_200_000, 30)] : [],
       },
     );
 
