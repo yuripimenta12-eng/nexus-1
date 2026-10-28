@@ -49,6 +49,7 @@ model User {
   friendRequestsSent     Friendship[]            @relation("FriendRequester")
   friendRequestsReceived Friendship[]            @relation("FriendAddressee")
   pushSubscriptions      PushSubscription[]
+  announcementReads      AnnouncementRead[]
 
   @@index([email])
   @@index([username])
@@ -610,4 +611,34 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 
   @@map("app_settings")
+}
+
+// ── Comunicados da plataforma ───────────────────────────────────
+// Avisos do dono do Nexus para todos os usuários. Cada pessoa vê o
+// comunicado em destaque até clicar em "Entendi" (vira um AnnouncementRead).
+// O autor fica só como id: apagar a conta dele não apaga os comunicados.
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  reads AnnouncementRead[]
+
+  @@index([createdAt(sort: Desc)])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId])
+  @@map("announcement_reads")
 }

@@ -24,6 +24,7 @@ import { PushModule } from './push/push.module';
 import { MutesModule } from './mutes/mutes.module';
 import { GifsModule } from './gifs/gifs.module';
 import { UnidosModule } from './games/unidos/unidos.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -50,6 +51,7 @@ import { HealthController } from './health.controller';
     MutesModule,
     GifsModule,
     UnidosModule,
+    AnnouncementsModule,
     DmsModule,
     FriendsModule,
     RolesModule,

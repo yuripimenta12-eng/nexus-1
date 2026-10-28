@@ -665,6 +665,11 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     this.server.to(`user:${userId}`).emit(event, data);
   }
 
+  // Todo mundo com o Nexus aberto (comunicados da plataforma)
+  emitToAll(event: string, data: any) {
+    this.server.emit(event, data);
+  }
+
   // Outros sockets (aparelhos) da mesma pessoa, além deste
   private otherDevices(userId: string, exceptId: string): string[] {
     const room = this.server.sockets.adapter.rooms.get(`user:${userId}`);

@@ -19,6 +19,7 @@ import { MovidoDeSala } from '@/components/voice/movido-de-sala';
 import { UnidosHost } from '@/components/games/unidos/unidos-host';
 import { PushPrompt } from '@/components/layout/push-prompt';
 import { AtualizacaoApp } from '@/components/layout/atualizacao-app';
+import { ComunicadosHost } from '@/components/layout/comunicados';
 import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
 
@@ -111,6 +112,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <PushPrompt />
       {/* App de PC: versão nova baixada, pronta para instalar */}
       <AtualizacaoApp />
+      {/* Comunicados do dono do Nexus: destaque até "Entendi" */}
+      <ComunicadosHost />
 
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div

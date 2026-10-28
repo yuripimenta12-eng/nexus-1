@@ -11,6 +11,7 @@ import { cn, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
 import { avisarServidoresMudaram, lerCodigoColado } from '@/lib/convite';
+import { BotaoComunicados } from '@/components/layout/comunicados';
 
 interface Server {
   id: string;
@@ -278,6 +279,9 @@ export function ServersSidebar() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Comunicados do Nexus (histórico + não lidos) */}
+      <BotaoComunicados />
 
       {/* Config */}
       <button
