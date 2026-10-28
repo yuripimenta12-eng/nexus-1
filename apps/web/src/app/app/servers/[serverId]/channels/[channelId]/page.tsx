@@ -28,11 +28,15 @@ function genClientMsgId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// @everyone/@todos e @here/@aqui (o ponto final da frase não faz parte)
+const MENCAO_TODOS = /^@(everyone|todos|here|aqui)\.*$/i;
+
 /** Render rico: links clicáveis, emojis customizados (:nome:) + menções (@usuario) destacadas */
 function renderRich(
   text: string,
   map: Record<string, string>,
   myNames: string[], // username e displayName do usuário atual (minúsculos)
+  todos = false,     // a mensagem avisou todo mundo (o servidor conferiu o cargo do autor)
 ): React.ReactNode {
   if (!text) return text;
   // O link vem primeiro: um "@" dentro de uma URL não vira menção
@@ -47,7 +51,7 @@ function renderRich(
         className="inline-block w-6 h-6 object-contain align-text-bottom mx-0.5" />;
     }
     if (part.startsWith('@') && part.length > 1) {
-      const isMe = myNames.includes(part.slice(1).toLowerCase());
+      const isMe = myNames.includes(part.slice(1).toLowerCase()) || (todos && MENCAO_TODOS.test(part));
       return (
         <span
           key={i}
@@ -64,8 +68,18 @@ function renderRich(
   });
 }
 
-/** A mensagem menciona este usuário? (@username ou @DisplayName) */
-function mentionsMe(content: string, myNames: string[]): boolean {
+/** O texto usa @everyone/@todos ou @here/@aqui? (mesma regra do servidor) */
+function mencaoGeral(text: string): 'everyone' | 'here' | null {
+  if (!text || !text.includes('@')) return null;
+  const semLinks = text.replace(/https?:\/\/\S+/gi, ' ');
+  if (/(^|[^\w@])@(everyone|todos)(?![\wÀ-ÿ]|\.[\wÀ-ÿ])/i.test(semLinks)) return 'everyone';
+  if (/(^|[^\w@])@(here|aqui)(?![\wÀ-ÿ]|\.[\wÀ-ÿ])/i.test(semLinks)) return 'here';
+  return null;
+}
+
+/** A mensagem menciona este usuário? (@username, @DisplayName, @everyone ou @here) */
+function mentionsMe(content: string, myNames: string[], mentionAll?: string | null): boolean {
+  if (mentionAll) return true;
   if (!content || !content.includes('@')) return false;
   const low = content.toLowerCase();
   return myNames.some(n => n && low.includes('@' + n));
@@ -85,6 +99,7 @@ interface Message {
   edited: boolean;
   deleted: boolean;
   pinned?: boolean;
+  mentionAll?: 'everyone' | 'here' | null;
   authorId: string;
   clientMsgId?: string; // ID de cliente para deduplicação (mensagens otimistas)
   pending?: boolean;    // mensagem ainda não confirmada pelo servidor
@@ -305,8 +320,8 @@ export default function ChannelPage() {
         if (prev.some(m => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
-      // Som quando alguém menciona você (@seu_nome)
-      if (msg.authorId !== user?.id && mentionsMe(msg.content, myNames)) {
+      // Som quando alguém menciona você (@seu_nome, @everyone, @here)
+      if (msg.authorId !== user?.id && mentionsMe(msg.content, myNames, msg.mentionAll)) {
         try { playMention(); } catch { /* autoplay bloqueado */ }
       }
       scrollToBottom();
@@ -623,7 +638,7 @@ export default function ChannelPage() {
                             </div>
                             <p className="text-sm text-[#d6d0e0] break-words line-clamp-4">
                               {p.content
-                                ? renderRich(p.content, emojiMap, myNames)
+                                ? renderRich(p.content, emojiMap, myNames, !!p.mentionAll)
                                 : (p.attachments?.length ? `📎 ${p.attachments[0].fileName}` : '')}
                             </p>
                           </div>
@@ -964,6 +979,16 @@ export default function ChannelPage() {
             )}
           </div>
         </div>
+        {/* Avisa antes de mandar: @everyone/@here notifica gente de verdade */}
+        {mencaoGeral(content) && (
+          <p className={cn('text-xs mt-1.5 px-1', can('mention_everyone') ? 'text-[#ffb070]' : 'text-muted')}>
+            {!can('mention_everyone')
+              ? 'Seu cargo não pode avisar todo mundo: a menção vai só como texto.'
+              : mencaoGeral(content) === 'everyone'
+                ? '📢 Vai avisar todos os membros do servidor (até quem está offline, no celular).'
+                : '📢 Vai avisar todos os membros que estão online agora.'}
+          </p>
+        )}
         {uploadError && (
           <p className="text-destructive text-xs mt-1.5 px-1">{uploadError}</p>
         )}
@@ -1010,7 +1035,7 @@ function MessageRow({
   groupedReactions, currentUserId, emojiMap, myNames, onImageClick,
 }: any) {
   const isEditing = editingId === msg.id;
-  const mentioned = !msg.deleted && !isOwn && mentionsMe(msg.content, myNames || []);
+  const mentioned = !msg.deleted && !isOwn && mentionsMe(msg.content, myNames || [], msg.mentionAll);
   // Celular (sem mouse): as ações aparecem ao TOCAR na mensagem, como no WhatsApp/Discord
   const [touchOpen, setTouchOpen] = useState(false);
   const onRowTap = (e: React.MouseEvent) => {
@@ -1094,7 +1119,7 @@ function MessageRow({
             msg.deleted && 'text-muted italic',
             msg.pending && 'opacity-60',
           )}>
-            {msg.deleted ? msg.content : renderRich(msg.content, emojiMap || {}, myNames || [])}
+            {msg.deleted ? msg.content : renderRich(msg.content, emojiMap || {}, myNames || [], !!msg.mentionAll)}
             {msg.edited && !msg.deleted && (
               <span className="text-muted text-[10px] ml-1">(editado)</span>
             )}

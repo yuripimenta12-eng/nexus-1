@@ -293,6 +293,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         authorId: userId,
         authorName: (message as any).author?.profile?.displayName || (message as any).author?.username || '',
         content: (data.content || '').slice(0, 300),
+        mentionAll: (message as any).mentionAll || null, // @everyone/@here (já conferido pelo cargo)
       });
     }
 

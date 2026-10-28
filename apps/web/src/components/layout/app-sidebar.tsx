@@ -75,14 +75,14 @@ export function AppSidebar() {
 
   useEffect(() => {
     const socket = getSocket();
-    const onActivity = (evt: { serverId: string; channelId: string; authorId: string; authorName?: string; content: string }) => {
+    const onActivity = (evt: { serverId: string; channelId: string; authorId: string; authorName?: string; content: string; mentionAll?: string | null }) => {
       if (evt.authorId === user?.id) return;          // minhas próprias mensagens não contam
       if (evt.channelId === activeChannelId) return;  // canal aberto = já lida
       // Silenciado: sem contador, sem som e sem aviso
       if (useMutes.getState().isMuted(evt.serverId, evt.channelId)) return;
       setUnread(prev => ({ ...prev, [evt.channelId]: (prev[evt.channelId] || 0) + 1 }));
       const meNames = [user?.username, user?.profile?.displayName].filter(Boolean).map(n => (n as string).toLowerCase());
-      if (evt.content && meNames.some(n => evt.content.toLowerCase().includes('@' + n))) {
+      if (evt.mentionAll || (evt.content && meNames.some(n => evt.content.toLowerCase().includes('@' + n)))) {
         setMentioned(prev => ({ ...prev, [evt.channelId]: true }));
         import('@/lib/sounds').then(s => s.playMention()).catch(() => {});
         import('@/lib/notify').then(n => n.notifyMention(evt.authorName || 'Alguém', evt.content)).catch(() => {});

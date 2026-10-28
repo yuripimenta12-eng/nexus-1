@@ -41,6 +41,7 @@ const PERM_GROUPS: PermGroup[] = [
       { key: 'send_voice_messages', label: 'Enviar mensagens de voz', desc: 'Permite gravar e enviar áudios nos canais de texto.' },
       { key: 'manage_messages', label: 'Gerenciar mensagens', desc: 'Permite apagar mensagens de outros membros e fixar mensagens.' },
       { key: 'pin_messages', label: 'Fixar mensagens', desc: 'Permite fixar ou desafixar mensagens no canal.' },
+      { key: 'mention_everyone', label: 'Mencionar @everyone e @here', desc: 'Permite usar @everyone (ou @todos) para avisar todos os membros e @here (ou @aqui) para avisar quem está online. Sem ela, a menção aparece só como texto.' },
     ],
   },
   {

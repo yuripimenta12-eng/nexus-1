@@ -19,6 +19,7 @@ export const ALL_PERMISSIONS = [
   'send_voice_messages',
   'manage_messages',
   'pin_messages',
+  'mention_everyone',
   // Voz
   'speak',
   'video',

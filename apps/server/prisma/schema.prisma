@@ -316,6 +316,9 @@ model Message {
   pinned     Boolean   @default(false)
   pinnedAt   DateTime?
   pinnedById String?
+  // @everyone/@todos ("everyone") ou @here/@aqui ("here"), só quando o cargo
+  // do autor tem "Mencionar todos"; sem isso o texto fica, mas não avisa ninguém
+  mentionAll String?   @db.VarChar(10)
   createdAt  DateTime  @default(now())
 
   channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)

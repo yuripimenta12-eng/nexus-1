@@ -45,10 +45,15 @@ export default function RegisterPage() {
   // Detecta se o usuário chegou por um link de convite (para mostrar o aviso)
   const [invited, setInvited] = useState(false);
   const [pendingInvite, setPendingInvite] = useState('');
+  // Link de cadastro do dono (/auth/register?codigo=...): já vem com o código
+  const [codigoLink, setCodigoLink] = useState('');
   useEffect(() => {
     const p = localStorage.getItem('nexus_pending_invite') || '';
     setInvited(!!p);
     setPendingInvite(p);
+    try {
+      setCodigoLink((new URLSearchParams(window.location.search).get('codigo') || '').trim().slice(0, 64));
+    } catch { /* sem código no link */ }
   }, []);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
@@ -68,7 +73,7 @@ export default function RegisterPage() {
     setError('');
     try {
       const { confirmPassword, terms, ...payload } = data as any;
-      payload.inviteCode = (payload.inviteCode || pendingInvite || '').trim() || undefined;
+      payload.inviteCode = (payload.inviteCode || pendingInvite || codigoLink || '').trim() || undefined;
       await registerUser(payload);
       const pending = localStorage.getItem('nexus_pending_invite');
       if (pending) {
@@ -79,6 +84,8 @@ export default function RegisterPage() {
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar conta.');
+      // Código do link não vale mais: mostra o campo para digitar outro
+      if (err.response?.status === 401 && codigoLink) setCodigoLink('');
     }
   }
 
@@ -118,6 +125,14 @@ export default function RegisterPage() {
             <MessageSquare className="w-5 h-5 text-accent shrink-0" />
             <p className="text-sm text-white">
               Você foi convidado! Crie sua conta para entrar no servidor — é rápido e grátis.
+            </p>
+          </div>
+        )}
+        {!invited && codigoLink && (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3">
+            <MessageSquare className="w-5 h-5 text-accent shrink-0" />
+            <p className="text-sm text-white">
+              Você foi convidado para o Nexus! Crie sua conta — é rápido e grátis.
             </p>
           </div>
         )}
@@ -217,7 +232,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Código de convite — quem veio por link de convite não precisa */}
-            {!invited && (
+            {!invited && !codigoLink && (
               <div>
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[#cfc5d8] mb-1.5">
                   Código de convite

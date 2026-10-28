@@ -18,6 +18,16 @@ function cleanContent(raw: unknown, allowEmpty = false): string {
   return text;
 }
 
+// @everyone/@todos avisa todos os membros; @here/@aqui, só quem está online.
+// Links não contam (um "@" dentro de URL não é menção).
+export function mentionAllOf(text: string): 'everyone' | 'here' | null {
+  if (!text || !text.includes('@')) return null;
+  const semLinks = text.replace(/https?:\/\/\S+/gi, ' ');
+  if (/(^|[^\w@])@(everyone|todos)(?![\wÀ-ÿ]|\.[\wÀ-ÿ])/i.test(semLinks)) return 'everyone';
+  if (/(^|[^\w@])@(here|aqui)(?![\wÀ-ÿ]|\.[\wÀ-ÿ])/i.test(semLinks)) return 'here';
+  return null;
+}
+
 @Injectable()
 export class MessagesService {
   constructor(
@@ -84,12 +94,17 @@ export class MessagesService {
       replyToId = dto.replyToId;
     }
 
+    // Sem "Mencionar todos" o @everyone fica só como texto (não avisa ninguém)
+    let mentionAll = mentionAllOf(content);
+    if (mentionAll && !(await this.roles.hasPermission(channel.serverId, userId, 'mention_everyone'))) mentionAll = null;
+
     const message = await this.prisma.message.create({
       data: {
         channelId,
         authorId: userId,
         content,
         replyToId,
+        mentionAll,
       },
       include: {
         author: { include: { profile: true } },
@@ -112,10 +127,12 @@ export class MessagesService {
     return message;
   }
 
-  // Mesma regra do front (mentionsMe): o texto contém "@" + username ou nome de exibição
+  // Mesma regra do front (mentionsMe): o texto contém "@" + username ou nome de
+  // exibição, ou @everyone (todos). @here não manda push: quem está online já vê
+  // no Nexus, e o push só vai para quem está offline.
   private async notifyMentions(
     channel: { id: string; name: string; serverId: string },
-    message: { authorId: string; content: string; author: any },
+    message: { authorId: string; content: string; author: any; mentionAll?: string | null },
   ) {
     const low = message.content.toLowerCase();
     const members = await this.prisma.serverMember.findMany({
@@ -125,7 +142,8 @@ export class MessagesService {
         user: { select: { username: true, profile: { select: { displayName: true } } } },
       },
     });
-    const mentioned = members.filter(m => {
+    const todos = message.mentionAll === 'everyone';
+    const mentioned = todos ? members : members.filter(m => {
       const names = [m.user.username, m.user.profile?.displayName]
         .filter(Boolean)
         .map(n => (n as string).toLowerCase());
@@ -139,7 +157,7 @@ export class MessagesService {
 
     const author = message.author?.profile?.displayName || message.author?.username || 'Alguém';
     this.push.notifyUsers(targets.map(m => m.userId), {
-      title: `${author} mencionou você em #${channel.name}`,
+      title: todos ? `${author} mencionou @everyone em #${channel.name}` : `${author} mencionou você em #${channel.name}`,
       body: message.content,
       url: `/app/servers/${channel.serverId}/channels/${channel.id}`,
       tag: `channel:${channel.id}`,
