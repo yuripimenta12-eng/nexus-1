@@ -4,7 +4,7 @@
 # Os testes criam contas/servidores temporários e apagam tudo no final.
 C=${1:-nexus-api-teste}
 falhou=0
-for t in $(docker exec "$C" sh -c 'ls test/e2e/[0-9]*-*.js'); do
+for t in $(docker exec "$C" sh -c 'ls test/e2e/[0-9]*-*.js' | sort -t/ -k3 -n); do
   echo "=== $t"
   saida=$(docker exec -w /app "$C" node "$t" 2>/dev/null)
   [ $? -ne 0 ] && falhou=1
