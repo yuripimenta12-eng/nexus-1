@@ -58,10 +58,11 @@ export class UsersService {
         ],
       },
       take: 20,
-      include: { profile: { select: { displayName: true, avatarUrl: true, status: true } } },
+      // Só o público: antes ia o e-mail de quem aparecesse na busca
+      select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, status: true } } },
     });
 
-    return users.map(u => toSafeUser(u));
+    return users;
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

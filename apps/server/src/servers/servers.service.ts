@@ -13,6 +13,7 @@ import { UpdateServerDto } from './dto/update-server.dto';
 import { MemberRole } from '@prisma/client';
 import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
 import { randomBytes } from 'crypto';
+import { PUBLIC_USER } from '../common/public-user';
 
 @Injectable()
 export class ServersService {
@@ -48,7 +49,7 @@ export class ServersService {
       include: {
         channels: { orderBy: { position: 'asc' } },
         voiceRooms: { orderBy: { position: 'asc' } },
-        members: { include: { user: { include: { profile: true } } } },
+        members: { include: { user: PUBLIC_USER } },
       },
     });
 
@@ -69,7 +70,7 @@ export class ServersService {
         voiceRooms: { orderBy: { position: 'asc' }, include: { allowedRoles: { select: { id: true } } } },
         members: {
           where: { banned: false },
-          include: { user: { include: { profile: true } } },
+          include: { user: PUBLIC_USER },
           orderBy: { joinedAt: 'asc' },
         },
         _count: { select: { members: true } },
@@ -173,7 +174,7 @@ export class ServersService {
     const members = await this.prisma.serverMember.findMany({
       where: { serverId, banned: false },
       include: {
-        user: { include: { profile: true } },
+        user: PUBLIC_USER,
         // Cargos personalizados: o front agrupa por cargo com hoist
         // ("exibir separadamente") e pinta o nome com a cor do cargo
         // mais alto — comportamento igual ao Discord.

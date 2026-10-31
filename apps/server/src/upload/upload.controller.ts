@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { NexusGateway } from '../gateway/nexus.gateway';
 import { RolesService } from '../roles/roles.service';
+import { PUBLIC_USER } from '../common/public-user';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -151,10 +152,10 @@ export class UploadController {
       const full = await this.prisma.message.findUnique({
         where: { id: message.id },
         include: {
-          author: { include: { profile: true } },
+          author: PUBLIC_USER,
           reactions: true,
           attachments: true,
-          replyTo: { include: { author: { include: { profile: true } } } },
+          replyTo: { include: { author: PUBLIC_USER } },
         },
       });
 

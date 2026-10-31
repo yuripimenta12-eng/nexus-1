@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MemberRole } from '@prisma/client';
 import { ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, PermissionKey } from './permissions';
+import { PUBLIC_USER } from '../common/public-user';
 
 @Injectable()
 export class RolesService {
@@ -174,7 +175,7 @@ export class RolesService {
     const role = await this.getRole(serverId, roleId);
     return this.prisma.roleAssignment.findMany({
       where: { roleId: role.id },
-      include: { member: { include: { user: { include: { profile: true } } } } },
+      include: { member: { include: { user: PUBLIC_USER } } },
     });
   }
 

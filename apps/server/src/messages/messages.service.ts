@@ -6,6 +6,7 @@ import { MemberRole } from '@prisma/client';
 import { PushService } from '../push/push.service';
 import { RolesService } from '../roles/roles.service';
 import { MutesService } from '../mutes/mutes.service';
+import { PUBLIC_USER } from '../common/public-user';
 
 // Mesmas regras do DTO, valendo também para o tempo real (socket não passa pelo ValidationPipe)
 function cleanContent(raw: unknown, allowEmpty = false): string {
@@ -49,13 +50,13 @@ export class MessagesService {
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: { createdAt: 'desc' },
       include: {
-        author: { include: { profile: true } },
+        author: PUBLIC_USER,
         reactions: {
-          include: { user: { include: { profile: true } } },
+          include: { user: PUBLIC_USER },
         },
         attachments: true,
         replyTo: {
-          include: { author: { include: { profile: true } } },
+          include: { author: PUBLIC_USER },
         },
       },
     });
@@ -107,11 +108,11 @@ export class MessagesService {
         mentionAll,
       },
       include: {
-        author: { include: { profile: true } },
+        author: PUBLIC_USER,
         reactions: true,
         attachments: true,
         replyTo: {
-          include: { author: { include: { profile: true } } },
+          include: { author: PUBLIC_USER },
         },
         // serverId para o gateway avisar a sidebar (badges de não-lidas)
         channel: { select: { serverId: true } },
@@ -172,7 +173,7 @@ export class MessagesService {
       where: { id: messageId },
       data: { content: cleanContent(content), edited: true, editedAt: new Date() },
       include: {
-        author: { include: { profile: true } },
+        author: PUBLIC_USER,
         reactions: true,
         attachments: true,
       },
@@ -246,7 +247,7 @@ export class MessagesService {
       where: { channelId, pinned: true, deleted: false },
       orderBy: { pinnedAt: 'desc' },
       take: 50,
-      include: { author: { include: { profile: true } }, attachments: true },
+      include: { author: PUBLIC_USER, attachments: true },
     });
   }
 

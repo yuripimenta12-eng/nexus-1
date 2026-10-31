@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
+import { ADMIN_USER } from '../common/public-user';
 
 @Injectable()
 export class AdminService {
@@ -101,8 +102,8 @@ export class AdminService {
         skip,
         take: limit,
         include: {
-          reporter: { include: { profile: true } },
-          targetUser: { include: { profile: true } },
+          reporter: ADMIN_USER,
+          targetUser: ADMIN_USER,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -166,7 +167,7 @@ export class AdminService {
         where,
         skip,
         take: limit,
-        include: { actor: { include: { profile: true } } },
+        include: { actor: ADMIN_USER },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.auditLog.count({ where }),
