@@ -81,10 +81,12 @@ function vazou(obj, achados = new Set()) {
     await prisma.serverMember.create({ data: { serverId, userId: B.id } });
     const ch = (await prisma.channel.findMany({ where: { serverId }, orderBy: { createdAt: 'asc' } }))[0];
 
-    const sB = await socket(tB);
-    socks.push(sB);
+    const sA = await socket(tA), sB = await socket(tB);
+    socks.push(sA, sB);
     sB.emit('channel:join', { channelId: ch.id });
     await sleep(600);
+    // Ao vivo: o envio pelo socket é o que transmite para o canal
+    sA.emit('message:send', { channelId: ch.id, content: 'ao vivo ' + rnd });
     r = await call('POST', `/channels/${ch.id}/messages`, { content: 'oi ' + rnd }, tA);
     const msgId = r.data?.id;
     await call('POST', `/channels/${ch.id}/messages`, { content: 'resposta', replyToId: msgId }, tA);
@@ -113,7 +115,7 @@ function vazou(obj, achados = new Set()) {
     await olhar('busca de mensagens', `/servers/${serverId}/search?q=oi`);
     const busca = await olhar('busca de usuários', `/users/search?q=${encodeURIComponent(A.username)}`);
     check('busca ainda encontra a pessoa', busca.data?.some?.(u => u.id === A.id));
-    const novo = sB.events.find(e => e[0] === 'message:new');
+    const novo = sB.events.find(e => e[0] === 'message:new' && e[1].content === 'ao vivo ' + rnd);
     check('mensagem ao vivo não expõe dados privados', !!novo && vazou(novo[1]).length === 0, novo ? vazou(novo[1]).join(',') : 'não chegou');
     r = await call('GET', '/auth/me', null, tB);
     check('a própria conta continua com o e-mail', r.status === 200 && r.data?.email === B.email);
