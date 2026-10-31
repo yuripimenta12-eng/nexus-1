@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { getSocket, joinServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
+import { EmblemaBeta, SeloBeta } from '@/components/ui/emblema-beta';
 import { cn } from '@/lib/utils';
 
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
@@ -30,6 +31,7 @@ interface Member {
   user: {
     id: string;
     username: string;
+    isBetaTester?: boolean;
     profile: { displayName: string; avatarUrl: string | null; customStatus?: string | null } | null;
   };
 }
@@ -231,6 +233,7 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
                     {name}
                   </span>
                   <RoleIcon role={m.role} />
+                  {m.user.isBetaTester && <EmblemaBeta size={14} />}
                 </div>
                 {m.activity ? (
                   <p className="text-[11px] text-[#43e3a3] truncate" title={`Jogando ${m.activity}`}>🎮 Jogando <b className="font-semibold">{m.activity}</b></p>
@@ -332,6 +335,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           <p className="text-[#8a8095] text-[12.5px]">
             @{member.user.username}{since ? ` · no Nexus desde ${since}` : ''}
           </p>
+          {member.user.isBetaTester && <SeloBeta className="mt-2" />}
 
           {member.activity && (
             <div className="mt-3 rounded-xl px-3 py-2.5 flex items-center gap-2.5" style={{ background: 'rgba(67,227,163,0.08)', border: '1px solid rgba(67,227,163,0.25)' }}>

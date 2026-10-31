@@ -22,6 +22,7 @@ import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { MemberList } from '@/components/servers/member-list';
 import { MessageSkeleton } from '@/components/ui/message-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { EmblemaBeta } from '@/components/ui/emblema-beta';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -106,6 +107,7 @@ interface Message {
   author: {
     id: string;
     username: string;
+    isBetaTester?: boolean;
     profile: { displayName: string; avatarUrl: string | null };
   };
   reactions: Array<{ id: string; userId: string; emoji: string }>;
@@ -1076,6 +1078,7 @@ function MessageRow({
             <span className="font-semibold text-[15px] hover:underline cursor-default" style={{ color: nameColor || '#f3eefa' }}>
               {msg.author.profile.displayName}
             </span>
+            {msg.author.isBetaTester && <EmblemaBeta size={15} className="self-center" />}
             <span className="text-[#7e7390] text-[11px]">{formatMessageDate(msg.createdAt)}</span>
             {msg.pinned && !msg.deleted && <PinnedBadge />}
           </div>

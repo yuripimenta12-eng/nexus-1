@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/auth.store';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { cn, formatRelativeDate } from '@/lib/utils';
 import { PainelComunicados } from '@/components/admin/painel-comunicados';
+import { PainelBeta } from '@/components/admin/painel-beta';
+import { EmblemaBeta } from '@/components/ui/emblema-beta';
 
 // Textos em português para status e motivos que vêm do servidor em inglês
 const REPORT_STATUS: Record<string, { label: string; cls: string }> = {
@@ -73,6 +75,14 @@ export default function AdminPage() {
     mutationFn: ({ id, suspend }: { id: string; suspend: boolean; name?: string }) =>
       api.post(`/admin/users/${id}/${suspend ? 'suspend' : 'unsuspend'}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  });
+
+  const betaMutation = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) => api.post(`/admin/users/${id}/beta`, { on }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'beta'] });
+    },
   });
 
   const resolveReport = useMutation({
@@ -189,6 +199,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
+              <PainelBeta />
               <div className="rounded-xl border border-border overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
                   <thead className="bg-surface-raised">
@@ -220,6 +231,7 @@ export default function AdminPage() {
                             <div className="min-w-0">
                               <p className="text-white font-medium flex items-center gap-1.5">
                                 {u.profile?.displayName || u.username}
+                                {u.isBetaTester && <EmblemaBeta size={15} />}
                                 {u.twoFactorEnabled && <span title="Verificação em duas etapas ligada"><ShieldCheck className="w-3.5 h-3.5 text-success" /></span>}
                                 {u.isVerified && !isRemoved(u) && <span title="E-mail confirmado"><MailCheck className="w-3.5 h-3.5 text-accent-blue" /></span>}
                               </p>
@@ -243,7 +255,22 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-muted">{u._count?.memberships ?? 0}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {!isRemoved(u) && (
+                            <button
+                              onClick={() => {
+                                const nome = u.profile?.displayName || u.username;
+                                if (window.confirm(u.isBetaTester ? `Tirar o emblema BETA NEXT de ${nome}?` : `Dar o emblema BETA NEXT para ${nome}?`)) {
+                                  betaMutation.mutate({ id: u.id, on: !u.isBetaTester });
+                                }
+                              }}
+                              disabled={betaMutation.isPending}
+                              className="text-xs px-3 py-1 mr-2 rounded-md transition-colors disabled:opacity-30 bg-white/5 text-[#ffb070] hover:bg-white/10"
+                              title={u.isBetaTester ? 'Tirar o emblema BETA NEXT' : 'Dar o emblema BETA NEXT'}
+                            >
+                              {u.isBetaTester ? 'Tirar BETA' : 'Dar BETA'}
+                            </button>
+                          )}
                           {!isRemoved(u) && <button
                             onClick={() => {
                               const nome = u.profile?.displayName || u.username;

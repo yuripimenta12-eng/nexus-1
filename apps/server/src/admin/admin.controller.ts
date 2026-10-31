@@ -32,6 +32,22 @@ export class AdminController {
     return this.adminService.suspendUser(userId, targetId, false);
   }
 
+  // Emblema BETA NEXT: contas novas ganham? / dar ou tirar de alguém
+  @Get('beta')
+  beta(@CurrentUser('id') userId: string) {
+    return this.adminService.getBeta(userId);
+  }
+
+  @Patch('beta')
+  setBeta(@CurrentUser('id') userId: string, @Body() body: { cadastrosGanham: boolean }) {
+    return this.adminService.setBetaCadastros(userId, body?.cadastrosGanham);
+  }
+
+  @Post('users/:id/beta')
+  userBeta(@CurrentUser('id') userId: string, @Param('id') targetId: string, @Body() body: { on: boolean }) {
+    return this.adminService.setUserBeta(userId, targetId, body?.on);
+  }
+
   @Get('servers')
   servers(@CurrentUser('id') userId: string, @Query('page') page?: number) {
     return this.adminService.getServers(userId, page);

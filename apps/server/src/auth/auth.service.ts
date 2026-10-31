@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
 import { toSafeUser } from '../common/safe-user';
+import { BETA_CADASTROS_KEY } from '../common/beta';
 import { TwoFactorService } from './two-factor.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -65,12 +66,14 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(dto.password);
+    const beta = await this.prisma.appSetting.findUnique({ where: { key: BETA_CADASTROS_KEY } });
 
     const user = await this.prisma.user.create({
       data: {
         email: dto.email.toLowerCase(),
         username: dto.username.toLowerCase(),
         passwordHash,
+        isBetaTester: beta?.value !== '0', // emblema BETA NEXT enquanto o beta estiver aberto
         profile: {
           create: {
             displayName: dto.displayName || dto.username,

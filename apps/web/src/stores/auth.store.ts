@@ -9,6 +9,7 @@ export interface User {
   email: string;
   username: string;
   isAdmin: boolean;
+  isBetaTester?: boolean;      // emblema BETA NEXT
   isVerified?: boolean;        // e-mail confirmado
   twoFactorEnabled?: boolean;  // verificação em duas etapas ligada
   profile: {

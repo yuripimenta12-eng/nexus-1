@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Camera, Loader2, Palette, X } from 'lucide-react';
 import { cn, getInitials, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
+import { SeloBeta } from '@/components/ui/emblema-beta';
 import api from '@/lib/api';
 
 const BANNER_SWATCHES: [string, string][] = [
@@ -206,6 +207,8 @@ export function ProfileCard() {
             <p className="text-[#92879f] text-sm truncate">@{user?.username}</p>
           </div>
         </div>
+
+        {user?.isBetaTester && <SeloBeta className="mt-3" />}
 
         {profile?.customStatus && (
           <p className="text-[#cfc6dd] text-sm mt-3 italic">"{profile.customStatus}"</p>

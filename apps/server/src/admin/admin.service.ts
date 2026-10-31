@@ -1,7 +1,8 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { ADMIN_USER } from '../common/public-user';
+import { BETA_CADASTROS_KEY } from '../common/beta';
 
 @Injectable()
 export class AdminService {
@@ -89,6 +90,43 @@ export class AdminService {
         targetId: targetId,
       },
     });
+  }
+
+  // ── Emblema BETA NEXT ───────────────────────────────────────────
+  async getBeta(adminId: string) {
+    await this.requireAdmin(adminId);
+    const [row, total] = await Promise.all([
+      this.prisma.appSetting.findUnique({ where: { key: BETA_CADASTROS_KEY } }),
+      this.prisma.user.count({ where: { isBetaTester: true } }),
+    ]);
+    return { cadastrosGanham: row?.value !== '0', total };
+  }
+
+  // Contas novas ganham (ou não) o emblema; quem já tem continua com ele
+  async setBetaCadastros(adminId: string, aberto: boolean) {
+    await this.requireAdmin(adminId);
+    if (typeof aberto !== 'boolean') throw new BadRequestException('Valor inválido');
+    await this.prisma.appSetting.upsert({
+      where: { key: BETA_CADASTROS_KEY },
+      create: { key: BETA_CADASTROS_KEY, value: aberto ? '1' : '0' },
+      update: { value: aberto ? '1' : '0' },
+    });
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: aberto ? 'ADMIN_BETA_OPEN' : 'ADMIN_BETA_CLOSE', targetType: 'APP', targetId: BETA_CADASTROS_KEY },
+    });
+    return this.getBeta(adminId);
+  }
+
+  async setUserBeta(adminId: string, targetId: string, on: boolean) {
+    await this.requireAdmin(adminId);
+    if (typeof on !== 'boolean') throw new BadRequestException('Valor inválido');
+    const alvo = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!alvo) throw new NotFoundException('Usuário não encontrado');
+    await this.prisma.user.update({ where: { id: targetId }, data: { isBetaTester: on } });
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: on ? 'ADMIN_BETA_GRANT' : 'ADMIN_BETA_REVOKE', targetType: 'USER', targetId },
+    });
+    return { id: targetId, isBetaTester: on };
   }
 
   async getReports(userId: string, page = 1, limit = 50) {

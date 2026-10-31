@@ -25,6 +25,7 @@ export class UsersService {
         id: true,
         username: true,
         createdAt: true,
+        isBetaTester: true,
         profile: {
           select: {
             displayName: true, avatarUrl: true, bannerUrl: true, bannerColor: true,
