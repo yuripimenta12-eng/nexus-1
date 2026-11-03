@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -2082,7 +2082,9 @@ function tileAspect(count: number): string {
 }
 
 // ── Tile de participante ──────────────────────────────────────────
-function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean }) {
+// memo: com a lista de participantes reaproveitando quem não mudou, só o
+// quadro de quem começou/parou de falar é redesenhado
+const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean }) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
   const name = voiceParticipant.participant.name || identity;
@@ -2174,7 +2176,7 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedU
           {/* Fundo: a própria foto (ou as cores da pessoa) bem desfocada */}
           <div
             aria-hidden
-            className="absolute -inset-6 bg-cover bg-center scale-110"
+            className="nx-desfoque absolute -inset-6 bg-cover bg-center scale-110"
             style={avatarUrl
               ? { backgroundImage: `url(${avatarUrl})`, filter: 'blur(26px) saturate(1.35) brightness(0.5)' }
               : { background: `linear-gradient(145deg, ${c1}, ${c2})`, filter: 'blur(40px) brightness(0.45)' }}
@@ -2253,7 +2255,7 @@ function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedU
       </span>
     </motion.div>
   );
-}
+});
 
 function ConnectionQualityBars({ quality }: { quality: ConnectionQuality }) {
   const color = {

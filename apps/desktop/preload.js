@@ -29,4 +29,11 @@ contextBridge.exposeInMainWorld('nexusDesktop', {
     ipcRenderer.on('activity:game', handler);
     return () => ipcRenderer.removeListener('activity:game', handler);
   },
+  // Modo jogo (1.6.0+): algum jogo aberto, mesmo sem mostrar o nome
+  getGameRunning: () => ipcRenderer.invoke('game:running:get'),
+  onGameRunning: (cb) => {
+    const handler = (_e, running) => cb(running === true);
+    ipcRenderer.on('game:running', handler);
+    return () => ipcRenderer.removeListener('game:running', handler);
+  },
 });

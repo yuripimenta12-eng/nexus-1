@@ -1082,3 +1082,19 @@ html.nx-sem-foco *::before,
 html.nx-sem-foco *::after {
   animation-play-state: paused !important;
 }
+
+/* Modo leve (escolhido nas Configurações) e Modo jogo (jogo aberto, app de PC):
+   tira o que mais pesa em PC sem placa de vídeo — animações, transições,
+   vidro desfocado e os fundos borrados dos quadros da chamada. Cada redesenho
+   dessas camadas disputa o processador/placa com o jogo. */
+html.nx-leve *,
+html.nx-leve *::before,
+html.nx-leve *::after {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.nx-leve .nx-desfoque {
+  display: none !important;
+}

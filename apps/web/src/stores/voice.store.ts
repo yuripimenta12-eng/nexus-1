@@ -22,6 +22,7 @@ export interface VoiceParticipant {
   userId?: string;
   displayName?: string;
   avatarUrl?: string;
+  tracksKey?: string; // nome + faixas publicadas/assinadas (muda quando algo assim muda)
   isSpeaking: boolean;
   micEnabled: boolean;
   camEnabled: boolean;
@@ -453,15 +454,25 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       room.on(RoomEvent.TrackUnpublished, (pub, p) => get().updateParticipant(p));
       room.on(RoomEvent.TrackSubscribed, (_, pub, p) => get().updateParticipant(p));
       room.on(RoomEvent.TrackUnsubscribed, (_, pub, p) => get().updateParticipant(p));
+      // Microfone/câmera ligados e desligados (o ícone de mic mudo depende disso)
+      room.on(RoomEvent.TrackMuted, (_, p) => get().updateParticipant(p));
+      room.on(RoomEvent.TrackUnmuted, (_, p) => get().updateParticipant(p));
+      room.on(RoomEvent.ParticipantNameChanged, (_, p) => get().updateParticipant(p));
 
+      // Chega várias vezes por segundo numa conversa: só troca quem mudou de
+      // "falando" para "calado" (ou o contrário). Recriar todo mundo a cada
+      // evento redesenhava a tela inteira — CPU/placa de vídeo roubadas do jogo.
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
         const speakingSet = new Set(speakers.map(s => s.identity));
         set((state) => {
-          const next = new Map(state.participants);
-          next.forEach((p, key) => {
-            next.set(key, { ...p, isSpeaking: speakingSet.has(key) });
+          let next: Map<string, VoiceParticipant> | null = null;
+          state.participants.forEach((p, key) => {
+            const falando = speakingSet.has(key);
+            if (p.isSpeaking === falando) return;
+            if (!next) next = new Map(state.participants);
+            next.set(key, { ...p, isSpeaking: falando });
           });
-          return { participants: next };
+          return next ? { participants: next } : state;
         });
       });
 
@@ -941,10 +952,19 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   // Helper interno (não exposto pelo tipo mas usado pelos callbacks)
   updateParticipant: (p: Participant) => {
     set((state) => {
+      const existing = state.participants.get(p.identity);
+      const built = buildParticipant(p);
+      // Nada que apareça na tela mudou (ex.: qualidade da conexão igual):
+      // não acorda os componentes da chamada à toa
+      if (existing && existing.participant === p &&
+          existing.isSpeaking === built.isSpeaking && existing.micEnabled === built.micEnabled &&
+          existing.camEnabled === built.camEnabled && existing.screenSharing === built.screenSharing &&
+          existing.connectionQuality === built.connectionQuality && existing.tracksKey === built.tracksKey) {
+        return state;
+      }
       const next = new Map(state.participants);
-      const existing = next.get(p.identity);
       next.set(p.identity, {
-        ...buildParticipant(p),
+        ...built,
         localVolume: existing?.localVolume ?? 100,
         streamVolume: existing?.streamVolume ?? 100,
         isMutedLocally: existing?.isMutedLocally ?? false,
@@ -965,6 +985,9 @@ function buildParticipant(p: Participant): VoiceParticipant {
 
   return {
     identity: p.identity,
+    // Muda quando entra/sai/é assinada uma faixa (o player de áudio usa isso)
+    tracksKey: (p.name || '') + '#' + Array.from(p.trackPublications.values())
+      .map(pub => `${pub.trackSid}:${pub.isSubscribed ? 1 : 0}:${pub.isMuted ? 1 : 0}`).join('|'),
     isSpeaking: p.isSpeaking,
     micEnabled: p.isMicrophoneEnabled,
     camEnabled: hasCam,

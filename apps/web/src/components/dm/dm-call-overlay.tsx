@@ -7,6 +7,7 @@ import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { getSocket } from '@/lib/socket';
 import { useDmCall } from '@/stores/dm-call.store';
 import { useVoiceStore } from '@/stores/voice.store';
+import { useShallow } from 'zustand/react/shallow';
 
 // Toque simples gerado na hora (sem arquivo): dois bipes a cada 2 s
 function startRingtone(): () => void {
@@ -58,7 +59,9 @@ function Elapsed({ since }: { since: number }) {
 // Janela global da chamada 1:1: toca ao receber, mostra "chamando…" e a chamada ativa
 export function DmCallOverlay() {
   const { phase, partner, startedAt, notice, ring, accept, decline, hangup, remoteAccepted, remoteEnded, handledElsewhere, clearNotice } = useDmCall();
-  const { localMicEnabled, toggleMic, voiceRoomId, isConnected, participants } = useVoiceStore() as any;
+  const { localMicEnabled, toggleMic, voiceRoomId, isConnected } = useVoiceStore(useShallow((s: any) => ({
+    localMicEnabled: s.localMicEnabled, toggleMic: s.toggleMic, voiceRoomId: s.voiceRoomId, isConnected: s.isConnected,
+  })));
   const wasInDm = useRef<string | null>(null);
   const unidosSala = useUnidos(s => s.sala);
   const unidosPartida = useUnidos(s => s.partida);
@@ -103,8 +106,8 @@ export function DmCallOverlay() {
     return () => clearTimeout(t);
   }, [notice, clearNotice]);
 
-  const remoteSpeaking = partner ? !!participants?.get?.(partner.id)?.isSpeaking : false;
-  const remoteHere = partner ? !!participants?.get?.(partner.id) : false;
+  const remoteSpeaking = useVoiceStore(s => !!partner && !!s.participants.get(partner.id)?.isSpeaking);
+  const remoteHere = useVoiceStore(s => !!partner && s.participants.has(partner.id));
 
   return (
     <>

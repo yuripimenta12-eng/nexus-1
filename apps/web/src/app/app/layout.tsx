@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { connectSocket, getSocket } from '@/lib/socket';
-import { startGameActivity, currentGameResend } from '@/lib/desktop';
+import { startGameActivity, currentGameResend, watchGameRunning, isDesktopApp } from '@/lib/desktop';
+import { MotionConfig } from 'framer-motion';
+import { usePrefsStore } from '@/stores/prefs.store';
 import { syncPush } from '@/lib/push';
 import { VerifyEmailGate } from '@/components/layout/verify-email-gate';
 import { AppSidebar } from '@/components/layout/app-sidebar';
@@ -29,6 +31,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, hasHydrated, refreshUser, user } = useAuthStore();
   const { mobileNavOpen, closeMobileNav, toggleMobileNav } = useUiStore();
   const loadMutes = useMutes(s => s.load);
+  const modoLeve = usePrefsStore(s => s.modoLeve);
+  const modoJogo = usePrefsStore(s => s.modoJogo);
+  const [jogando, setJogando] = useState(false);
+  const leve = modoLeve || (modoJogo && jogando);
+
+  // Modo jogo (app de PC): com um jogo aberto, o Nexus fica no modo leve sozinho
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    return watchGameRunning(setJogando);
+  }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle('nx-leve', leve);
+  }, [leve]);
 
   // Servidores/canais silenciados (sons e destaques respeitam isso)
   useEffect(() => { if (isAuthenticated) loadMutes(); }, [isAuthenticated, loadMutes]);
@@ -154,11 +169,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      {/* Conteúdo principal */}
+      {/* Conteúdo principal (modo leve: as animações do framer-motion também param) */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <MotionConfig reducedMotion={leve ? 'always' : 'user'}>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </MotionConfig>
       </main>
     </div>
   );

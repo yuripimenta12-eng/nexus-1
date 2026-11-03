@@ -10,7 +10,7 @@ import api from '@/lib/api';
 
 /* ── Aparência ─────────────────────────────────────────────────── */
 export function AppearanceSettings() {
-  const { accent, setAccent } = usePrefsStore();
+  const { accent, setAccent, modoLeve, setModoLeve, modoJogo, setModoJogo } = usePrefsStore();
 
   return (
     <div className="space-y-6">
@@ -84,6 +84,26 @@ export function AppearanceSettings() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      <section>
+        <p className="text-orange text-[11px] font-extrabold uppercase tracking-[1.5px] mb-3">
+          Desempenho
+        </p>
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)]">
+          <ToggleRow
+            label="Modo leve"
+            desc="Desliga animações, transparências e desfoques. Ideal para PC sem placa de vídeo ou mais antigo: sobra mais processador para o jogo."
+            checked={modoLeve}
+            onChange={setModoLeve}
+          />
+          <ToggleRow
+            label="Modo jogo automático"
+            desc="No app de PC: enquanto um jogo estiver aberto, o Nexus entra no modo leve sozinho e volta ao normal quando você fecha o jogo."
+            checked={modoJogo}
+            onChange={setModoJogo}
+          />
         </div>
       </section>
     </div>

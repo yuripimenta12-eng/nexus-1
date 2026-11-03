@@ -43,10 +43,16 @@ interface PrefsState {
   accent: AccentTheme;
   notifDesktop: boolean;
   notifSound: boolean;
+  // Modo leve: sem animações, transparências e desfoques (PC fraco / sem placa de vídeo)
+  modoLeve: boolean;
+  // Modo jogo: no app de PC, liga o modo leve sozinho enquanto um jogo está aberto
+  modoJogo: boolean;
 
   setAccent: (a: AccentTheme) => void;
   setNotifDesktop: (on: boolean) => void;
   setNotifSound: (on: boolean) => void;
+  setModoLeve: (on: boolean) => void;
+  setModoJogo: (on: boolean) => void;
 }
 
 export const usePrefsStore = create<PrefsState>()(
@@ -56,10 +62,14 @@ export const usePrefsStore = create<PrefsState>()(
       // No app de PC as notificações do Windows já vêm ligadas (no navegador, o usuário ativa)
       notifDesktop: isDesktopApp(),
       notifSound: true,
+      modoLeve: false,
+      modoJogo: true,
 
       setAccent: (accent) => set({ accent }),
       setNotifDesktop: (notifDesktop) => set({ notifDesktop }),
       setNotifSound: (notifSound) => set({ notifSound }),
+      setModoLeve: (modoLeve) => set({ modoLeve }),
+      setModoJogo: (modoJogo) => set({ modoJogo }),
     }),
     { name: 'nexus-prefs' },
   ),

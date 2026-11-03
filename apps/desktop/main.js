@@ -61,8 +61,16 @@ if (loadPrefs().semAceleracao) app.disableHardwareAcceleration();
 
 // ── "Jogando …" ──────────────────────────────────────────────────
 let gameWatcher = null;
+// O jogo é sempre detectado (Modo jogo); o NOME só vai para o site, e dali
+// para os amigos, com "Mostrar o jogo que estou jogando" ligado.
 function sendGame(name) {
-  if (win && !win.isDestroyed()) win.webContents.send('activity:game', name);
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('activity:game', prefs.mostrarJogo ? name : null);
+  win.webContents.send('game:running', !!name);
+  // Com um jogo aberto, o Nexus minimizado, na bandeja ou atrás do jogo para
+  // de desenhar a tela e segura os timers (a chamada continua normal: página
+  // com áudio/WebRTC não é congelada). Sem jogo, volta ao normal.
+  try { win.webContents.setBackgroundThrottling(!!name); } catch { /* janela fechando */ }
 }
 
 // ── Atualização automática ───────────────────────────────────────
@@ -244,7 +252,7 @@ function buildTrayMenu() {
       click: (item) => {
         prefs.mostrarJogo = item.checked;
         savePrefs();
-        gameWatcher?.refresh();
+        sendGame(gameWatcher?.current() ?? null);
       },
     },
     {
@@ -414,6 +422,8 @@ ipcMain.on('update:install', installUpdate);
 
 // O site pergunta o jogo atual (ao abrir/recarregar a página)
 ipcMain.handle('activity:get', () => (prefs.mostrarJogo ? gameWatcher?.current() ?? null : null));
+// Modo jogo: tem jogo aberto agora? (vale mesmo sem mostrar o nome)
+ipcMain.handle('game:running:get', () => !!gameWatcher?.current());
 
 ipcMain.on('app:show', showWindow);
 ipcMain.on('app:flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });
@@ -427,7 +437,7 @@ app.whenReady().then(() => {
   setupPermissions();
   createWindow();
   createTray();
-  gameWatcher = startGameWatcher(sendGame, () => prefs.mostrarJogo);
+  gameWatcher = startGameWatcher(sendGame, () => true);
   setupUpdater();
 });
 

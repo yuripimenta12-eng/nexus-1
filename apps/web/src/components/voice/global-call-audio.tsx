@@ -11,13 +11,20 @@ import { useMediaStore } from '@/stores/media.store';
 // `watching`: o som da TELA compartilhada só toca para quem escolheu
 // assistir aquela transmissão (a voz do microfone toca sempre).
 export function GlobalCallAudio() {
-  const { participants, watching } = useVoiceStore() as any;
+  // Acorda só quando entra/sai alguém ou muda uma faixa — não a cada fala
+  const faixasKey = useVoiceStore(s => {
+    const partes: string[] = [];
+    s.participants.forEach((vp: any) => partes.push(`${vp.identity}=${vp.tracksKey || ''}`));
+    return partes.join(';');
+  });
+  const watching = useVoiceStore(s => s.watching);
   const containerRef = useRef<HTMLDivElement>(null);
   const attachedRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
+    const participants = useVoiceStore.getState().participants as Map<string, any>;
     // Chaves que DEVEM estar tocando neste momento
     const wanted = new Set<string>();
 
@@ -69,7 +76,7 @@ export function GlobalCallAudio() {
         attachedRef.current.delete(key);
       }
     });
-  }, [participants, watching]);
+  }, [faixasKey, watching]);
 
   useEffect(() => {
     return () => {

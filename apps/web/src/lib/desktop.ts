@@ -6,6 +6,8 @@ export function isDesktopApp(): boolean {
 interface DesktopBridge {
   getGame?: () => Promise<string | null>;
   onGame?: (cb: (name: string | null) => void) => () => void;
+  getGameRunning?: () => Promise<boolean>;
+  onGameRunning?: (cb: (running: boolean) => void) => () => void;
   getUpdate?: () => Promise<string | null>;
   onUpdate?: (cb: (version: string | null) => void) => () => void;
   installUpdate?: () => void;
@@ -28,6 +30,21 @@ export function startGameActivity(emit: (name: string | null) => void): () => vo
   b.getGame().then(n => { if (n) send(n); }).catch(() => {});
   const t = setInterval(() => { if (current) emit(current); }, 60_000);
   return () => { off(); clearInterval(t); if (current) emit(null); };
+}
+
+// Modo jogo: avisa quando um jogo abre/fecha. O app 1.6.0+ avisa mesmo com
+// "Mostrar o jogo que estou jogando" desligado; os anteriores só com ele ligado.
+export function watchGameRunning(cb: (running: boolean) => void): () => void {
+  const b = bridge();
+  if (b?.onGameRunning && b.getGameRunning) {
+    const off = b.onGameRunning(cb);
+    b.getGameRunning().then(cb).catch(() => {});
+    return off;
+  }
+  if (!b?.onGame || !b.getGame) return () => {};
+  const off = b.onGame(n => cb(!!n));
+  b.getGame().then(n => cb(!!n)).catch(() => {});
+  return off;
 }
 
 export function currentGameResend(emit: (name: string | null) => void) {

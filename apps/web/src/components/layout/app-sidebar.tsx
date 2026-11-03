@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useVoiceStore } from '@/stores/voice.store';
+import { useShallow } from 'zustand/react/shallow';
 import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { getSocket, joinServer } from '@/lib/socket';
@@ -39,11 +40,18 @@ export function AppSidebar() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthStore();
-  const { isConnected, roomName, localMicEnabled, toggleMic, disconnect, voiceRoomId, isDeafened, toggleDeafen } = useVoiceStore();
+  // Só o que a barra mostra: sem isso ela inteira redesenhava a cada fala na call
+  const { isConnected, roomName, localMicEnabled, toggleMic, disconnect, voiceRoomId, isDeafened, toggleDeafen } = useVoiceStore(useShallow((s: any) => ({
+    isConnected: s.isConnected, roomName: s.roomName, localMicEnabled: s.localMicEnabled, toggleMic: s.toggleMic,
+    disconnect: s.disconnect, voiceRoomId: s.voiceRoomId, isDeafened: s.isDeafened, toggleDeafen: s.toggleDeafen,
+  })));
   // Quem está falando agora na sala em que estou (anel laranja na lista da sidebar)
-  const voiceParticipants = useVoiceStore(s => s.participants);
-  const speakingIds = new Set<string>();
-  voiceParticipants.forEach((p: any) => { if (p.isSpeaking) speakingIds.add(p.identity); });
+  const falandoKey = useVoiceStore(s => {
+    const ids: string[] = [];
+    s.participants.forEach((p: any) => { if (p.isSpeaking) ids.push(p.identity); });
+    return ids.sort().join(',');
+  });
+  const speakingIds = useMemo(() => new Set(falandoKey ? falandoKey.split(',') : []), [falandoKey]);
   const serverId = params?.serverId as string;
   const { can: canDo } = useServerPerms(serverId);
   const serverMuted = useMutes(s => !!serverId && s.servers.has(serverId));

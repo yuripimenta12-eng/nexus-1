@@ -57,6 +57,9 @@ const KNOWN_GAMES = {
   'phasmophobia.exe': 'Phasmophobia',
   'repo.exe': 'R.E.P.O.',
   'peak.exe': 'PEAK',
+  'league of legends.exe': 'League of Legends',
+  'pointblank.exe': 'Point Blank',
+  'albion-online.exe': 'Albion Online',
   'schedule i.exe': 'Schedule I',
 };
 
