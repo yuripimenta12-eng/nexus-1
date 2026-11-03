@@ -22,6 +22,10 @@ model User {
   // Emblema BETA NEXT: quem criou conta enquanto o Nexus estava em beta
   // (o dono fecha a entrada de novos no painel e pode dar/tirar na mão)
   isBetaTester      Boolean  @default(false)
+  // Versão do app de PC (Electron) da última vez que a pessoa entrou por ele —
+  // o dono vê no painel quem já atualizou. Vazio = nunca usou o app de PC.
+  desktopVersion    String?  @db.VarChar(20)
+  desktopSeenAt     DateTime?
   // Verificação em duas etapas (TOTP). O segredo fica cifrado; os códigos de
   // recuperação ficam só como hash (cada um vale uma vez).
   twoFactorEnabled  Boolean  @default(false)

@@ -133,6 +133,19 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   }
 
   // ── Conexão ───────────────────────────────────────────────────
+  // O app de PC acrescenta "NexusDesktop/<versão>" ao user agent. Guarda a
+  // versão para o painel admin (quem já atualizou); só escreve no banco se a
+  // versão mudou ou a última anotação tem mais de 1 h.
+  private recordDesktopVersion(userId: string, ua: string | undefined) {
+    const version = /NexusDesktop\/(\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[\w.]{1,8})?)(?![\w.-])/.exec(ua || '')?.[1];
+    if (!version) return;
+    const hourAgo = new Date(Date.now() - 3600_000);
+    this.prisma.user.updateMany({
+      where: { id: userId, OR: [{ desktopVersion: null }, { desktopVersion: { not: version } }, { desktopSeenAt: { lt: hourAgo } }] },
+      data: { desktopVersion: version, desktopSeenAt: new Date() },
+    }).catch(err => this.logger.warn(`Versão do app não gravada: ${err.message}`));
+  }
+
   async handleConnection(client: Socket) {
     try {
       const token = this.extractToken(client);
@@ -149,6 +162,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       await client.join(`user:${payload.sub}`);
 
       this.logger.log(`Cliente conectado: ${payload.sub} (${client.id})`);
+      this.recordDesktopVersion(payload.sub, client.handshake.headers['user-agent']);
 
       // Anuncia offline no 'disconnecting' (não no 'disconnect'): neste ponto
       // as rooms do socket AINDA existem. No 'disconnect' o Socket.IO já as

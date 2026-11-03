@@ -3,6 +3,12 @@ export function isDesktopApp(): boolean {
   return typeof navigator !== 'undefined' && /NexusDesktop\//.test(navigator.userAgent);
 }
 
+// Versão do app de PC (ex.: "1.6.0"), lida do user agent. null = navegador.
+export function desktopAppVersion(): string | null {
+  if (typeof navigator === 'undefined') return null;
+  return /NexusDesktop\/([\w.-]+)/.exec(navigator.userAgent)?.[1] || null;
+}
+
 interface DesktopBridge {
   getGame?: () => Promise<string | null>;
   onGame?: (cb: (name: string | null) => void) => () => void;

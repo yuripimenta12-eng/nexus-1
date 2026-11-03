@@ -59,7 +59,7 @@ function socket(token) {
   });
 }
 
-const PRIVADOS = ['email', 'passwordHash', 'twoFactorSecret', 'twoFactorRecovery', 'twoFactorEnabled', 'isAdmin', 'isSuspended', 'isVerified'];
+const PRIVADOS = ['email', 'passwordHash', 'twoFactorSecret', 'twoFactorRecovery', 'twoFactorEnabled', 'isAdmin', 'isSuspended', 'isVerified', 'desktopVersion', 'desktopSeenAt'];
 // Procura qualquer campo privado em qualquer nível do JSON
 function vazou(obj, achados = new Set()) {
   if (Array.isArray(obj)) obj.forEach(x => vazou(x, achados));

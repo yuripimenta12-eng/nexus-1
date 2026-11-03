@@ -10,6 +10,7 @@ import { ProfileCard } from '@/components/settings/profile-card';
 import { ChangePassword } from '@/components/settings/change-password';
 import { DeleteAccount } from '@/components/settings/delete-account';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
+import { desktopAppVersion, watchAppUpdate } from '@/lib/desktop';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
@@ -335,7 +336,28 @@ export default function SettingsPage() {
             <DeleteAccount />
           </div>
         )}
+
+        <VersionInfo />
       </div>
     </div>
+  );
+}
+
+// Rodapé de todas as seções: qual versão a pessoa está usando (o dono pede
+// print daqui para saber quem já atualizou o app de PC).
+function VersionInfo() {
+  const [app, setApp] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => {
+    setApp(desktopAppVersion());
+    return watchAppUpdate(setPending);
+  }, []);
+  const site = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+  return (
+    <p className="mt-10 pt-4 border-t border-[var(--th-line)] text-[12px] text-[#6f6680] select-text">
+      {app ? <>Nexus Link para PC · versão <span className="text-[#a99cb8] font-semibold">{app}</span></> : 'Nexus no navegador'}
+      {pending && pending !== app && <span className="text-amber-400"> · versão {pending} baixada, entra ao reiniciar o Nexus</span>}
+      {site && <> · site {site}</>}
+    </p>
   );
 }

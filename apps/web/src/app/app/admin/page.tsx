@@ -24,6 +24,13 @@ const REPORT_REASON: Record<string, string> = {
   EXPLICIT_CONTENT: 'Conteúdo adulto', VIOLENCE: 'Violência', SCAM: 'Golpe', IMPERSONATION: 'Se passando por outra pessoa',
   OTHER: 'Outro',
 };
+// "1.10.0" > "1.9.2": compara número por número
+function compareVersions(a: string, b: string) {
+  const pa = a.split(/[.-]/).map(n => parseInt(n, 10) || 0), pb = b.split(/[.-]/).map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  return 0;
+}
+
 const isRemoved = (u: any) => typeof u?.email === 'string' && u.email.endsWith('@removido.nexus.invalid');
 
 function Loading() {
@@ -52,6 +59,20 @@ export default function AdminPage() {
     queryFn: () => api.get('/admin/users', { params: { search } }).then(r => r.data),
     enabled: tab === 'users',
   });
+
+  // Versão mais nova do app de PC = último release publicado no GitHub (o mesmo
+  // que o atualizador automático baixa). Sem resposta, usa a maior vista na lista.
+  const { data: releaseTag } = useQuery({
+    queryKey: ['admin', 'desktop-release'],
+    queryFn: () => fetch('https://api.github.com/repos/yuripimenta12-eng/nexus-1/releases/latest')
+      .then(r => (r.ok ? r.json() : null)).then(d => (typeof d?.tag_name === 'string' ? d.tag_name.replace(/^v/, '') : null)),
+    enabled: tab === 'users',
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const latestDesktop: string = releaseTag || (users?.users || [])
+    .map((u: any) => u.desktopVersion).filter(Boolean)
+    .reduce((max: string, v: string) => (compareVersions(v, max) > 0 ? v : max), '0.0.0');
 
   const { data: reports } = useQuery({
     queryKey: ['admin', 'reports'],
@@ -207,13 +228,14 @@ export default function AdminPage() {
                       <th className="text-left text-muted px-4 py-3 font-medium">Usuário</th>
                       <th className="text-left text-muted px-4 py-3 font-medium">E-mail</th>
                       <th className="text-left text-muted px-4 py-3 font-medium">Status</th>
+                      <th className="text-left text-muted px-4 py-3 font-medium" title="Versão do app de PC da última vez que a pessoa entrou por ele">App de PC</th>
                       <th className="text-left text-muted px-4 py-3 font-medium">Servidores</th>
                       <th className="text-right text-muted px-4 py-3 font-medium">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {!users && (
-                      <tr><td colSpan={5}><Loading /></td></tr>
+                      <tr><td colSpan={6}><Loading /></td></tr>
                     )}
                     {users?.users?.map((u: any) => (
                       <tr key={u.id} className="hover:bg-surface/50 transition-colors">
@@ -253,6 +275,19 @@ export default function AdminPage() {
                           )}>
                             {isRemoved(u) ? 'Conta excluída' : u.isSuspended ? 'Suspenso' : u.isAdmin ? 'Admin' : 'Ativo'}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {u.desktopVersion ? (
+                            <span title={`Entrou pelo app ${formatRelativeDate(u.desktopSeenAt)}`}
+                              className={cn('text-xs px-2 py-0.5 rounded-full font-medium tabular-nums',
+                                compareVersions(u.desktopVersion, latestDesktop) >= 0
+                                  ? 'bg-success/10 text-success'
+                                  : 'bg-amber-500/10 text-amber-400')}>
+                              {u.desktopVersion}{compareVersions(u.desktopVersion, latestDesktop) < 0 && ' · desatualizado'}
+                            </span>
+                          ) : (
+                            <span className="text-muted text-xs" title="Nunca entrou pelo app de PC (só navegador ou celular)">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-muted">{u._count?.memberships ?? 0}</td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
