@@ -65,7 +65,7 @@ export default function AdminPage() {
   const { data: releaseTag } = useQuery({
     queryKey: ['admin', 'desktop-release'],
     queryFn: () => fetch('https://api.github.com/repos/yuripimenta12-eng/nexus-1/releases/latest')
-      .then(r => (r.ok ? r.json() : null)).then(d => (typeof d?.tag_name === 'string' ? d.tag_name.replace(/^v/, '') : null)),
+      .then(r => (r.ok ? r.json() : null)).then(d => (typeof d?.tag_name === 'string' ? d.tag_name.replace(/^\D+/, '') : null)),
     enabled: tab === 'users',
     staleTime: 10 * 60_000,
     retry: false,
