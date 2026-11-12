@@ -30,6 +30,7 @@ import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
+import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { AvisoLimiteLive, SeloQualidade, SeletorQualidadeLive } from '@/components/voice/live-qualidade';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -1399,7 +1400,7 @@ export default function VoicePage() {
             ? 'flex fixed inset-y-0 right-0 z-50 w-[min(340px,88vw)] shadow-2xl nx-safe-top nx-safe-bottom'
             : 'hidden',
         )}>
-          <div className="h-[60px] lg:h-[70px] flex items-end px-2 lg:px-3.5 border-b border-[var(--th-line-2)] shrink-0">
+          <DockArea eixo="x" className="h-[60px] lg:h-[70px] flex items-end px-2 lg:px-3.5 border-b border-[var(--th-line-2)] shrink-0">
             <button
               onClick={() => setSideTab('people')}
               className={cn(
@@ -1407,7 +1408,9 @@ export default function VoicePage() {
                 sideTab === 'people' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <Users className="w-3.5 h-3.5" /> Pessoas · {participantsList.length}
+              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+                <Users className="w-3.5 h-3.5" /> Pessoas · {participantsList.length}
+              </DockItem>
             </button>
             <button
               onClick={() => { setSideTab('chat'); setChatUnread(0); }}
@@ -1416,7 +1419,9 @@ export default function VoicePage() {
                 sideTab === 'chat' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <MessageCircle className="w-3.5 h-3.5" /> Chat
+              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+                <MessageCircle className="w-3.5 h-3.5" /> Chat
+              </DockItem>
               {chatUnread > 0 && sideTab !== 'chat' && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-orange text-white
                                  text-[9px] font-black grid place-items-center">
@@ -1431,7 +1436,9 @@ export default function VoicePage() {
                 sideTab === 'audio' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <Sliders className="w-3.5 h-3.5" /> Áudio
+              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+                <Sliders className="w-3.5 h-3.5" /> Áudio
+              </DockItem>
             </button>
             {/* Fechar a gaveta (celular) */}
             <button
@@ -1442,13 +1449,14 @@ export default function VoicePage() {
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          </DockArea>
 
           {sideTab === 'people' ? (
             <div className="flex-1 overflow-y-auto p-4 flex flex-col">
               <h3 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mb-3">
                 Na chamada agora
               </h3>
+              <DockArea eixo="y">
               {(() => {
               const renderRow = (p: any) => {
                 const [c1, c2] = gradientFor(p.identity);
@@ -1459,10 +1467,12 @@ export default function VoicePage() {
                 const topRole = (membersMeta[p.identity]?.roles || [])[0];
                 return (
                   <div key={p.identity} className={cn('rounded-xl transition-colors', expanded && 'bg-[var(--th-panel-2)] border border-[var(--th-line-2)]')}>
+                    <DockItem x={5} y={-1} alcance={80}>
                     <button
                       onClick={() => setExpandedMember(expanded ? null : p.identity)}
                       className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[var(--th-panel-2)] text-left"
                     >
+                      <DockItem className="shrink-0" escala={1.18} alcance={70}>
                       {membersMeta[p.identity]?.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1479,6 +1489,7 @@ export default function VoicePage() {
                           {getInitials(p.participant.name || p.identity)}
                         </div>
                       )}
+                      </DockItem>
                       <div className="min-w-0 flex-1">
                         <b
                           className="block text-xs truncate"
@@ -1507,6 +1518,7 @@ export default function VoicePage() {
                       )} />
                       <ChevronDown className={cn('w-3.5 h-3.5 text-[#5c5468] shrink-0 transition-transform', expanded && 'rotate-180')} />
                     </button>
+                    </DockItem>
 
                     {/* Ações do participante */}
                     <AnimatePresence>
@@ -1646,15 +1658,19 @@ export default function VoicePage() {
                 </>
               );
               })()}
+              </DockArea>
 
-              {canDo('create_invite') && <button
+              {canDo('create_invite') && <motion.button
                 onClick={handleInvite}
+                whileHover={{ y: -3, x: 3 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                 className="w-full mt-4 border border-dashed border-[#4d3560] rounded-[13px] p-3 text-[#b99dcf]
                            text-sm text-center bg-[var(--th-panel-2)] hover:border-accent hover:text-white transition-colors
                            flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4" /> Convidar amigos
-              </button>}
+              </motion.button>}
 
               {/* Mascote segurando a logo, preso ao pé do painel, com luz pulsando atrás */}
               <div className="relative mt-auto pt-10 pb-1 flex justify-center pointer-events-none" aria-hidden>
