@@ -10,7 +10,7 @@
     "test:unidos": "node scripts/testar-unidos-efeitos.js"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.3.4",
+    "@hookform/resolvers": "^5.9.2",
     "@livekit/components-react": "^2.2.0",
     "@livekit/components-styles": "^1.1.0",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -41,7 +41,7 @@
     "socket.io-client": "^4.7.4",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.22.4",
+    "zod": "^4.6.7",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
@@ -54,5 +54,10 @@
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.26"
+    }
   }
 }

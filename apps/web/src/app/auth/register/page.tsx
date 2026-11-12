@@ -24,7 +24,7 @@ const schema = z.object({
     .regex(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/, 'Use maiúscula, minúscula e número'),
   confirmPassword: z.string(),
   inviteCode: z.string().max(64).optional(),
-  terms: z.literal(true, { errorMap: () => ({ message: 'Você precisa aceitar os termos' }) }),
+  terms: z.literal(true, { error: 'Você precisa aceitar os termos' }),
 }).refine(d => d.password === d.confirmPassword, {
   message: 'As senhas não conferem',
   path: ['confirmPassword'],
