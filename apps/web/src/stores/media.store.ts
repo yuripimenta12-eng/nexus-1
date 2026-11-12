@@ -3,7 +3,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ScreenQuality = '720p30' | '720p60' | '1080p30' | '1080p60';
 export type InputProfile = 'isolation' | 'studio' | 'custom';
 
 interface MediaSettingsState {
@@ -24,10 +23,6 @@ interface MediaSettingsState {
   // Portão de ruído: silencia o mic quando não há fala (mata chiado/apito constante)
   noiseGate: boolean;
 
-  // Compartilhamento de tela
-  screenQuality: ScreenQuality;
-  askScreenQuality: boolean; // perguntar qualidade antes de cada transmissão
-
   setAudioInputId: (id: string) => void;
   setAudioOutputId: (id: string) => void;
   setVideoInputId: (id: string) => void;
@@ -38,8 +33,6 @@ interface MediaSettingsState {
   setEchoCancellation: (on: boolean) => void;
   setAutoGainControl: (on: boolean) => void;
   setNoiseGate: (on: boolean) => void;
-  setScreenQuality: (q: ScreenQuality) => void;
-  setAskScreenQuality: (on: boolean) => void;
 }
 
 export const useMediaStore = create<MediaSettingsState>()(
@@ -55,8 +48,6 @@ export const useMediaStore = create<MediaSettingsState>()(
       echoCancellation: true,
       autoGainControl: true,
       noiseGate: true,
-      screenQuality: '1080p30',
-      askScreenQuality: true,
 
       setAudioInputId: (audioInputId) => set({ audioInputId }),
       setAudioOutputId: (audioOutputId) => set({ audioOutputId }),
@@ -77,8 +68,6 @@ export const useMediaStore = create<MediaSettingsState>()(
       setNoiseGate: (noiseGate) => set({ noiseGate }),
       setEchoCancellation: (echoCancellation) => set({ echoCancellation }),
       setAutoGainControl: (autoGainControl) => set({ autoGainControl }),
-      setScreenQuality: (screenQuality) => set({ screenQuality }),
-      setAskScreenQuality: (askScreenQuality) => set({ askScreenQuality }),
     }),
     { name: 'nexus-media' },
   ),

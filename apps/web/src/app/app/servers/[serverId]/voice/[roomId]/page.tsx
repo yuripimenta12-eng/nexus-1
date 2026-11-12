@@ -31,7 +31,7 @@ import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { DockArea, DockItem } from '@/components/voice/dock-hover';
-import { AvisoLimiteLive, SeloQualidade, SeletorQualidadeLive } from '@/components/voice/live-qualidade';
+import { SeloQualidade } from '@/components/voice/live-qualidade';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -79,10 +79,6 @@ export default function VoicePage() {
   } = useVoiceStore();
   const voiceRoom = useVoiceStore(s => s.room);
 
-  const askScreenQuality = useMediaStore(s => s.askScreenQuality);
-  const [screenQuality, setScreenQuality] = useState<'720p30' | '720p60' | '1080p30' | '1080p60'>(
-    () => useMediaStore.getState().screenQuality,
-  );
   const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
   // Assistir é opt-in: transmissões que EU escolhi assistir (vive no store
   // para o áudio global continuar tocando fora desta página)
@@ -460,8 +456,7 @@ export default function VoicePage() {
       if (localScreenSharing) {
         await stopScreenShare();
       } else {
-        // Sem "perguntar antes", usa a qualidade padrão das configurações
-        await startScreenShare(askScreenQuality ? screenQuality : undefined);
+        await startScreenShare();
         // Chrome só captura som de Aba ou Tela inteira (com a caixa marcada).
         // Se a live nasceu muda, avisa o streamer NA HORA — antes era silêncio
         // e ninguém entendia por que a live estava sem áudio.
@@ -668,7 +663,6 @@ export default function VoicePage() {
 
       {/* Quem transmite: aviso quando o PC ou a internet estão no limite
           (fica dentro do palco para aparecer também em tela cheia) */}
-      {localScreenSharing && voiceRoom && <AvisoLimiteLive participante={voiceRoom.localParticipant} />}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
@@ -820,9 +814,6 @@ export default function VoicePage() {
                   >
                     <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
                   </button>
-                )}
-                {!(primaryScreenSharer.participant instanceof LocalParticipant) && !showCam && (
-                  <SeletorQualidadeLive participante={primaryScreenSharer.participant} />
                 )}
               </div>
 
@@ -1325,18 +1316,6 @@ export default function VoicePage() {
             </button>
             )}
 
-            {canShareScreen && !localScreenSharing && askScreenQuality && (
-              <select
-                value={screenQuality}
-                onChange={(e) => setScreenQuality(e.target.value as any)}
-                className="h-12 text-xs bg-[var(--th-panel-2)] border border-[var(--th-line-2)] rounded-[15px] px-2 text-[#d1c6da] focus:outline-none focus:border-[#7842a0]"
-              >
-                <option value="720p30">720p 30fps</option>
-                <option value="720p60">720p 60fps</option>
-                <option value="1080p30">1080p 30fps</option>
-                <option value="1080p60">1080p 60fps</option>
-              </select>
-            )}
 
             {/* Dica: jogos em "Tela cheia" exclusiva não aparecem na lista de janelas */}
             {canShareScreen && !localScreenSharing && (

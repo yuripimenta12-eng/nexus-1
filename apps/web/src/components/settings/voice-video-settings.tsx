@@ -3,11 +3,11 @@
 import { HotkeySettings } from '@/components/settings/hotkey-settings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Mic, Volume2, Camera, MonitorUp, Sparkles, AudioLines,
+  Mic, Volume2, Camera, Sparkles, AudioLines,
   SlidersHorizontal, Play, Square,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMediaStore, InputProfile, ScreenQuality } from '@/stores/media.store';
+import { useMediaStore, InputProfile } from '@/stores/media.store';
 import { useVoiceStore } from '@/stores/voice.store';
 
 interface DeviceOption { deviceId: string; label: string; }
@@ -198,39 +198,6 @@ export function VoiceVideoSettings() {
             />
           </div>
         )}
-      </section>
-
-      {/* ── Compartilhamento de tela ─────────────────────────── */}
-      <section>
-        <SectionLabel>Compartilhamento de tela</SectionLabel>
-        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)]">
-          <div className="flex items-center gap-4 p-4">
-            <span className="w-11 h-11 rounded-[14px] grid place-items-center shrink-0 bg-[var(--th-panel-2)] text-[#8c5dcc]">
-              <MonitorUp className="w-5 h-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <b className="block text-sm text-[#cfc6dd]">Qualidade padrão da transmissão</b>
-              <small className="block text-xs text-[#92879f] mt-0.5">Resolução e fluidez ao compartilhar sua tela</small>
-            </div>
-            <select
-              value={ms.screenQuality}
-              onChange={(e) => ms.setScreenQuality(e.target.value as ScreenQuality)}
-              className="bg-[var(--th-rail)] border border-[#3d2b4a] rounded-xl px-3 py-2 text-sm text-white
-                         focus:outline-none focus:border-accent cursor-pointer"
-            >
-              <option value="720p30">720p · 30fps</option>
-              <option value="720p60">720p · 60fps</option>
-              <option value="1080p30">1080p · 30fps</option>
-              <option value="1080p60">1080p · 60fps</option>
-            </select>
-          </div>
-          <ToggleRow
-            label="Perguntar qualidade antes de transmitir"
-            desc="Mostra o seletor de qualidade na chamada antes de cada compartilhamento"
-            checked={ms.askScreenQuality}
-            onChange={ms.setAskScreenQuality}
-          />
-        </div>
       </section>
 
       {/* ── Atalhos de teclado da chamada ─────────────────── */}
