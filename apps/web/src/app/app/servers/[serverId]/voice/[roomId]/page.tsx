@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Video, VideoOff, Monitor,
   PhoneOff, Volume2, VolumeX, Maximize2, Minimize2,
-  WifiOff, ShieldCheck, UserPlus, Users, Sliders,
+  WifiOff, ShieldCheck, UserPlus, Users, Sliders, Trophy,
   MessageSquare, PhoneMissed, UserX, Ban, Copy, ChevronDown, ShieldOff,
   MessageCircle, Send, Headphones, Settings, ChevronRight,
   Eye, EyeOff, Play, HelpCircle, MonitorSpeaker, Music, X, Gamepad2,
@@ -31,6 +31,7 @@ import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { DockArea, DockItem } from '@/components/voice/dock-hover';
+import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { SeloQualidade } from '@/components/voice/live-qualidade';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -158,7 +159,7 @@ export default function VoicePage() {
   const djInRoom = participants.has(DJ_IDENTITY);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
-  const [sideTab, setSideTab] = useState<'people' | 'chat' | 'audio'>('people');
+  const [sideTab, setSideTab] = useState<'people' | 'chat' | 'audio' | 'placar'>('people');
 
   // ── Chat efêmero da sala (vive só enquanto a chamada dura) ────
   interface CallChatMsg { userId: string; content: string; ts: number; }
@@ -457,6 +458,7 @@ export default function VoicePage() {
         await stopScreenShare();
       } else {
         await startScreenShare();
+        registrarEventoPlacar('live');
         // Chrome só captura som de Aba ou Tela inteira (com a caixa marcada).
         // Se a live nasceu muda, avisa o streamer NA HORA — antes era silêncio
         // e ninguém entendia por que a live estava sem áudio.
@@ -1379,26 +1381,26 @@ export default function VoicePage() {
             ? 'flex fixed inset-y-0 right-0 z-50 w-[min(340px,88vw)] shadow-2xl nx-safe-top nx-safe-bottom'
             : 'hidden',
         )}>
-          <DockArea eixo="x" className="h-[60px] lg:h-[70px] flex items-end px-2 lg:px-3.5 border-b border-[var(--th-line-2)] shrink-0">
+          <DockArea eixo="x" className="h-[60px] lg:h-[70px] flex items-end px-2 border-b border-[var(--th-line-2)] shrink-0">
             <button
               onClick={() => setSideTab('people')}
               className={cn(
-                'h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
+                'h-[45px] flex-auto px-1 font-extrabold text-[13px] whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'people' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+              <DockItem className="flex items-center gap-1" escala={1.1} y={-3} x={1}>
                 <Users className="w-3.5 h-3.5" /> Pessoas · {participantsList.length}
               </DockItem>
             </button>
             <button
               onClick={() => { setSideTab('chat'); setChatUnread(0); }}
               className={cn(
-                'relative h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
+                'relative h-[45px] flex-auto px-1 font-extrabold text-[13px] whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'chat' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+              <DockItem className="flex items-center gap-1" escala={1.1} y={-3} x={1}>
                 <MessageCircle className="w-3.5 h-3.5" /> Chat
               </DockItem>
               {chatUnread > 0 && sideTab !== 'chat' && (
@@ -1411,12 +1413,25 @@ export default function VoicePage() {
             <button
               onClick={() => setSideTab('audio')}
               className={cn(
-                'h-[45px] flex-1 font-extrabold text-[13px] lg:text-sm whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
+                'h-[45px] flex-auto px-1 font-extrabold text-[13px] whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors',
                 sideTab === 'audio' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
               )}
             >
-              <DockItem className="flex items-center gap-1.5" escala={1.1} y={-3} x={1}>
+              <DockItem className="flex items-center gap-1" escala={1.1} y={-3} x={1}>
                 <Sliders className="w-3.5 h-3.5" /> Áudio
+              </DockItem>
+            </button>
+            <button
+              onClick={() => setSideTab('placar')}
+              title="Placar e conquistas"
+              aria-label="Placar e conquistas"
+              className={cn(
+                'h-[45px] w-10 shrink-0 flex items-center justify-center transition-colors',
+                sideTab === 'placar' ? 'text-white border-b-2 border-orange' : 'text-[#81758d] hover:text-white',
+              )}
+            >
+              <DockItem escala={1.15} y={-3} x={1}>
+                <Trophy className="w-4 h-4" />
               </DockItem>
             </button>
             {/* Fechar a gaveta (celular) */}
@@ -1749,6 +1764,8 @@ export default function VoicePage() {
                 </div>
               </div>
             </div>
+          ) : sideTab === 'placar' ? (
+            <PainelPlacar serverId={serverId} />
           ) : (
             <VoiceAudioPanel />
           )}

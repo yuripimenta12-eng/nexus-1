@@ -57,6 +57,8 @@ model User {
   friendRequestsReceived Friendship[]            @relation("FriendAddressee")
   pushSubscriptions      PushSubscription[]
   announcementReads      AnnouncementRead[]
+  callStats              CallStat[]
+  conquistas             Conquista[]
 
   @@index([email])
   @@index([username])
@@ -160,6 +162,7 @@ model Server {
   auditLogs  AuditLog[]
   roles      Role[]
   emojis     CustomEmoji[]
+  callStats  CallStat[]
 
   @@index([ownerId])
   @@map("servers")
@@ -651,4 +654,43 @@ model AnnouncementRead {
   @@id([announcementId, userId])
   @@index([userId])
   @@map("announcement_reads")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLACAR DA CALL E CONQUISTAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Placar por servidor ("Quem mora na call?"). O site manda um batimento por
+// minuto enquanto a pessoa está na call; o servidor só soma o tempo que passou
+// de verdade desde o batimento anterior (não dá para inflar mandando mais).
+model CallStat {
+  id              String    @id @default(cuid())
+  serverId        String
+  userId          String
+  segundosCall    Int       @default(0)
+  segundosFalando Int       @default(0)
+  segundosCamera  Int       @default(0)
+  musicas         Int       @default(0) // pedidas ao DJ ou tocadas pela janela de música
+  lives           Int       @default(0) // transmissões de tela começadas
+  ultimoBatimento DateTime?
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@index([userId])
+  @@map("call_stats")
+}
+
+// Conquista desbloqueada (chave fixa no código, ex.: "mora-na-call")
+model Conquista {
+  id              String   @id @default(cuid())
+  userId          String
+  chave           String   @db.VarChar(32)
+  desbloqueadaEm  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chave])
+  @@map("conquistas")
 }

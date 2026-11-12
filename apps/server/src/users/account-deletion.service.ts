@@ -62,6 +62,8 @@ export class AccountDeletionService {
       this.prisma.block.deleteMany({ where: { OR: [{ blockerId: userId }, { blockedId: userId }] } }),
       this.prisma.serverMember.deleteMany({ where: { userId } }),
       this.prisma.callParticipant.deleteMany({ where: { userId } }),
+      this.prisma.callStat.deleteMany({ where: { userId } }),
+      this.prisma.conquista.deleteMany({ where: { userId } }),
       this.prisma.report.updateMany({ where: { targetUserId: userId }, data: { targetUserId: null } }),
       this.prisma.profile.update({
         where: { userId },

@@ -9,6 +9,7 @@ import { LocalParticipant } from 'livekit-client';
 import { useVoiceStore, DJ_IDENTITY, MUSIC_TRACK_NAME, type DjTrack } from '@/stores/voice.store';
 import { isDesktopApp } from '@/lib/desktop';
 import { cn } from '@/lib/utils';
+import { registrarEventoPlacar } from '@/components/voice/placar';
 
 function fmt(sec: number) {
   if (!sec || sec < 0) return '0:00';
@@ -51,7 +52,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
     const q = query.trim();
     if (!q) return;
     setQuery('');
-    run(() => djCommand('play', { query: q }), '🎵 Música adicionada à fila');
+    run(async () => { await djCommand('play', { query: q }); registrarEventoPlacar('musica'); }, '🎵 Música adicionada à fila');
   };
 
   const busy = sending || djBusy;
@@ -262,6 +263,7 @@ function TabMusicSection({ notify }: { notify: (msg: string) => void }) {
     setBusy(true);
     try {
       await startTabMusic();
+      registrarEventoPlacar('musica');
       notify('🎧 Música no ar! Todos na call estão ouvindo o som da aba.');
     } catch (e: any) {
       if (e?.name === 'NotAllowedError') notify('Seleção cancelada.');

@@ -18,6 +18,7 @@ import { GlobalCallAudio } from '@/components/voice/global-call-audio';
 import { DmCallOverlay } from '@/components/dm/dm-call-overlay';
 import { CallHotkeys } from '@/components/voice/call-hotkeys';
 import { MovidoDeSala } from '@/components/voice/movido-de-sala';
+import { BatimentoPlacar } from '@/components/voice/placar';
 import { UnidosHost } from '@/components/games/unidos/unidos-host';
 import { PushPrompt } from '@/components/layout/push-prompt';
 import { AtualizacaoApp } from '@/components/layout/atualizacao-app';
@@ -122,6 +123,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <CallHotkeys />
       {/* Admin moveu você para outra sala de voz: troca sozinho */}
       <MovidoDeSala />
+      {/* Placar da call: conta o tempo e mostra conquistas desbloqueadas */}
+      <BatimentoPlacar />
       {/* UNidos: jogo de cartas da chamada */}
       <UnidosHost />
       <PushPrompt />
