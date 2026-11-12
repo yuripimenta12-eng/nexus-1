@@ -27,7 +27,7 @@ export function VoiceRecorderButton({
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval>>();
+  const timer = useRef<ReturnType<typeof setInterval>>(undefined);
   const discard = useRef(false);
 
   const stopAll = () => {

@@ -28,7 +28,7 @@ export function CallHotkeys() {
   const { mute, deafen, global } = useHotkeys();
   const isConnected = useVoiceStore(s => s.isConnected);
   const [aviso, setAviso] = useState<{ icon: 'on' | 'off' | 'deaf' | 'undeaf'; text: string } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const run = async (action: HotkeyAction) => {
     const v = useVoiceStore.getState() as any;

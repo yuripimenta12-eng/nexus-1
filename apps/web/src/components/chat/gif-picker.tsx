@@ -26,7 +26,7 @@ export function GifButton({ onPick, disabled }: { onPick: (url: string) => void;
   const [items, setItems] = useState<Gif[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const debounce = useRef<ReturnType<typeof setTimeout>>();
+  const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => { gifsEnabled().then(setEnabled); }, []);
 

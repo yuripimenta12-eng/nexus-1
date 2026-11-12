@@ -143,7 +143,7 @@ export default function ChannelPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const typingTimeout = useRef<NodeJS.Timeout>();
+  const typingTimeout = useRef<NodeJS.Timeout>(undefined);
   const socket = getSocket();
 
   // O que meu cargo permite (só para mostrar botões; o servidor confere de novo)
