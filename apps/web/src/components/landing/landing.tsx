@@ -24,7 +24,8 @@ import { isDesktopApp } from '@/lib/desktop';
 import { LIVE_POR_PLANO, PRECO_PLANO } from '@/lib/planos';
 
 // Letreiros do final: de cima para baixo, o último é a barra em pé da direita
-const MASCARA_LED = 'radial-gradient(ellipse at center, #000 58%, transparent 76%)';
+// some antes das bordas do quadro: o brilho cortado na borda formava um quadrado
+const MASCARA_LED = 'radial-gradient(closest-side, #000 62%, transparent 100%)';
 const LETREIROS = ['NEXUS LINK', 'BORA PRA CALL', 'AO VIVO', 'DJ NA CALL', '1080P 60FPS', 'GG', 'ONLINE'];
 const DOWNLOAD_WINDOWS = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
 
@@ -387,7 +388,7 @@ export default function Landing() {
                 colors={['#b05cff', '#ff6a00', '#ff4f79', '#c8f53b', '#21d4fd', '#ff8a1f', '#9b4dff']}
                 iconColors={['#c8f53b', '#21d4fd', '#ff4f79', '#ff8a1f']}
                 background="transparent"
-                className="mx-auto aspect-square w-full max-w-[460px]"
+                className="mx-auto -my-8 aspect-square w-full max-w-[560px]"
                 // apaga a borda quadrada do brilho
                 style={{ maskImage: MASCARA_LED, WebkitMaskImage: MASCARA_LED }}
               />
@@ -405,6 +406,8 @@ export default function Landing() {
               </div>
             </Aparecer>
           </AuroraBackground>
+          {/* Emenda suave com a seção de cima (sem linha reta onde a aurora começa) */}
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-28 bg-gradient-to-b from-[#07040d] to-transparent" />
         </section>
 
         <MascoteGuia />

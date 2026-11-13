@@ -921,7 +921,8 @@ void main() {
   vec3 c = texture(uBloom, vUv).rgb * 0.3 + texture(uTight, vUv).rgb * 0.3;
   c *= uGlow;
   c = 1.0 - exp(-c * 1.15);
-  o = vec4(c, max(c.r, max(c.g, c.b)));
+  // alfa 0: o brilho só soma luz (com fundo transparente não escurece o que está atrás)
+  o = vec4(c, 0.0);
 }`
 
 type GL = WebGL2RenderingContext
