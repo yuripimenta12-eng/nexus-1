@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
 import { LIVE_POR_PLANO, NOME_PLANO, PRECO_PLANO, type Plano } from '@/lib/planos';
+import { DepoimentoForm } from '@/components/depoimento-form';
 
 type Beneficio = { texto: string; emBreve?: boolean };
 type Cartao = {
@@ -270,6 +271,7 @@ export default function PaginaPlanos() {
         </p>
 
         <PainelAfiliado meu={meu} />
+        <DepoimentoForm />
       </div>
     </div>
   );

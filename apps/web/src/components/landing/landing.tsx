@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import AuroraBackground from '@/components/ui/aurora-background';
 import MarqueeAlongSvgPath from '@/components/ui/marquee-along-svg-path';
+import TubesCursor from '@/components/ui/tubes-cursor';
+import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas, TabelaPlanos } from './secoes';
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
 import { LIVE_POR_PLANO, PRECO_PLANO } from '@/lib/planos';
@@ -138,8 +140,10 @@ export default function Landing() {
             </Link>
             <div className="hidden items-center gap-6 text-sm text-white/70 md:flex">
               <a href="#recursos" className="hover:text-white">Recursos</a>
-              <a href="#como-funciona" className="hover:text-white">Como funciona</a>
+              <a href="#lives" className="hover:text-white">Lives</a>
               <a href="#planos" className="hover:text-white">Planos</a>
+              <a href="#comentarios" className="hover:text-white">Comentários</a>
+              <a href="#perguntas" className="hover:text-white">Perguntas</a>
             </div>
             <div className="flex items-center gap-2">
               {logado ? (
@@ -155,9 +159,11 @@ export default function Landing() {
         </header>
 
         {/* Herói */}
-        <section ref={heroi} className="relative">
+        <section ref={heroi} id="topo" className="relative">
           <AuroraBackground className="min-h-[100svh]">
-            <div className="mx-auto grid min-h-[100svh] max-w-6xl items-center gap-8 px-4 pt-24 pb-16 sm:px-8 md:grid-cols-[1.1fr_.9fr]">
+            {/* Tubos de luz seguindo o mouse (só com mouse; clique no vazio troca as cores) */}
+            <TubesCursor className="absolute inset-0 z-0" />
+            <div className="relative z-10 mx-auto grid min-h-[100svh] max-w-6xl items-center gap-8 px-4 pt-24 pb-16 sm:px-8 md:grid-cols-[1.1fr_.9fr]">
               <motion.div style={{ y: heroiY, opacity: heroiOpacidade }}>
                 <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/80">
@@ -204,7 +210,7 @@ export default function Landing() {
         </section>
 
         {/* Trilho com as coisas do Nexus */}
-        <section className="relative py-20">
+        <section id="trilho" className="relative py-20">
           <Aparecer className="mx-auto max-w-3xl px-4 text-center">
             <h2 className="text-3xl font-black tracking-tight sm:text-5xl">Tudo que rola numa call</h2>
             <p className="mt-3 text-white/60">Role a página e veja o trilho acelerar. Arraste ou passe o mouse para controlar.</p>
@@ -277,6 +283,8 @@ export default function Landing() {
           </div>
         </section>
 
+        <GaleriaDetalhes />
+
         {/* Faixas de texto que andam com a rolagem */}
         <section ref={faixas} className="space-y-2 overflow-hidden py-16" aria-hidden>
           <div className="text-white/90"><Faixa progresso={pFaixas} sentido={1} texto="VOZ • VÍDEO • LIVE • DJ •" /></div>
@@ -284,6 +292,8 @@ export default function Landing() {
             <Faixa progresso={pFaixas} sentido={-1} texto="PLACAR • CONQUISTAS • AMIGOS •" />
           </div>
         </section>
+
+        <MuralLives />
 
         {/* Como funciona: o mascote fica parado enquanto os passos passam */}
         <section id="como-funciona" ref={passos} className="relative mx-auto max-w-6xl px-4 sm:px-8">
@@ -330,9 +340,14 @@ export default function Landing() {
 
         {/* Planos */}
         <section id="planos" className="mx-auto max-w-6xl px-4 py-20 sm:px-8">
-          <Aparecer className="text-center">
-            <h2 className="text-3xl font-black tracking-tight sm:text-5xl">Grátis para sempre. Turbinado se quiser.</h2>
-            <p className="mt-3 text-white/60">O Grátis já tem tudo para a call. Os planos aumentam a qualidade da live e deixam o perfil com a sua cara.</p>
+          <Aparecer className="flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
+            <div className="w-44 shrink-0 md:w-56">
+              <Image src="/mascote-aparencia.webp" alt="Mascote do Nexus mostrando as opções de aparência" width={780} height={634} sizes="224px" className="h-auto w-full" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-black tracking-tight sm:text-5xl">Grátis para sempre. Turbinado se quiser.</h2>
+              <p className="mt-3 text-white/60">O Grátis já tem tudo para a call. Os planos aumentam a qualidade da live e deixam o perfil com a sua cara.</p>
+            </div>
           </Aparecer>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
@@ -352,13 +367,20 @@ export default function Landing() {
               </Aparecer>
             ))}
           </div>
+          <TabelaPlanos />
         </section>
 
+        <Comentarios />
+        <Perguntas />
+
         {/* Chamada final */}
-        <section className="relative">
+        <section id="final" className="relative">
           <AuroraBackground className="py-28" cores={['rgba(255,79,121,0.22)', 'rgba(122,44,255,0.28)']} estrelas={40}>
             <Aparecer className="mx-auto max-w-2xl px-4 text-center">
-              <div className="flex justify-center gap-3 text-3xl">
+              <div className="nx-flutuar mx-auto w-64 sm:w-80">
+                <Image src="/mascote-conta.webp" alt="Mascote do Nexus de bigode segurando o logo" width={783} height={429} sizes="320px" className="h-auto w-full" />
+              </div>
+              <div className="mt-2 flex justify-center gap-3 text-3xl">
                 {['🎧', '🎮', '🔥'].map((e, i) => <Figurinha key={e} emoji={e} rotulo="Figurinha" atraso={i * 0.4} className="size-14" />)}
               </div>
               <h2 className="mt-6 text-4xl font-black tracking-tighter sm:text-6xl">Bora pra call?</h2>
@@ -376,6 +398,8 @@ export default function Landing() {
             </Aparecer>
           </AuroraBackground>
         </section>
+
+        <MascoteGuia />
 
         <footer className="border-t border-white/10 px-4 py-8 text-center text-xs text-white/40">
           <p className="flex items-center justify-center gap-1.5"><Lock className="size-3" /> Nexus Link · nexuslink.art</p>

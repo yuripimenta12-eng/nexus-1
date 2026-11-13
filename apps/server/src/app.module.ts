@@ -27,6 +27,7 @@ import { UnidosModule } from './games/unidos/unidos.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { PlacarModule } from './placar/placar.module';
 import { PlanosModule } from './planos/planos.module';
+import { DepoimentosModule } from './depoimentos/depoimentos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -56,6 +57,7 @@ import { HealthController } from './health.controller';
     AnnouncementsModule,
     PlacarModule,
     PlanosModule,
+    DepoimentosModule,
     DmsModule,
     FriendsModule,
     RolesModule,

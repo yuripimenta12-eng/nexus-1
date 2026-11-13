@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Server, Flag, Activity, Shield, Search, CheckCircle, Loader2, ShieldCheck, MailCheck, Megaphone } from 'lucide-react';
+import { Users, Server, Flag, Activity, Shield, Search, CheckCircle, Loader2, ShieldCheck, MailCheck, Megaphone, MessageSquareHeart } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
@@ -10,6 +10,7 @@ import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { cn, formatRelativeDate } from '@/lib/utils';
 import { PainelComunicados } from '@/components/admin/painel-comunicados';
 import { PainelBeta } from '@/components/admin/painel-beta';
+import { PainelDepoimentos } from '@/components/admin/painel-depoimentos';
 import { EmblemaBeta } from '@/components/ui/emblema-beta';
 import { EmblemaPlano } from '@/components/ui/selo-plano';
 import { NOME_PLANO, planoAtivo, type Plano } from '@/lib/planos';
@@ -42,7 +43,7 @@ function Loading() {
 export default function AdminPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<'metrics' | 'users' | 'servers' | 'reports' | 'logs' | 'comunicados'>('metrics');
+  const [tab, setTab] = useState<'metrics' | 'users' | 'servers' | 'reports' | 'logs' | 'comunicados' | 'depoimentos'>('metrics');
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
 
@@ -134,6 +135,7 @@ export default function AdminPage() {
   const TABS = [
     { id: 'metrics', label: 'Métricas', icon: <Activity className="w-4 h-4" /> },
     { id: 'comunicados', label: 'Comunicados', icon: <Megaphone className="w-4 h-4" /> },
+    { id: 'depoimentos', label: 'Comentários', icon: <MessageSquareHeart className="w-4 h-4" /> },
     { id: 'users', label: 'Usuários', icon: <Users className="w-4 h-4" /> },
     { id: 'servers', label: 'Servidores', icon: <Server className="w-4 h-4" /> },
     { id: 'reports', label: 'Denúncias', icon: <Flag className="w-4 h-4" /> },
@@ -420,6 +422,7 @@ export default function AdminPage() {
           )}
 
           {tab === 'comunicados' && <PainelComunicados />}
+          {tab === 'depoimentos' && <PainelDepoimentos />}
 
           {/* Auditoria */}
           {tab === 'logs' && (

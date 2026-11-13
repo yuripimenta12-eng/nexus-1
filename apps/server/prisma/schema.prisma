@@ -69,6 +69,7 @@ model User {
   announcementReads      AnnouncementRead[]
   callStats              CallStat[]
   conquistas             Conquista[]
+  depoimento             Depoimento?
   indicadoPor            User?                   @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados              User[]                  @relation("Indicacoes")
 
@@ -706,4 +707,21 @@ model Conquista {
 
   @@unique([userId, chave])
   @@map("conquistas")
+}
+
+// Comentário de quem usa o Nexus para a página inicial. Só aparece depois
+// que o dono aprova; editar volta para a fila de aprovação.
+model Depoimento {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  texto        String   @db.VarChar(280)
+  nota         Int      @default(5)
+  aprovado     Boolean  @default(false)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([aprovado, atualizadoEm])
+  @@map("depoimentos")
 }
