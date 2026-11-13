@@ -10,9 +10,9 @@ import { cn } from '@/lib/utils';
 type Estrela = { x: number; y: number; brilho: number; duracao: number; atraso: number };
 
 export default function AuroraBackground({
-  className, children, estrelas = 60,
+  className, children, fundo, estrelas = 60,
   cores = ['rgba(122,44,255,0.28)', 'rgba(255,106,0,0.16)'],
-}: { className?: string; children?: ReactNode; estrelas?: number; cores?: [string, string] }) {
+}: { className?: string; children?: ReactNode; fundo?: ReactNode; estrelas?: number; cores?: [string, string] }) {
   // Sorteadas só no navegador: no servidor dariam outro resultado (erro de hidratação)
   const [pontos, setPontos] = useState<Estrela[]>([]);
   useEffect(() => {
@@ -57,6 +57,8 @@ export default function AuroraBackground({
           />
         ))}
       </div>
+      {/* Camada extra de fundo (ex.: tubos), fora do z-10 para poder se misturar com a aurora */}
+      {fundo}
       <div className="relative z-10">{children}</div>
     </div>
   );

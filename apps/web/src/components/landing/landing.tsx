@@ -160,9 +160,9 @@ export default function Landing() {
 
         {/* Herói */}
         <section ref={heroi} id="topo" className="relative">
-          <AuroraBackground className="min-h-[100svh]">
-            {/* Tubos de luz seguindo o mouse (só com mouse; clique no vazio troca as cores) */}
-            <TubesCursor className="absolute inset-0 z-0" />
+          {/* Tubos de luz seguindo o mouse (só com mouse; clique no vazio troca as cores).
+              O canvas sai preto: "screen" apaga o preto e deixa a aurora aparecer. */}
+          <AuroraBackground className="min-h-[100svh]" fundo={<TubesCursor className="absolute inset-0 mix-blend-screen" />}>
             <div className="relative z-10 mx-auto grid min-h-[100svh] max-w-6xl items-center gap-8 px-4 pt-24 pb-16 sm:px-8 md:grid-cols-[1.1fr_.9fr]">
               <motion.div style={{ y: heroiY, opacity: heroiOpacidade }}>
                 <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
