@@ -6,6 +6,7 @@ import { cn, getInitials, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { SeloBeta } from '@/components/ui/emblema-beta';
 import { FaixaConquistas } from '@/components/voice/placar';
+import { SeloPlano } from '@/components/ui/selo-plano';
 import api from '@/lib/api';
 
 const BANNER_SWATCHES: [string, string][] = [
@@ -209,7 +210,10 @@ export function ProfileCard() {
           </div>
         </div>
 
-        {user?.isBetaTester && <SeloBeta className="mt-3" />}
+        <div className="flex flex-wrap gap-1.5">
+          {user?.isBetaTester && <SeloBeta className="mt-3" />}
+          <SeloPlano usuario={user} className="mt-3" />
+        </div>
         <FaixaConquistas userId={user?.id} className="mt-3" />
 
         {profile?.customStatus && (

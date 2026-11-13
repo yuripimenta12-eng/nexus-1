@@ -3,10 +3,11 @@ import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { ADMIN_USER } from '../common/public-user';
 import { BETA_CADASTROS_KEY } from '../common/beta';
+import { PlanosService } from '../planos/planos.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private planos: PlanosService) {}
 
   private async requireAdmin(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -127,6 +128,16 @@ export class AdminService {
       data: { actorId: adminId, action: on ? 'ADMIN_BETA_GRANT' : 'ADMIN_BETA_REVOKE', targetType: 'USER', targetId },
     });
     return { id: targetId, isBetaTester: on };
+  }
+
+  // Dar/tirar plano na mão (enquanto não há pagamento)
+  async setUserPlano(adminId: string, targetId: string, plano: unknown, dias: unknown) {
+    await this.requireAdmin(adminId);
+    const r = await this.planos.definir(targetId, plano, dias);
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: `ADMIN_PLANO_${String(r.plano).toUpperCase()}`, targetType: 'USER', targetId },
+    });
+    return r;
   }
 
   async getReports(userId: string, page = 1, limit = 50) {

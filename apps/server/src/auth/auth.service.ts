@@ -18,6 +18,7 @@ import { BETA_CADASTROS_KEY } from '../common/beta';
 import { TwoFactorService } from './two-factor.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { PlanosService } from '../planos/planos.service';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     private redis: RedisService,
     private mailService: MailService,
     private twoFactor: TwoFactorService,
+    private planos: PlanosService,
   ) {}
 
   // ── Registro ─────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(dto.password);
     const beta = await this.prisma.appSetting.findUnique({ where: { key: BETA_CADASTROS_KEY } });
+    const indicadoPorId = await this.planos.quemIndicou(dto.ref); // veio pelo link de alguém
 
     const user = await this.prisma.user.create({
       data: {
@@ -74,6 +77,7 @@ export class AuthService {
         username: dto.username.toLowerCase(),
         passwordHash,
         isBetaTester: beta?.value !== '0', // emblema BETA NEXT enquanto o beta estiver aberto
+        ...(indicadoPorId ? { indicadoPorId } : {}),
         profile: {
           create: {
             displayName: dto.displayName || dto.username,

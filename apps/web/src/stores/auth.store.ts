@@ -12,6 +12,8 @@ export interface User {
   isBetaTester?: boolean;      // emblema BETA NEXT
   isVerified?: boolean;        // e-mail confirmado
   twoFactorEnabled?: boolean;  // verificação em duas etapas ligada
+  plano?: 'gratis' | 'mais' | 'pro';
+  planoAte?: string | null;    // validade do plano pago
   profile: {
     displayName: string;
     avatarUrl: string | null;

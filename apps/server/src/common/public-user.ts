@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 // devolve TODOS os campos dele — e-mail, hash da senha, segredo do 2FA —, então
 // use sempre isto no lugar.
 export const PUBLIC_USER = {
-  select: { id: true, username: true, createdAt: true, isBetaTester: true, profile: true },
+  select: { id: true, username: true, createdAt: true, isBetaTester: true, plano: true, profile: true },
 } satisfies Prisma.UserDefaultArgs;
 
 // Painel do dono: mesmo assim, nunca hash da senha nem 2FA

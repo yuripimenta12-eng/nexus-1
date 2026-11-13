@@ -53,7 +53,11 @@ export default function RegisterPage() {
     setInvited(!!p);
     setPendingInvite(p);
     try {
-      setCodigoLink((new URLSearchParams(window.location.search).get('codigo') || '').trim().slice(0, 64));
+      const q = new URLSearchParams(window.location.search);
+      setCodigoLink((q.get('codigo') || '').trim().slice(0, 64));
+      // Link de indicação (/r/<codigo>): guarda para não perder se a pessoa sair e voltar
+      const ref = (q.get('ref') || '').trim().toLowerCase();
+      if (/^[a-z0-9]{4,12}$/.test(ref)) localStorage.setItem('nexus_ref', ref);
     } catch { /* sem código no link */ }
   }, []);
 
@@ -75,7 +79,9 @@ export default function RegisterPage() {
     try {
       const { confirmPassword, terms, ...payload } = data as any;
       payload.inviteCode = (payload.inviteCode || pendingInvite || codigoLink || '').trim() || undefined;
+      payload.ref = localStorage.getItem('nexus_ref') || undefined;
       await registerUser(payload);
+      localStorage.removeItem('nexus_ref');
       const pending = localStorage.getItem('nexus_pending_invite');
       if (pending) {
         localStorage.removeItem('nexus_pending_invite');

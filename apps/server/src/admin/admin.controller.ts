@@ -48,6 +48,11 @@ export class AdminController {
     return this.adminService.setUserBeta(userId, targetId, body?.on);
   }
 
+  @Post('users/:id/plano')
+  userPlano(@CurrentUser('id') userId: string, @Param('id') targetId: string, @Body() body: { plano: string; dias?: number }) {
+    return this.adminService.setUserPlano(userId, targetId, body?.plano, body?.dias);
+  }
+
   @Get('servers')
   servers(@CurrentUser('id') userId: string, @Query('page') page?: number) {
     return this.adminService.getServers(userId, page);

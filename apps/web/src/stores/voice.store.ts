@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { getSocket, joinVoiceRoom, leaveVoiceRoom } from '@/lib/socket';
 import { useMediaStore } from '@/stores/media.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { LIVE_POR_PLANO, planoAtivo } from '@/lib/planos';
 import {
   Room,
   RoomEvent,
@@ -10,6 +12,7 @@ import {
   Track,
   TrackPublication,
   VideoQuality,
+  VideoPreset,
   ConnectionQuality,
   DisconnectReason,
   LocalAudioTrack,
@@ -697,9 +700,13 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       throw new Error('Pare a música da aba antes de transmitir a tela.');
     }
     if (!get().canVideo) throw new Error('Seu cargo não permite câmera nem transmitir a tela neste servidor.');
-    // Qualidade única para todo mundo: 720p a 60 fps, sem escolha nem teste.
-    // Uma camada só — uma "Leve" obrigaria o PC a comprimir o vídeo duas vezes.
-    const opts = { width: 1280, height: 720, frameRate: 60, maxBitrate: 4_500_000 };
+    // A qualidade vem do plano de quem transmite: Grátis 540p60, Nexus+ 720p60,
+    // Pro 1080p60. Sem escolha nem teste.
+    const plano = planoAtivo(useAuthStore.getState().user);
+    const opts = LIVE_POR_PLANO[plano];
+    // Só o Pro manda também uma versão 720p30, para quem assiste com internet
+    // fraca. Nos outros, uma camada só (uma segunda faria o PC comprimir duas vezes).
+    const simulcast = plano === 'pro';
 
     await room.localParticipant.setScreenShareEnabled(
       true,
@@ -723,7 +730,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         // navegador derrubava os quadros e a live travava. Mantém a fluidez
         // (baixa um pouco a nitidez se precisar).
         degradationPreference: 'maintain-framerate',
-        simulcast: false,
+        simulcast,
+        ...(simulcast ? { screenShareSimulcastLayers: [new VideoPreset(1280, 720, 3_000_000, 30)] } : {}),
       },
     );
 

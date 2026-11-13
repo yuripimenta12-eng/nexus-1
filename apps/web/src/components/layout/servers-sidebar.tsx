@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Copy, Check } from 'lucide-react';
+import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Copy, Check, Sparkles } from 'lucide-react';
 import { useMutes } from '@/lib/mutes';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -145,6 +145,18 @@ export function ServersSidebar() {
         title="Criar ou entrar num servidor"
       >
         <Plus className="w-5 h-5" />
+      </button>
+
+      {/* Planos do Nexus e o link de indicação */}
+      <button
+        onClick={() => router.push('/app/planos')}
+        className="w-[46px] h-[46px] rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
+                   transition-all duration-200 flex items-center justify-center
+                   text-[#c8f53b] hover:border-[#c8f53b] hover:-translate-y-0.5"
+        title="Planos e indicações"
+        aria-label="Planos e indicações"
+      >
+        <Sparkles className="w-5 h-5" />
       </button>
 
       {/* Painel do dono — só aparece para o admin da plataforma */}

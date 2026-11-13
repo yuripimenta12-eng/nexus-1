@@ -82,6 +82,10 @@ export class AccountDeletionService {
           isSuspended: true,
           isVerified: false,
           isAdmin: false,
+          // link de indicação para de funcionar e o plano acaba
+          codigoIndicacao: null,
+          plano: 'gratis',
+          planoAte: null,
         },
       }),
     ]);

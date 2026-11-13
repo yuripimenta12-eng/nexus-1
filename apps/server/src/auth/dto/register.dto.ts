@@ -31,4 +31,10 @@ export class RegisterDto {
   @IsString()
   @MaxLength(64)
   inviteCode?: string;
+
+  // Código do link de indicação (nexuslink.art/r/<codigo>)
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  ref?: string;
 }

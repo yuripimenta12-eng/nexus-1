@@ -26,6 +26,7 @@ import { GifsModule } from './gifs/gifs.module';
 import { UnidosModule } from './games/unidos/unidos.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { PlacarModule } from './placar/placar.module';
+import { PlanosModule } from './planos/planos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -54,6 +55,7 @@ import { HealthController } from './health.controller';
     UnidosModule,
     AnnouncementsModule,
     PlacarModule,
+    PlanosModule,
     DmsModule,
     FriendsModule,
     RolesModule,

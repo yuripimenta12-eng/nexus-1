@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
 import { EmblemaBeta, SeloBeta } from '@/components/ui/emblema-beta';
 import { FaixaConquistas } from '@/components/voice/placar';
+import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
 
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
@@ -235,6 +236,7 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
                   </span>
                   <RoleIcon role={m.role} />
                   {m.user.isBetaTester && <EmblemaBeta size={14} />}
+                  <EmblemaPlano usuario={m.user as any} />
                 </div>
                 {m.activity ? (
                   <p className="text-[11px] text-[#43e3a3] truncate" title={`Jogando ${m.activity}`}>🎮 Jogando <b className="font-semibold">{m.activity}</b></p>
@@ -336,7 +338,10 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           <p className="text-[#8a8095] text-[12.5px]">
             @{member.user.username}{since ? ` · no Nexus desde ${since}` : ''}
           </p>
-          {member.user.isBetaTester && <SeloBeta className="mt-2" />}
+          <div className="flex flex-wrap gap-1.5">
+            {member.user.isBetaTester && <SeloBeta className="mt-2" />}
+            <SeloPlano usuario={member.user as any} className="mt-2" />
+          </div>
           <FaixaConquistas userId={member.userId} className="mt-3" />
 
           {member.activity && (

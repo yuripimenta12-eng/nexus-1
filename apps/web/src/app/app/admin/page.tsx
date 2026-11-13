@@ -11,6 +11,8 @@ import { cn, formatRelativeDate } from '@/lib/utils';
 import { PainelComunicados } from '@/components/admin/painel-comunicados';
 import { PainelBeta } from '@/components/admin/painel-beta';
 import { EmblemaBeta } from '@/components/ui/emblema-beta';
+import { EmblemaPlano } from '@/components/ui/selo-plano';
+import { NOME_PLANO, planoAtivo, type Plano } from '@/lib/planos';
 
 // Textos em português para status e motivos que vêm do servidor em inglês
 const REPORT_STATUS: Record<string, { label: string; cls: string }> = {
@@ -105,6 +107,23 @@ export default function AdminPage() {
       qc.invalidateQueries({ queryKey: ['admin', 'beta'] });
     },
   });
+
+  // Dar/tirar plano na mão (enquanto não há pagamento)
+  const planoMutation = useMutation({
+    mutationFn: ({ id, plano, dias }: { id: string; plano: Plano; dias?: number }) => api.post(`/admin/users/${id}/plano`, { plano, dias }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onError: (e: any) => window.alert(e?.response?.data?.message || 'Não deu para mudar o plano.'),
+  });
+  const mudarPlano = (u: any, plano: Plano) => {
+    const nome = u.profile?.displayName || u.username;
+    if (plano === 'gratis') {
+      if (window.confirm(`Tirar o plano de ${nome}? Volta para o Grátis na hora.`)) planoMutation.mutate({ id: u.id, plano });
+      return;
+    }
+    const resp = window.prompt(`Quantos dias de ${NOME_PLANO[plano]} para ${nome}? (se já tiver esse plano, soma)`, '30');
+    const dias = Math.round(Number(resp));
+    if (resp !== null && dias >= 1 && dias <= 3660) planoMutation.mutate({ id: u.id, plano, dias });
+  };
 
   const resolveReport = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -254,6 +273,7 @@ export default function AdminPage() {
                               <p className="text-white font-medium flex items-center gap-1.5">
                                 {u.profile?.displayName || u.username}
                                 {u.isBetaTester && <EmblemaBeta size={15} />}
+                                <EmblemaPlano usuario={u} size={15} />
                                 {u.twoFactorEnabled && <span title="Verificação em duas etapas ligada"><ShieldCheck className="w-3.5 h-3.5 text-success" /></span>}
                                 {u.isVerified && !isRemoved(u) && <span title="E-mail confirmado"><MailCheck className="w-3.5 h-3.5 text-accent-blue" /></span>}
                               </p>
@@ -291,6 +311,18 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3 text-muted">{u._count?.memberships ?? 0}</td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {!isRemoved(u) && (
+                            <select
+                              value={planoAtivo(u)}
+                              onChange={(e) => mudarPlano(u, e.target.value as Plano)}
+                              disabled={planoMutation.isPending}
+                              aria-label={`Plano de ${u.profile?.displayName || u.username}`}
+                              title={u.planoAte && planoAtivo(u) !== 'gratis' ? `Vale até ${new Date(u.planoAte).toLocaleDateString('pt-BR')}` : 'Plano'}
+                              className="text-xs px-2 py-1 mr-2 rounded-md bg-white/5 text-[#c8f53b] border border-white/10 disabled:opacity-30"
+                            >
+                              {(['gratis', 'mais', 'pro'] as Plano[]).map(p => <option key={p} value={p} className="bg-[#16121d] text-white">{NOME_PLANO[p]}</option>)}
+                            </select>
+                          )}
                           {!isRemoved(u) && (
                             <button
                               onClick={() => {

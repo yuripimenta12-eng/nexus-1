@@ -31,6 +31,16 @@ model User {
   twoFactorEnabled  Boolean  @default(false)
   twoFactorSecret   String?
   twoFactorRecovery String[] @default([])
+  // Plano: "gratis", "mais" (Nexus+) ou "pro" (Nexus Pro). Pago vale até
+  // planoAte; depois volta sozinho para "gratis" (PlanosService).
+  plano             String    @default("gratis") @db.VarChar(10)
+  planoAte          DateTime?
+  // Afiliados: link nexuslink.art/r/<codigoIndicacao>. Quem indicou ganha
+  // dias de Nexus+ quando a pessoa indicada ganha o primeiro plano pago.
+  codigoIndicacao   String?   @unique @db.VarChar(12)
+  indicadoPorId     String?
+  indicacaoPaga     Boolean   @default(false)
+  diasGanhos        Int       @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -59,9 +69,12 @@ model User {
   announcementReads      AnnouncementRead[]
   callStats              CallStat[]
   conquistas             Conquista[]
+  indicadoPor            User?                   @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
+  indicados              User[]                  @relation("Indicacoes")
 
   @@index([email])
   @@index([username])
+  @@index([indicadoPorId])
   @@map("users")
 }
 
