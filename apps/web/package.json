@@ -41,6 +41,7 @@
     "socket.io-client": "^4.7.4",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
+    "threejs-components": "0.0.19",
     "zod": "^4.6.7",
     "zustand": "^4.5.0"
   },

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import TubesCursor from '@/components/ui/tubes-cursor';
 import { Loader2, MessageSquare, User, AtSign, Mail, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -94,10 +95,11 @@ export default function RegisterPage() {
       className="min-h-screen flex items-center justify-center p-4 py-8"
       style={{ background: "url('/cadastro-bg.webp') center/cover no-repeat #0a0713" }}
     >
+      <TubesCursor />
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[520px]"
+        className="relative z-10 w-full max-w-[520px]"
       >
         {/* Personagem com o logo, acima do cadastro */}
         <div className="text-center">

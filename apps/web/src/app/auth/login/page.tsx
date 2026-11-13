@@ -10,6 +10,7 @@ import { Eye, EyeOff, Loader2, LogIn, User, Mail, Download } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
 import { TwoFactorStep } from '@/components/auth/two-factor-step';
+import TubesCursor from '@/components/ui/tubes-cursor';
 
 // Instalador publicado nas Releases do GitHub; "latest" sempre aponta para a versão mais nova
 const DESKTOP_DOWNLOAD_URL =
@@ -89,6 +90,7 @@ export default function LoginPage() {
           "url('/login-cena-full.webp') center/cover no-repeat #0a0713",
       }}
     >
+      <TubesCursor />
 
       {/* ── LADO ESQUERDO: marketing copy ──────────────────────── */}
       <section
