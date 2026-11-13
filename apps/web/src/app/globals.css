@@ -117,6 +117,11 @@
     overflow: hidden;
   }
 
+  /* A página inicial rola a janela (o app trava o body acima) */
+  body:has(.nx-landing) {
+    overflow: visible;
+  }
+
   /* ── Scrollbars ──────────────────────────────── */
   ::-webkit-scrollbar {
     width: 3px;

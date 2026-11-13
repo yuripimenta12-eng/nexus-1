@@ -127,7 +127,7 @@ export default function Landing() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="min-h-screen bg-[#07040d] text-white overflow-x-clip">
+      <div className="nx-landing min-h-screen bg-[#07040d] text-white overflow-x-clip">
         {/* Barra de progresso da rolagem */}
         <motion.div className="fixed inset-x-0 top-0 z-50 h-1 origin-left" style={{ scaleX: barra, background: 'linear-gradient(90deg,#7a2cff,#ff4f79,#ff6a00)' }} />
 
