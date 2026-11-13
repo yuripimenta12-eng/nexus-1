@@ -158,6 +158,16 @@ export class PlacarService {
     return { desbloqueadas: lista, progresso };
   }
 
+  // Conquistas de qualquer pessoa, para o cartão de perfil (só as desbloqueadas)
+  async conquistasDe(userId: string) {
+    if (!userId || userId.length > 64) throw new BadRequestException('Usuário inválido');
+    await this.avaliar(userId);
+    const desbloqueadas = await this.prisma.conquista.findMany({
+      where: { userId }, select: { chave: true, desbloqueadaEm: true }, orderBy: { desbloqueadaEm: 'asc' },
+    });
+    return { desbloqueadas };
+  }
+
   private async progresso(userId: string, contarMensagens = true) {
     const soma = await this.prisma.callStat.aggregate({
       where: { userId },

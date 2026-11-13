@@ -5,6 +5,7 @@ import { Camera, Loader2, Palette, X } from 'lucide-react';
 import { cn, getInitials, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { SeloBeta } from '@/components/ui/emblema-beta';
+import { FaixaConquistas } from '@/components/voice/placar';
 import api from '@/lib/api';
 
 const BANNER_SWATCHES: [string, string][] = [
@@ -209,6 +210,7 @@ export function ProfileCard() {
         </div>
 
         {user?.isBetaTester && <SeloBeta className="mt-3" />}
+        <FaixaConquistas userId={user?.id} className="mt-3" />
 
         {profile?.customStatus && (
           <p className="text-[#cfc6dd] text-sm mt-3 italic">"{profile.customStatus}"</p>

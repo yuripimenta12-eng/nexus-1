@@ -25,6 +25,12 @@ export class PlacarController {
     return this.placar.conquistas(userId);
   }
 
+  // Aparecem no cartão de perfil, para todo mundo ver
+  @Get('usuario/:userId')
+  deUsuario(@Param('userId') userId: string) {
+    return this.placar.conquistasDe(userId);
+  }
+
   @Get('servidor/:serverId')
   doServidor(@CurrentUser('id') userId: string, @Param('serverId') serverId: string, @Query('tipo') tipo: string) {
     return this.placar.placar(userId, serverId, tipo);

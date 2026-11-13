@@ -126,6 +126,33 @@ function Hexagono({ emoji, ativo, tamanho = 44 }: { emoji: string; ativo: boolea
   );
 }
 
+/** Conquistas desbloqueadas de alguém, no cartão de perfil. Some se não tiver nenhuma. */
+export function FaixaConquistas({ userId, className }: { userId?: string; className?: string }) {
+  const [chaves, setChaves] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let vivo = true;
+    api.get(`/placar/usuario/${userId}`)
+      .then(r => { if (vivo) setChaves(new Set((r.data?.desbloqueadas || []).map((c: any) => c.chave))); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [userId]);
+  const lista = CONQUISTAS.filter(c => chaves?.has(c.chave));
+  if (!lista.length) return null;
+  return (
+    <div className={className}>
+      <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#8a8095] mb-1">Conquistas</p>
+      <div className="flex flex-wrap gap-1">
+        {lista.map(c => (
+          <div key={c.chave} title={`${c.nome} · ${c.meta}`} role="img" aria-label={c.nome}>
+            <Hexagono emoji={c.emoji} ativo tamanho={36} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type Tipo = 'tempo' | 'fala' | 'dj';
 const ABAS: { tipo: Tipo; nome: string }[] = [
   { tipo: 'tempo', nome: 'Tempo em call' },
