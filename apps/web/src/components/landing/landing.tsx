@@ -17,11 +17,15 @@ import {
 import AuroraBackground from '@/components/ui/aurora-background';
 import MarqueeAlongSvgPath from '@/components/ui/marquee-along-svg-path';
 import TubesCursor from '@/components/ui/tubes-cursor';
+import LedBadges from '@/components/ui/led-badges';
 import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas, TabelaPlanos } from './secoes';
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
 import { LIVE_POR_PLANO, PRECO_PLANO } from '@/lib/planos';
 
+// Letreiros do final: de cima para baixo, o último é a barra em pé da direita
+const MASCARA_LED = 'radial-gradient(ellipse at center, #000 58%, transparent 76%)';
+const LETREIROS = ['NEXUS LINK', 'BORA PRA CALL', 'AO VIVO', 'DJ NA CALL', '1080P 60FPS', 'GG', 'ONLINE'];
 const DOWNLOAD_WINDOWS = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
 
 const LIMA = '#c8f53b';
@@ -377,13 +381,17 @@ export default function Landing() {
         <section id="final" className="relative">
           <AuroraBackground className="py-28" cores={['rgba(255,79,121,0.22)', 'rgba(122,44,255,0.28)']} estrelas={40}>
             <Aparecer className="mx-auto max-w-2xl px-4 text-center">
-              <div className="nx-flutuar mx-auto w-64 sm:w-80">
-                <Image src="/mascote-conta.webp" alt="Mascote do Nexus de bigode segurando o logo" width={783} height={429} sizes="320px" className="h-auto w-full" />
-              </div>
-              <div className="mt-2 flex justify-center gap-3 text-3xl">
-                {['🎧', '🎮', '🔥'].map((e, i) => <Figurinha key={e} emoji={e} rotulo="Figurinha" atraso={i * 0.4} className="size-14" />)}
-              </div>
-              <h2 className="mt-6 text-4xl font-black tracking-tighter sm:text-6xl">Bora pra call?</h2>
+              {/* Letreiros de LED com coisas do Nexus (mexe com o mouse; clique pisca tudo) */}
+              <LedBadges
+                messages={LETREIROS}
+                colors={['#b05cff', '#ff6a00', '#ff4f79', '#c8f53b', '#21d4fd', '#ff8a1f', '#9b4dff']}
+                iconColors={['#c8f53b', '#21d4fd', '#ff4f79', '#ff8a1f']}
+                background="transparent"
+                className="mx-auto aspect-square w-full max-w-[460px]"
+                // apaga a borda quadrada do brilho
+                style={{ maskImage: MASCARA_LED, WebkitMaskImage: MASCARA_LED }}
+              />
+              <h2 className="mt-2 text-4xl font-black tracking-tighter sm:text-6xl">Bora pra call?</h2>
               <p className="mt-3 text-white/70">Crie sua conta e chame a galera. Leva um minuto.</p>
               <Link href={logado ? '/app' : '/auth/register'}
                 className="mt-8 inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-lg font-extrabold text-[#18131f] hover:brightness-110"
