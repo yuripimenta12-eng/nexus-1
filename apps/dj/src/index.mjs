@@ -12,6 +12,7 @@
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
 import {
   Room, RoomEvent, AudioSource, AudioFrame, LocalAudioTrack,
   TrackPublishOptions, TrackSource, dispose,
@@ -432,6 +433,13 @@ async function auth(req) {
   return { room, identity: claims.sub, name: claims.name || claims.sub };
 }
 
+// Recibo para o placar da call: a API confere a assinatura (mesmo segredo do
+// LiveKit) e conta cada música uma vez só, para ninguém inventar músicas.
+function reciboPlacar(identity, room, id) {
+  const p = Buffer.from(JSON.stringify({ sub: identity, room, id, iat: Date.now() })).toString('base64url');
+  return `${p}.${createHmac('sha256', API_SECRET).update('placar-dj.' + p).digest('base64url')}`;
+}
+
 const RATE = new Map(); // identity → timestamps (anti-spam: 20 comandos/min)
 function rateLimit(identity) {
   const now = Date.now();
@@ -470,7 +478,7 @@ const server = http.createServer(async (req, res) => {
         if (!s || s.closed) { s = new Session(who.room); sessions.set(who.room, s); }
         await s.connect();
         const item = await s.play(String(body.query || ''), who.name);
-        return send(res, 200, { ok: true, added: item, state: s.state() });
+        return send(res, 200, { ok: true, added: item, state: s.state(), recibo: reciboPlacar(who.identity, who.room, item.id) });
       }
       if (!s || s.closed) return send(res, 200, { ok: true, state: null });
       switch (cmd) {

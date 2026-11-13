@@ -16,7 +16,7 @@ export class PlacarController {
 
   // "musica" (DJ ou janela de música) ou "live" (começou a transmitir a tela)
   @Post('evento')
-  evento(@CurrentUser('id') userId: string, @Body() body: { roomId?: string; tipo?: string }) {
+  evento(@CurrentUser('id') userId: string, @Body() body: { roomId?: string; tipo?: string; recibo?: string }) {
     return this.placar.evento(userId, body);
   }
 

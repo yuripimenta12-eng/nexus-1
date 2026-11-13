@@ -55,7 +55,7 @@ interface VoiceStore {
   djState: DjState | null;
   djBusy: boolean;
   djSummon: () => Promise<void>;
-  djCommand: (cmd: DjCommand, payload?: { query?: string; id?: string }) => Promise<void>;
+  djCommand: (cmd: DjCommand, payload?: { query?: string; id?: string }) => Promise<{ recibo?: string }>;
   roomName: string | null;
   voiceRoomId: string | null;
   serverId: string | null;
@@ -382,6 +382,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       if (!res.ok) throw new Error(data?.message || 'O DJ não respondeu.');
       if (data?.state) set({ djState: data.state });
       else if (cmd === 'leave') set({ djState: null });
+      return data;
     } finally { set({ djBusy: false }); }
   },
   roomName: null,

@@ -35,7 +35,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [djInRoom]);
 
-  const run = async (fn: () => Promise<void>, okMsg?: string) => {
+  const run = async (fn: () => Promise<unknown>, okMsg?: string) => {
     setSending(true);
     try {
       await fn();
@@ -52,7 +52,7 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
     const q = query.trim();
     if (!q) return;
     setQuery('');
-    run(async () => { await djCommand('play', { query: q }); registrarEventoPlacar('musica'); }, '🎵 Música adicionada à fila');
+    run(async () => { const r = await djCommand('play', { query: q }); if (r?.recibo) registrarEventoPlacar('musica', r.recibo); }, '🎵 Música adicionada à fila');
   };
 
   const busy = sending || djBusy;

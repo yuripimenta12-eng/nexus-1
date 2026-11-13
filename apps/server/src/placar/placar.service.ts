@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
-import { horaDeBrasilia, segundosACreditar } from './placar.regras';
+import { horaDeBrasilia, lerReciboDj, segundosACreditar } from './placar.regras';
 
 const HORA = 3600;
 
@@ -22,26 +24,38 @@ type TipoPlacar = keyof typeof TIPOS_PLACAR;
 
 @Injectable()
 export class PlacarService {
-  constructor(private prisma: PrismaService) {}
+  private segredo: string;
+  private livekit: RoomServiceClient;
+  constructor(private prisma: PrismaService, config: ConfigService) {
+    this.segredo = config.get<string>('LIVEKIT_API_SECRET', 'devsecret');
+    this.livekit = new RoomServiceClient(
+      config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
+      config.get<string>('LIVEKIT_API_KEY', 'devkey'),
+      this.segredo,
+    );
+  }
 
   // Evita inflar música/live mandando o mesmo evento várias vezes seguidas
   private ultimoEvento = new Map<string, number>();
+  // Recibos do DJ já contados (id → quando), para cada música contar uma vez só
+  private recibosUsados = new Map<string, number>();
 
   // A pessoa tem que estar mesmo naquela sala agora (entrou e não saiu)
   private async salaDaPessoa(userId: string, roomId: unknown) {
     if (typeof roomId !== 'string' || !roomId || roomId.length > 64) throw new BadRequestException('Sala inválida');
-    const room = await this.prisma.voiceRoom.findUnique({ where: { id: roomId }, select: { serverId: true } });
+    const room = await this.prisma.voiceRoom.findUnique({ where: { id: roomId }, select: { serverId: true, livekitRoom: true } });
     if (!room) throw new NotFoundException('Sala não encontrada');
     const naSala = await this.prisma.callParticipant.findFirst({
       where: { userId, leftAt: null, callSession: { voiceRoomId: roomId, endedAt: null } },
       select: { id: true },
     });
-    return naSala ? room.serverId : null;
+    return naSala ? room : null;
   }
 
   async batimento(userId: string, dto: { roomId?: string; falando?: number; camera?: number }) {
-    const serverId = await this.salaDaPessoa(userId, dto?.roomId);
-    if (!serverId) return { novas: [] };
+    const sala = await this.salaDaPessoa(userId, dto?.roomId);
+    if (!sala) return { novas: [] };
+    const { serverId } = sala;
     const agora = new Date();
     const stat = await this.prisma.callStat.upsert({
       where: { serverId_userId: { serverId, userId } },
@@ -63,16 +77,12 @@ export class PlacarService {
     return { novas: await this.avaliar(userId, seg > 0 && h >= 2 && h < 5 ? ['coruja'] : []) };
   }
 
-  async evento(userId: string, dto: { roomId?: string; tipo?: string }) {
+  async evento(userId: string, dto: { roomId?: string; tipo?: string; recibo?: string }) {
     const campo = dto?.tipo === 'musica' ? 'musicas' : dto?.tipo === 'live' ? 'lives' : null;
     if (!campo) throw new BadRequestException('Evento inválido');
-    const serverId = await this.salaDaPessoa(userId, dto.roomId);
-    if (!serverId) return { novas: [] };
-    const k = `${userId}:${campo}`;
-    const agora = Date.now();
-    if (agora - (this.ultimoEvento.get(k) || 0) < 5000) return { novas: [] };
-    this.ultimoEvento.set(k, agora);
-    if (this.ultimoEvento.size > 5000) this.ultimoEvento.clear();
+    const sala = await this.salaDaPessoa(userId, dto.roomId);
+    if (!sala || !(await this.confirmado(userId, sala.livekitRoom, campo, dto.recibo))) return { novas: [] };
+    const { serverId } = sala;
     await this.prisma.callStat.upsert({
       where: { serverId_userId: { serverId, userId } },
       create: { serverId, userId, [campo]: 1 },
@@ -81,12 +91,40 @@ export class PlacarService {
     return { novas: await this.avaliar(userId) };
   }
 
+  // Só conta o que o servidor consegue confirmar: música do DJ pelo recibo dele;
+  // música da janela/aba e live pela faixa que a pessoa está mesmo transmitindo.
+  private async confirmado(userId: string, livekitRoom: string, campo: 'musicas' | 'lives', recibo?: unknown) {
+    const agora = Date.now();
+    if (campo === 'musicas' && recibo !== undefined) {
+      const r = lerReciboDj(recibo, this.segredo, agora);
+      if (!r || r.sub !== userId || r.room !== livekitRoom || this.recibosUsados.has(r.id)) return false;
+      if (this.recibosUsados.size > 2000) {
+        for (const [id, t] of this.recibosUsados) if (agora - t > 11 * 60_000) this.recibosUsados.delete(id);
+      }
+      this.recibosUsados.set(r.id, agora);
+      return true;
+    }
+    const k = `${userId}:${campo}`;
+    if (agora - (this.ultimoEvento.get(k) || 0) < 5000) return false;
+    this.ultimoEvento.set(k, agora);
+    if (this.ultimoEvento.size > 5000) this.ultimoEvento.clear();
+    let fontes: Set<TrackSource>;
+    try {
+      const p = await this.livekit.getParticipant(livekitRoom, userId);
+      fontes = new Set(p.tracks.map(t => t.source));
+    } catch { return false; } // fora da sala no LiveKit (ou LiveKit fora do ar): não conta
+    // A janela de música publica só o áudio; a live publica o vídeo da tela
+    return campo === 'lives'
+      ? fontes.has(TrackSource.SCREEN_SHARE)
+      : fontes.has(TrackSource.SCREEN_SHARE_AUDIO) && !fontes.has(TrackSource.SCREEN_SHARE);
+  }
+
   async placar(userId: string, serverId: string, tipo: string) {
     const member = await this.prisma.serverMember.findUnique({
       where: { serverId_userId: { serverId, userId } }, select: { banned: true },
     });
     if (!member || member.banned) throw new ForbiddenException('Sem acesso');
-    const campo = TIPOS_PLACAR[(tipo in TIPOS_PLACAR ? tipo : 'tempo') as TipoPlacar];
+    const campo = TIPOS_PLACAR[(Object.prototype.hasOwnProperty.call(TIPOS_PLACAR, tipo) ? tipo : 'tempo') as TipoPlacar];
     // Só membros atuais do servidor aparecem
     const ondeMembro = { serverId, [campo]: { gt: 0 }, user: { memberships: { some: { serverId, banned: false } } } };
     const linhas = await this.prisma.callStat.findMany({

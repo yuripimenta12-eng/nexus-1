@@ -30,11 +30,11 @@ function anunciar(novas: unknown) {
   }
 }
 
-/** Música pedida ao DJ / tocada pela janela de música, ou live começada. */
-export function registrarEventoPlacar(tipo: 'musica' | 'live') {
+/** Música pedida ao DJ (com o recibo dele) / tocada pela janela de música, ou live começada. */
+export function registrarEventoPlacar(tipo: 'musica' | 'live', recibo?: string) {
   const roomId = useVoiceStore.getState().voiceRoomId;
   if (!roomId) return;
-  api.post('/placar/evento', { roomId, tipo }).then(r => anunciar(r.data?.novas)).catch(() => {});
+  api.post('/placar/evento', { roomId, tipo, recibo }).then(r => anunciar(r.data?.novas)).catch(() => {});
 }
 
 // Batimento a cada 45 s enquanto está numa call (o servidor só soma o tempo
