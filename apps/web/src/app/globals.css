@@ -1098,3 +1098,26 @@ html.nx-leve *::after {
 html.nx-leve .nx-desfoque {
   display: none !important;
 }
+
+/* ── Landing (página inicial) ─────────────────────────────── */
+@keyframes nx-aurora-pulso {
+  0%, 100% { opacity: .5; transform: scale(1); }
+  50% { opacity: .75; transform: scale(1.05); }
+}
+.nx-aurora-pulso { animation: nx-aurora-pulso 10s ease-in-out infinite; }
+
+/* Figurinhas de emoji que balançam (o "gif" da landing, feito em CSS) */
+@keyframes nx-figurinha {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50% { transform: rotate(8deg) scale(1.08); }
+}
+.nx-figurinha { animation: nx-figurinha 2.4s ease-in-out infinite; }
+@keyframes nx-flutuar {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+.nx-flutuar { animation: nx-flutuar 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-aurora-pulso, .nx-figurinha, .nx-flutuar { animation: none !important; }
+}

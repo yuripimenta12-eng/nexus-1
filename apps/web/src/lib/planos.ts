@@ -18,3 +18,9 @@ export const LIVE_POR_PLANO: Record<Plano, { width: number; height: number; fram
   mais: { width: 1280, height: 720, frameRate: 60, maxBitrate: 4_500_000, rotulo: '720p 60fps' },
   pro: { width: 1920, height: 1080, frameRate: 60, maxBitrate: 8_000_000, rotulo: '1080p 60fps' },
 };
+
+// Preços mostrados no site (página de planos e página inicial)
+export const PRECO_PLANO: Record<'mais' | 'pro', { mes: string; ano: string }> = {
+  mais: { mes: 'R$ 9,90', ano: 'R$ 99' },
+  pro: { mes: 'R$ 19,90', ano: 'R$ 199' },
+};

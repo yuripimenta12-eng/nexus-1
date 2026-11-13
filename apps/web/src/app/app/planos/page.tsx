@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
-import { LIVE_POR_PLANO, NOME_PLANO, type Plano } from '@/lib/planos';
+import { LIVE_POR_PLANO, NOME_PLANO, PRECO_PLANO, type Plano } from '@/lib/planos';
 
 type Beneficio = { texto: string; emBreve?: boolean };
 type Cartao = {
@@ -25,7 +25,7 @@ type Cartao = {
   beneficios: Beneficio[];
 };
 
-// shortcut: preços fixos aqui; quando entrar o pagamento, passam a vir da API
+// shortcut: preços fixos em lib/planos; quando entrar o pagamento, passam a vir da API
 const PARA_VOCE: Cartao[] = [
   {
     id: 'gratis', plano: 'gratis', nome: 'Grátis', descricao: 'Tudo o que você precisa para falar com a galera',
@@ -40,7 +40,7 @@ const PARA_VOCE: Cartao[] = [
   {
     id: 'mais', plano: 'mais', nome: 'Nexus+', descricao: 'Mais qualidade na live e um perfil que aparece',
     Icone: Gem, cores: { base: '#0f1a2a', blobA: '#21d4fd', blobB: '#7a2cff', icone: '#3ee0ff' },
-    preco: 'R$ 9,90', precoNota: 'por mês · ou R$ 99 por ano',
+    preco: PRECO_PLANO.mais.mes, precoNota: `por mês · ou ${PRECO_PLANO.mais.ano} por ano`,
     beneficios: [
       { texto: 'Tudo do Grátis' },
       { texto: `Live de tela em ${LIVE_POR_PLANO.mais.rotulo}` },
@@ -53,7 +53,7 @@ const PARA_VOCE: Cartao[] = [
   {
     id: 'pro', plano: 'pro', nome: 'Nexus Pro', descricao: 'O máximo de qualidade para quem transmite',
     Icone: Crown, cores: { base: '#24150a', blobA: '#ff6a00', blobB: '#ff4f79', icone: '#ffc23d' },
-    preco: 'R$ 19,90', precoNota: 'por mês · ou R$ 199 por ano', destaque: 'Melhor para streamers',
+    preco: PRECO_PLANO.pro.mes, precoNota: `por mês · ou ${PRECO_PLANO.pro.ano} por ano`, destaque: 'Melhor para streamers',
     beneficios: [
       { texto: 'Tudo do Nexus+' },
       { texto: `Live de tela em ${LIVE_POR_PLANO.pro.rotulo}` },
