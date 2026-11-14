@@ -121,9 +121,16 @@ export default function AdminPage() {
       if (window.confirm(`Tirar o plano de ${nome}? Volta para o Grátis na hora.`)) planoMutation.mutate({ id: u.id, plano });
       return;
     }
-    const resp = window.prompt(`Quantos dias de ${NOME_PLANO[plano]} para ${nome}? (se já tiver esse plano, soma)`, '30');
-    const dias = Math.round(Number(resp));
-    if (resp !== null && dias >= 1 && dias <= 3660) planoMutation.mutate({ id: u.id, plano, dias });
+    // window.prompt não existe no app de PC (Electron): pergunta os dias numa janelinha do site
+    setPedidoPlano({ id: u.id, nome, plano, dias: '30' });
+  };
+  const [pedidoPlano, setPedidoPlano] = useState<{ id: string; nome: string; plano: Plano; dias: string } | null>(null);
+  const diasPedido = Math.round(Number(pedidoPlano?.dias));
+  const diasOk = diasPedido >= 1 && diasPedido <= 3660;
+  const confirmarPlano = () => {
+    if (!pedidoPlano || !diasOk) return;
+    planoMutation.mutate({ id: pedidoPlano.id, plano: pedidoPlano.plano, dias: diasPedido });
+    setPedidoPlano(null);
   };
 
   const resolveReport = useMutation({
@@ -146,6 +153,35 @@ export default function AdminPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {pedidoPlano && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setPedidoPlano(null)}>
+          <form
+            role="dialog" aria-modal="true" aria-labelledby="pedido-plano-titulo"
+            onClick={e => e.stopPropagation()}
+            onSubmit={e => { e.preventDefault(); confirmarPlano(); }}
+            onKeyDown={e => { if (e.key === 'Escape') setPedidoPlano(null); }}
+            className="w-full max-w-sm rounded-2xl bg-surface border border-border p-5 space-y-4"
+          >
+            <h2 id="pedido-plano-titulo" className="text-white font-semibold">
+              {NOME_PLANO[pedidoPlano.plano]} para {pedidoPlano.nome}
+            </h2>
+            <label className="block text-sm text-muted">
+              Quantos dias? (se já tiver esse plano, soma)
+              <input
+                type="number" min={1} max={3660} autoFocus
+                value={pedidoPlano.dias}
+                onChange={e => setPedidoPlano({ ...pedidoPlano, dias: e.target.value })}
+                className="mt-1.5 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
+              />
+            </label>
+            {!diasOk && <p className="text-xs text-destructive">Use de 1 a 3660 dias.</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setPedidoPlano(null)} className="px-3 py-1.5 rounded-lg text-sm text-muted hover:text-white">Cancelar</button>
+              <button type="submit" disabled={!diasOk} className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-accent text-white disabled:opacity-40">Dar plano</button>
+            </div>
+          </form>
+        </div>
+      )}
       {/* Header */}
       <div className="h-14 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-border bg-background-secondary shrink-0">
         <MobileMenuButton />
