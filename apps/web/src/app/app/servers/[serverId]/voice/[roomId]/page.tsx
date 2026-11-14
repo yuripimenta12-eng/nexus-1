@@ -886,11 +886,14 @@ export default function VoicePage() {
               {/* Mini câmeras */}
               <div className="absolute top-3 right-3 flex flex-col gap-2">
                 {participantsList.filter(p => p.camEnabled).slice(0, 4).map(p => (
-                  <div
+                  <button
                     key={p.identity}
+                    onClick={() => setFocusedCam(focusedCam === p.identity ? null : p.identity)}
+                    title={focusedCam === p.identity ? 'Voltar para a live' : `Ampliar a webcam de ${p.participant.name || p.identity}`}
                     className={cn(
-                      'w-28 h-20 rounded-lg overflow-hidden bg-[#14101a] border-2',
-                      p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
+                      'w-28 h-20 rounded-lg overflow-hidden bg-[#14101a] border-2 cursor-pointer hover:border-[#c887ff] transition-colors',
+                      focusedCam === p.identity ? 'border-orange'
+                        : p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
                     )}
                   >
                     <VideoTrackRenderer
@@ -898,7 +901,7 @@ export default function VoicePage() {
                       source={Track.Source.Camera}
                       className="w-full h-full object-cover"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1097,11 +1100,12 @@ export default function VoicePage() {
                   <div
                     key={p.identity}
                     onClick={() => {
-                      if (p.screenSharing) setFocusedCam(null); // miniatura da live: volta ao stream
-                      else if (p.camEnabled) setFocusedCam(focusedCam === p.identity ? null : p.identity);
+                      // com webcam (até quem transmite): amplia/volta; sem webcam, a miniatura da live volta ao stream
+                      if (p.camEnabled) setFocusedCam(focusedCam === p.identity ? null : p.identity);
+                      else if (p.screenSharing) setFocusedCam(null);
                     }}
-                    title={p.screenSharing ? 'Voltar para a live'
-                      : p.camEnabled ? (focusedCam === p.identity ? 'Voltar para a live' : `Ampliar a webcam de ${p.participant.name || p.identity}`)
+                    title={p.camEnabled ? (focusedCam === p.identity ? 'Voltar para a live' : `Ampliar a webcam de ${p.participant.name || p.identity}`)
+                      : p.screenSharing ? 'Voltar para a live'
                       : undefined}
                     className={cn(
                       'relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2 transition-colors',
