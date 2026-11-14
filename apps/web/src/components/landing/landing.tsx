@@ -12,16 +12,17 @@ import {
   motion, MotionConfig, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue,
 } from 'framer-motion';
 import {
-  ArrowRight, Crown, Download, Gem, Gift, Laptop, Lock, MessageSquare, Shield, Smartphone, Sparkles, Trophy, Users,
+  ArrowRight, Download, Gift, Laptop, Lock, MessageSquare, Shield, Smartphone, Sparkles, Trophy, Users,
 } from 'lucide-react';
 import AuroraBackground from '@/components/ui/aurora-background';
 import MarqueeAlongSvgPath from '@/components/ui/marquee-along-svg-path';
 import TubesCursor from '@/components/ui/tubes-cursor';
 import LedBadges from '@/components/ui/led-badges';
-import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas, TabelaPlanos } from './secoes';
+import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas } from './secoes';
+import { CartaoPlano, PARA_VOCE } from '@/components/cartao-plano';
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
-import { LIVE_POR_PLANO, PRECO_PLANO } from '@/lib/planos';
+import { LIVE_POR_PLANO, planoAtivo } from '@/lib/planos';
 
 // Letreiros do final: de cima para baixo, o último é a barra em pé da direita
 // some antes das bordas do quadro: o brilho cortado na borda formava um quadrado
@@ -100,7 +101,7 @@ const RECURSOS = [
 export default function Landing() {
   const router = useRouter();
   const reduzir = useReducedMotion();
-  const { hasHydrated, isAuthenticated } = useAuthStore();
+  const { hasHydrated, isAuthenticated, user } = useAuthStore();
 
   // App de PC abre direto no login; quem já entrou vai para o app
   // (?inicio deixa ver esta página mesmo logado)
@@ -355,24 +356,12 @@ export default function Landing() {
             </div>
           </Aparecer>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {[
-              { nome: 'Grátis', preco: 'R$ 0', nota: 'para sempre', Icone: Users, cor: '#c9bedb', itens: ['Calls, chat e servidores', `Live em ${LIVE_POR_PLANO.gratis.rotulo}`, 'DJ, placar e conquistas'] },
-              { nome: 'Nexus+', preco: PRECO_PLANO.mais.mes, nota: 'por mês', Icone: Gem, cor: '#3ee0ff', itens: ['Tudo do Grátis', `Live em ${LIVE_POR_PLANO.mais.rotulo}`, 'Emblema Nexus+ no perfil'] },
-              { nome: 'Nexus Pro', preco: PRECO_PLANO.pro.mes, nota: 'por mês', Icone: Crown, cor: '#ffc23d', itens: ['Tudo do Nexus+', `Live em ${LIVE_POR_PLANO.pro.rotulo}`, 'Emblema Nexus Pro no perfil'] },
-            ].map((p, i) => (
-              <Aparecer key={p.nome} atraso={i * 0.1}>
-                <div className="h-full rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-6">
-                  <p.Icone className="size-6" style={{ color: p.cor }} />
-                  <h3 className="mt-3 text-xl font-black">{p.nome}</h3>
-                  <p className="mt-2"><span className="text-3xl font-black">{p.preco}</span> <span className="text-sm text-white/50">{p.nota}</span></p>
-                  <ul className="mt-4 space-y-2 text-sm text-white/75">
-                    {p.itens.map((t) => <li key={t} className="flex gap-2"><span style={{ color: LIMA }}>✓</span>{t}</li>)}
-                  </ul>
-                </div>
+            {PARA_VOCE.map((c, i) => (
+              <Aparecer key={c.id} atraso={i * 0.1} className="h-full">
+                <CartaoPlano c={c} atual={logado ? planoAtivo(user) : undefined} visitante={hasHydrated && !logado} />
               </Aparecer>
             ))}
           </div>
-          <TabelaPlanos />
         </section>
 
         <Comentarios />

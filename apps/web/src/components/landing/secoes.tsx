@@ -1,15 +1,14 @@
 'use client';
 
 // Seções longas da página inicial: galeria que anda de lado com a rolagem,
-// mural de lives (demonstração), tabela de planos, comentários e perguntas.
+// mural de lives (demonstração), comentários e perguntas.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AnimatePresence, motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
-import { Check, ChevronDown, Eye, Minus, Star } from 'lucide-react';
+import { ChevronDown, Eye, Star } from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { LIVE_POR_PLANO, PRECO_PLANO } from '@/lib/planos';
 
 const LIMA = '#c8f53b';
 
@@ -136,59 +135,6 @@ export function MuralLives() {
       </div>
       <p className="mt-6 text-center text-xs text-white/40">Imagens de demonstração.</p>
     </section>
-  );
-}
-
-// ── Tabela de planos ─────────────────────────────────────────────────────
-type Celula = boolean | string;
-const LINHAS: { item: string; valores: [Celula, Celula, Celula] }[] = [
-  { item: 'Calls de voz e vídeo, chat e servidores', valores: [true, true, true] },
-  { item: 'DJ na call, placar e conquistas', valores: [true, true, true] },
-  { item: 'Live de tela', valores: [LIVE_POR_PLANO.gratis.rotulo, LIVE_POR_PLANO.mais.rotulo, LIVE_POR_PLANO.pro.rotulo] },
-  { item: 'Versão leve da live para internet fraca', valores: [false, false, true] },
-  { item: 'Emblema no perfil', valores: [false, 'Nexus+', 'Nexus Pro'] },
-  { item: 'Avatar e banner animados', valores: [false, 'em breve', 'em breve'] },
-  { item: 'Fila do DJ maior', valores: [false, false, 'em breve'] },
-];
-
-export function TabelaPlanos() {
-  const cabeca = [
-    { nome: 'Grátis', preco: 'R$ 0' },
-    { nome: 'Nexus+', preco: `${PRECO_PLANO.mais.mes}/mês` },
-    { nome: 'Nexus Pro', preco: `${PRECO_PLANO.pro.mes}/mês` },
-  ];
-  return (
-    <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.7 }} className="mt-10 overflow-x-auto rounded-2xl border border-white/10">
-      <table className="w-full min-w-[560px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-white/10 bg-white/[0.04]">
-            <th className="p-4 font-bold text-white/60">Compare</th>
-            {cabeca.map((c, i) => (
-              <th key={c.nome} className={cn('p-4 text-center', i === 2 && 'bg-gradient-to-b from-[#ff6a00]/15 to-transparent')}>
-                <span className="block text-base font-black">{c.nome}</span>
-                <span className="block text-xs font-bold text-white/50">{c.preco}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {LINHAS.map((l, r) => (
-            <motion.tr key={l.item} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              transition={{ delay: r * 0.06 }} className="border-b border-white/5 last:border-0">
-              <td className="p-4 text-white/80">{l.item}</td>
-              {l.valores.map((v, i) => (
-                <td key={i} className={cn('p-4 text-center', i === 2 && 'bg-[#ff6a00]/[0.05]')}>
-                  {v === true ? <Check className="mx-auto size-4" style={{ color: LIMA }} strokeWidth={3} aria-label="Sim" />
-                    : v === false ? <Minus className="mx-auto size-4 text-white/25" aria-label="Não" />
-                    : <span className={cn('text-xs font-bold', v === 'em breve' ? 'text-white/40' : 'text-white')}>{v}</span>}
-                </td>
-              ))}
-            </motion.tr>
-          ))}
-        </tbody>
-      </table>
-    </motion.div>
   );
 }
 
