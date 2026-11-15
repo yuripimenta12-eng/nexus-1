@@ -744,6 +744,9 @@ export default function VoicePage() {
           {/* Área principal */}
           {primaryScreenSharer ? (
             /* ── Live em tela cheia (o usuário clicou para expandir) ── */
+            /* O vídeo ocupa a área toda (w-full h-full): com max-w/max-h ele ficava do
+               tamanho da imagem recebida e a qualidade adaptativa, vendo um vídeo
+               pequeno, pedia ainda menos (268p) — a live encolhia no meio, cercada de preto. */
             <div className="group flex-1 relative bg-black overflow-hidden">
               <div
                 className={cn('absolute inset-0 flex items-center justify-center', showCam ? 'cursor-pointer' : 'cursor-zoom-out')}
@@ -754,13 +757,13 @@ export default function VoicePage() {
                   <VideoTrackRenderer
                     participant={focusedCamP!.participant}
                     source={Track.Source.Camera}
-                    className="max-w-full max-h-full object-contain"
+                    className="w-full h-full object-contain"
                   />
                 ) : (
                   <VideoTrackRenderer
                     participant={primaryScreenSharer.participant}
                     source={Track.Source.ScreenShare}
-                    className="max-w-full max-h-full object-contain"
+                    className="w-full h-full object-contain"
                   />
                 )}
               </div>
