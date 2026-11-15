@@ -138,8 +138,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div
         className={cn(
-          'md:static md:translate-x-0',
-          navRecolhida ? 'md:hidden' : 'md:flex',
+          'md:static md:flex md:translate-x-0',
           'fixed inset-y-0 left-0 z-50 flex transition-transform duration-200 max-w-[92vw]',
           'nx-safe-top nx-safe-bottom md:pt-0 md:pb-0 bg-background',
           mobileNavOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
@@ -148,9 +147,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <ErrorBoundary>
           <ServersSidebar />
         </ErrorBoundary>
-        <ErrorBoundary>
-          <AppSidebar />
-        </ErrorBoundary>
+        {/* Recolhido: no PC some só a lista de canais (o trilho de servidores fica) */}
+        <div className={cn('flex', navRecolhida && 'md:hidden')}>
+          <ErrorBoundary>
+            <AppSidebar />
+          </ErrorBoundary>
+        </div>
       </div>
 
       {/* Fundo escurecido atrás da gaveta (só mobile) */}
@@ -180,14 +182,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Recolher/mostrar o trilho e os canais (só no PC) */}
         <button
           onClick={() => setNavRecolhida(!navRecolhida)}
-          title={navRecolhida ? 'Mostrar servidores e canais' : 'Recolher servidores e canais'}
-          aria-label={navRecolhida ? 'Mostrar servidores e canais' : 'Recolher servidores e canais'}
+          title={navRecolhida ? 'Mostrar os canais' : 'Recolher os canais'}
+          aria-label={navRecolhida ? 'Mostrar os canais' : 'Recolher os canais'}
           aria-expanded={!navRecolhida}
-          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-30 w-4 h-14 items-center justify-center
-                     rounded-r-lg bg-[var(--th-side)] border border-l-0 border-[var(--th-line)] text-[#a99cb8]
-                     opacity-60 hover:opacity-100 hover:w-5 hover:text-white transition-all"
+          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-30 w-5 h-16 items-center justify-center
+                     rounded-r-xl bg-[#1a1224] border border-l-0 border-[#4d3560] text-[#c9a8ff]
+                     hover:w-6 hover:text-white hover:border-accent transition-all"
         >
-          {navRecolhida ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+          {navRecolhida ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
         <MotionConfig reducedMotion={leve ? 'always' : 'user'}>
           <ErrorBoundary>
