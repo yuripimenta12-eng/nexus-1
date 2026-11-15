@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { X } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { connectSocket, getSocket } from '@/lib/socket';
@@ -34,6 +34,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const loadMutes = useMutes(s => s.load);
   const modoLeve = usePrefsStore(s => s.modoLeve);
   const modoJogo = usePrefsStore(s => s.modoJogo);
+  const navRecolhida = usePrefsStore(s => s.navRecolhida);
+  const setNavRecolhida = usePrefsStore(s => s.setNavRecolhida);
   const [jogando, setJogando] = useState(false);
   const leve = modoLeve || (modoJogo && jogando);
 
@@ -136,7 +138,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div
         className={cn(
-          'md:static md:flex md:translate-x-0',
+          'md:static md:translate-x-0',
+          navRecolhida ? 'md:hidden' : 'md:flex',
           'fixed inset-y-0 left-0 z-50 flex transition-transform duration-200 max-w-[92vw]',
           'nx-safe-top nx-safe-bottom md:pt-0 md:pb-0 bg-background',
           mobileNavOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
@@ -173,7 +176,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Conteúdo principal (modo leve: as animações do framer-motion também param) */}
-      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <main className="relative flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Recolher/mostrar o trilho e os canais (só no PC) */}
+        <button
+          onClick={() => setNavRecolhida(!navRecolhida)}
+          title={navRecolhida ? 'Mostrar servidores e canais' : 'Recolher servidores e canais'}
+          aria-label={navRecolhida ? 'Mostrar servidores e canais' : 'Recolher servidores e canais'}
+          aria-expanded={!navRecolhida}
+          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-30 w-4 h-14 items-center justify-center
+                     rounded-r-lg bg-[var(--th-side)] border border-l-0 border-[var(--th-line)] text-[#a99cb8]
+                     opacity-60 hover:opacity-100 hover:w-5 hover:text-white transition-all"
+        >
+          {navRecolhida ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+        </button>
         <MotionConfig reducedMotion={leve ? 'always' : 'user'}>
           <ErrorBoundary>
             {children}

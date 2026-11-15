@@ -47,12 +47,15 @@ interface PrefsState {
   modoLeve: boolean;
   // Modo jogo: no app de PC, liga o modo leve sozinho enquanto um jogo está aberto
   modoJogo: boolean;
+  // Trilho de servidores + lista de canais escondidos (só no PC; no celular já é gaveta)
+  navRecolhida: boolean;
 
   setAccent: (a: AccentTheme) => void;
   setNotifDesktop: (on: boolean) => void;
   setNotifSound: (on: boolean) => void;
   setModoLeve: (on: boolean) => void;
   setModoJogo: (on: boolean) => void;
+  setNavRecolhida: (on: boolean) => void;
 }
 
 export const usePrefsStore = create<PrefsState>()(
@@ -64,12 +67,14 @@ export const usePrefsStore = create<PrefsState>()(
       notifSound: true,
       modoLeve: false,
       modoJogo: true,
+      navRecolhida: false,
 
       setAccent: (accent) => set({ accent }),
       setNotifDesktop: (notifDesktop) => set({ notifDesktop }),
       setNotifSound: (notifSound) => set({ notifSound }),
       setModoLeve: (modoLeve) => set({ modoLeve }),
       setModoJogo: (modoJogo) => set({ modoJogo }),
+      setNavRecolhida: (navRecolhida) => set({ navRecolhida }),
     }),
     { name: 'nexus-prefs' },
   ),
