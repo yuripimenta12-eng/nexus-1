@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { getSocket, joinVoiceRoom, leaveVoiceRoom } from '@/lib/socket';
 import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
+import api from '@/lib/api';
 import { LIVE_POR_PLANO, planoAtivo } from '@/lib/planos';
 import {
   Room,
@@ -702,6 +703,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     if (!get().canVideo) throw new Error('Seu cargo não permite câmera nem transmitir a tela neste servidor.');
     // A qualidade vem do plano de quem transmite: Grátis 540p60, Nexus+ 720p60,
     // Pro 1080p60. Sem escolha nem teste.
+    // Lê o plano atual do servidor: o app pode estar aberto desde antes de ganhar o plano
+    await Promise.race([
+      api.get('/auth/me').then(r => { if (r.data?.id) useAuthStore.getState().setUser(r.data); }),
+      new Promise(r => setTimeout(r, 3000)),
+    ]).catch(() => {});
     const plano = planoAtivo(useAuthStore.getState().user);
     const opts = LIVE_POR_PLANO[plano];
     // Só o Pro manda também uma versão 720p30, para quem assiste com internet

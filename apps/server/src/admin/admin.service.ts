@@ -4,10 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ADMIN_USER } from '../common/public-user';
 import { BETA_CADASTROS_KEY } from '../common/beta';
 import { PlanosService } from '../planos/planos.service';
+import { NexusGateway } from '../gateway/nexus.gateway';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService, private planos: PlanosService) {}
+  constructor(private prisma: PrismaService, private planos: PlanosService, private gateway: NexusGateway) {}
 
   private async requireAdmin(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -137,6 +138,8 @@ export class AdminService {
     await this.prisma.auditLog.create({
       data: { actorId: adminId, action: `ADMIN_PLANO_${String(r.plano).toUpperCase()}`, targetType: 'USER', targetId },
     });
+    // O app da pessoa guardou o plano de quando abriu: avisa para recarregar
+    this.gateway.emitToUser(targetId, 'plano:atualizado', {});
     return r;
   }
 

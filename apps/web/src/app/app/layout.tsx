@@ -62,6 +62,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { stop(); socket.off('connect', onConnect); };
   }, [isAuthenticated]);
 
+  // Ganhou/perdeu plano no painel do dono: atualiza na hora (emblema e qualidade da live)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const socket = getSocket();
+    const onPlano = () => { useAuthStore.getState().refreshUser(); };
+    socket.on('plano:atualizado', onPlano);
+    return () => { socket.off('plano:atualizado', onPlano); };
+  }, [isAuthenticated]);
+
   useEffect(() => {
     // Espera o estado persistido carregar antes de decidir redirecionar,
     // senão todo reload cai no login mesmo com sessão válida
