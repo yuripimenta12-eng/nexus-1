@@ -249,6 +249,8 @@ export class AuthService {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hora
 
+    // Só o link mais recente vale (como na confirmação de e-mail)
+    await this.prisma.passwordReset.deleteMany({ where: { userId: user.id, usedAt: null } });
     await this.prisma.passwordReset.create({
       data: { userId: user.id, token, expiresAt },
     });
@@ -279,8 +281,9 @@ export class AuthService {
         where: { id: reset.userId },
         data: { passwordHash },
       }),
-      this.prisma.passwordReset.update({
-        where: { id: reset.id },
+      // Gasta este e qualquer outro link pendente da mesma conta
+      this.prisma.passwordReset.updateMany({
+        where: { userId: reset.userId, usedAt: null },
         data: { usedAt: new Date() },
       }),
       // Invalida todas as sessões existentes (segurança)
@@ -312,6 +315,8 @@ export class AuthService {
     const passwordHash = await argon2.hash(newPassword);
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      // Link de redefinição pendente deixaria quem tinha o e-mail trocar a senha de novo
+      this.prisma.passwordReset.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } }),
       this.prisma.session.deleteMany({
         where: {
           userId,

@@ -262,6 +262,8 @@ export class DmsService {
     if (!dm) throw new NotFoundException();
     if (dm.senderId !== userId) throw new ForbiddenException('Não autorizado');
     if (dm.deleted) throw new ForbiddenException('Mensagem apagada não pode ser editada');
+    // Bloqueado não "manda" conteúdo novo editando mensagens antigas
+    await this.assertCanMessage(userId, dm.receiverId);
     const content = cleanContent(rawContent);
 
     const updated = await this.prisma.directMessage.update({

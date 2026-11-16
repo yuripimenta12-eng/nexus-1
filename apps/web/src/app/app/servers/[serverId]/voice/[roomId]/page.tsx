@@ -33,6 +33,7 @@ import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { SeloQualidade } from '@/components/voice/live-qualidade';
+import { corSegura, capaSegura } from '@/lib/seguro';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -1644,7 +1645,7 @@ export default function VoicePage() {
                         className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[1.2px] mb-1.5 px-1"
                         style={{ color: g.role.color !== '#99aab5' ? g.role.color : '#786e83' }}
                       >
-                        <span className="w-2 h-2 rounded-full" style={{ background: g.role.color }} />
+                        <span className="w-2 h-2 rounded-full" style={{ background: corSegura(g.role.color) }} />
                         {g.role.name} — {g.list.length}
                       </p>
                       {g.list.map(renderRow)}
@@ -2127,9 +2128,9 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
         style={{ background: 'radial-gradient(circle at 50% 38%, rgba(122,44,255,0.25) 0, #14101a 55%, #100c15 100%)' }}
       >
         <div className="absolute inset-0 grid place-content-center text-center px-4">
-          {cur?.thumbnail ? (
+          {capaSegura(cur?.thumbnail) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={cur.thumbnail} alt="" draggable={false}
+            <img src={capaSegura(cur.thumbnail)!} alt="" draggable={false}
                  className={cn('w-[82px] h-[82px] mx-auto rounded-[28px] object-cover select-none shadow-[0_12px_30px_rgba(0,0,0,0.45)]',
                    playing && 'ring-1 ring-[#ff9a4d] ring-offset-4 ring-offset-transparent')} />
           ) : (

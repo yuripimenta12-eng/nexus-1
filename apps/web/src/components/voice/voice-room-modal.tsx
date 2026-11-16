@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Volume2, Lock, Users, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { corSegura } from '@/lib/seguro';
 
 interface Role { id: string; name: string; color: string; isDefault: boolean; }
 export interface VoiceRoomData { id: string; name: string; allowedRoleIds?: string[]; }
@@ -128,7 +129,7 @@ export function VoiceRoomModal({
               roles.map(r => (
                 <label key={r.id} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer hover:bg-white/5">
                   <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="accent-[#7a2cff]" />
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: corSegura(r.color) }} />
                   <span className="text-xs text-white truncate">{r.name}</span>
                 </label>
               ))

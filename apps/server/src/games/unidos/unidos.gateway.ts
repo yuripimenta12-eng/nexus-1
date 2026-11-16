@@ -92,6 +92,21 @@ export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
     return [m[1], m[2]];
   }
 
+  // Mesa nova de DM: o outro precisa existir, sem bloqueio entre os dois, e
+  // cada pessoa abre no máximo 3 (antes dava para criar mesas sem fim com ids inventados)
+  private async podeAbrirMesaDm(uid: string, sala: string) {
+    const par = this.parDm(sala)!;
+    const outro = par[0] === uid ? par[1] : par[0];
+    const [existe, bloqueio] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: outro }, select: { id: true } }),
+      this.prisma.block.findFirst({ where: { OR: [{ blockerId: uid, blockedId: outro }, { blockerId: outro, blockedId: uid }] } }),
+    ]);
+    if (!existe || bloqueio) throw new J.ErroJogo('Não é possível abrir mesa com essa pessoa');
+    let minhas = 0;
+    for (const [chave] of this.porSala) if (chave.startsWith('dm:') && chave.includes(uid)) minhas++;
+    if (minhas >= 3) throw new J.ErroJogo('Você já tem mesas demais abertas');
+  }
+
   // Para onde avisar que existe uma mesa: a sala de voz, ou os dois da DM
   private avisarSala(voiceRoomId: string, dado: unknown) {
     const par = voiceRoomId.startsWith('dm:') ? this.parDm(voiceRoomId) : null;
@@ -209,6 +224,7 @@ export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
         this.enviar(existente);
         return { ok: true, partida: J.visao(existente, uid) };
       }
+      if (sala.startsWith('dm:')) await this.podeAbrirMesaDm(uid, sala);
       const p = J.novaPartida(randomBytes(9).toString('base64url'), sala, await this.perfil(uid));
       this.partidas.set(p.id, p);
       this.porSala.set(sala, p.id);

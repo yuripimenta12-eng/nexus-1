@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
 import { RolesService } from '../roles/roles.service';
@@ -15,6 +15,9 @@ export class ChannelsService {
 
   async create(serverId: string, userId: string, dto: CreateChannelDto) {
     await this.roles.requireAllowed(serverId, userId, 'manage_channels', [MemberRole.OWNER, MemberRole.ADMIN]);
+    if ((await this.prisma.channel.count({ where: { serverId } })) >= 200) {
+      throw new BadRequestException('Limite de 200 canais por servidor');
+    }
 
     return this.prisma.channel.create({
       data: {

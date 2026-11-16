@@ -57,10 +57,13 @@ export class TwoFactorService {
   }
 
   // 2) Confirma com um código do app e liga; devolve os códigos de recuperação (uma vez só)
-  async enable(userId: string, code: string) {
+  async enable(userId: string, code: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.twoFactorSecret) throw new BadRequestException('Comece pela leitura do QR code');
     if (user.twoFactorEnabled) throw new BadRequestException('Já está ligada');
+    if (!(await argon2.verify(user.passwordHash, password).catch(() => false))) {
+      throw new BadRequestException('Senha incorreta');
+    }
     if (!authenticator.check(code.replace(/\s/g, ''), this.decrypt(user.twoFactorSecret))) {
       throw new BadRequestException('Código incorreto. Confira a hora do celular e tente o código atual.');
     }
@@ -87,11 +90,12 @@ export class TwoFactorService {
     }
     const h = this.hashCode(clean);
     if (user.twoFactorRecovery.includes(h)) {
-      await this.prisma.user.update({
-        where: { id: userId },
+      // Condicional: dois logins ao mesmo tempo não gastam o mesmo código duas vezes
+      const { count } = await this.prisma.user.updateMany({
+        where: { id: userId, twoFactorRecovery: { has: h } },
         data: { twoFactorRecovery: user.twoFactorRecovery.filter(x => x !== h) },
       });
-      return true;
+      return count === 1;
     }
     return false;
   }

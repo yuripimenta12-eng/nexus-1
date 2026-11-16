@@ -12,6 +12,17 @@ import { NexusGateway } from '../gateway/nexus.gateway';
 import { RolesService } from '../roles/roles.service';
 import { PUBLIC_USER } from '../common/public-user';
 
+// Assinaturas dos formatos de áudio aceitos (webm, ogg, mp4/m4a, mp3, wav)
+function pareceAudio(b?: Buffer): boolean {
+  if (!b || b.length < 12) return false;
+  const hex = b.subarray(0, 4).toString('hex');
+  return hex === '1a45dfa3' // webm/matroska
+    || b.subarray(0, 4).toString('latin1') === 'OggS'
+    || b.subarray(4, 8).toString('latin1') === 'ftyp' // mp4/m4a
+    || b.subarray(0, 3).toString('latin1') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) // mp3
+    || (b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE');
+}
+
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
@@ -89,6 +100,8 @@ export class UploadController {
       where: { userId },
       data: { avatarUrl: url },
     });
+    // Foto nova aparece na página inicial: o depoimento volta para aprovação
+    await this.prisma.depoimento.updateMany({ where: { userId, aprovado: true }, data: { aprovado: false } }).catch(() => {});
 
     return { avatarUrl: url };
   }
@@ -120,7 +133,9 @@ export class UploadController {
   ) {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
     // Confere acesso + cargo ANTES de gravar o arquivo
-    const isVoice = (file.mimetype || '').startsWith('audio/');
+    // Mensagem de voz só vale se o conteúdo for mesmo áudio: antes bastava
+    // declarar "audio/" para mandar qualquer arquivo sem "Anexar arquivos"
+    const isVoice = (file.mimetype || '').startsWith('audio/') && pareceAudio(file.buffer);
     await this.messagesService.assertCanAttach(channelId, userId, isVoice);
     // Anexar a uma mensagem existente: só na PRÓPRIA mensagem, no mesmo canal
     if (messageId) {

@@ -3,6 +3,7 @@ import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserStatus } from '@prisma/client';
+import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
 
 @Injectable()
 export class UsersService {
@@ -80,7 +81,13 @@ export class UsersService {
           : {}),
       },
     });
+    // Nome novo aparece na página inicial: o depoimento volta para aprovação
+    if (dto.displayName !== undefined) await this.revisarDepoimento(userId);
     return profile;
+  }
+
+  async revisarDepoimento(userId: string) {
+    await this.prisma.depoimento.updateMany({ where: { userId, aprovado: true }, data: { aprovado: false } }).catch(() => {});
   }
 
   async removeBanner(userId: string) {
@@ -112,17 +119,28 @@ export class UsersService {
   }
 
   async getServersForUser(userId: string) {
-    return this.prisma.serverMember.findMany({
+    const memberships = await this.prisma.serverMember.findMany({
       where: { userId, banned: false },
       include: {
+        ...MEMBER_WITH_ROLES_INCLUDE,
         server: {
           include: {
             channels: { orderBy: { position: 'asc' }, take: 1 },
-            voiceRooms: { orderBy: { position: 'asc' } },
+            voiceRooms: { orderBy: { position: 'asc' }, include: { allowedRoles: { select: { id: true } } } },
           },
         },
       },
       orderBy: { joinedAt: 'asc' },
     });
+    // Salas restritas por cargo só aparecem para quem pode entrar (mesma regra do findById)
+    return memberships.map(({ roleAssignments, ...m }) => ({
+      ...m,
+      server: {
+        ...m.server,
+        voiceRooms: m.server.voiceRooms
+          .filter(r => canAccessVoiceRoom(r, { ...m, roleAssignments }, m.server.ownerId))
+          .map(toPublicVoiceRoom),
+      },
+    }));
   }
 }

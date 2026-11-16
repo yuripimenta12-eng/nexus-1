@@ -42,10 +42,16 @@ export class AccountDeletionService {
 
     // Arquivos no storage (apagados depois do banco, em segundo plano)
     const attachments = await this.prisma.attachment.findMany({ where: { uploaderId: userId }, select: { url: true } });
+    // Arquivos mandados por DM (tabela separada, sem uploader): antes ficavam
+    // públicos no bucket depois da exclusão da conta
+    const dmFiles = await this.prisma.directMessageAttachment.findMany({
+      where: { message: { senderId: userId } }, select: { url: true },
+    });
     const keys = [
       keyFromUrl(user.profile?.avatarUrl),
       keyFromUrl(user.profile?.bannerUrl),
       ...attachments.map(a => keyFromUrl(a.url)),
+      ...dmFiles.map(a => keyFromUrl(a.url)),
     ].filter((k): k is string => !!k);
 
     const tag = userId.slice(-8);

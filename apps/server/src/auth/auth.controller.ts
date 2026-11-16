@@ -18,7 +18,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { TwoFactorCodeDto, TwoFactorLoginDto, TwoFactorDisableDto } from './dto/two-factor.dto';
+import { TwoFactorCodeDto, TwoFactorLoginDto, TwoFactorDisableDto, TwoFactorEnableDto } from './dto/two-factor.dto';
 import { TwoFactorService } from './two-factor.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
@@ -70,8 +70,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { ttl: 60000, limit: 6 } })
-  twoFactorEnable(@CurrentUser('id') userId: string, @Body() dto: TwoFactorCodeDto) {
-    return this.twoFactor.enable(userId, dto.code);
+  twoFactorEnable(@CurrentUser('id') userId: string, @Body() dto: TwoFactorEnableDto) {
+    return this.twoFactor.enable(userId, dto.code, dto.password);
   }
 
   @Post('2fa/disable')
@@ -96,11 +96,12 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies['nexus_refresh'];
-    if (refreshToken) {
-      await this.authService.logout(refreshToken);
-    }
-    res.clearCookie('nexus_refresh');
+    // Cookie OU o token que o app guardou (quando o navegador não guarda o
+    // cookie, antes a sessão continuava valendo no servidor por 30 dias)
+    const doCorpo = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined;
+    const tokens = [req.cookies['nexus_refresh'], doCorpo].filter((t): t is string => !!t && t.length < 2000);
+    for (const t of new Set(tokens)) await this.authService.logout(t);
+    res.clearCookie('nexus_refresh', { path: '/api/auth', secure: true, sameSite: 'none' });
   }
 
   @Get('me')

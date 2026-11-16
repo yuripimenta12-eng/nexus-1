@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webpush from 'web-push';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,6 +22,8 @@ const VAPID_KEY = 'vapid';
 // Notificações no celular/computador com o Nexus FECHADO (Web Push).
 // Só envia para quem não está com o Nexus aberto: com o app aberto, o aviso
 // já chega pelo socket (som + notificação da própria página).
+const PUSH_HOSTS = ['fcm.googleapis.com', 'android.googleapis.com', 'updates.push.services.mozilla.com', 'push.services.mozilla.com', 'notify.windows.com', 'push.apple.com', 'web.push.apple.com'];
+
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
@@ -61,11 +63,23 @@ export class PushService {
   }
 
   async subscribe(userId: string, sub: SubscriptionInput) {
+    // Só serviços de push conhecidos (Google, Mozilla, Microsoft, Apple): antes
+    // qualquer https servia e o servidor fazia POSTs para onde a pessoa quisesse
+    let host = '';
+    try { host = new URL(sub.endpoint).hostname; } catch { /* inválido */ }
+    if (!PUSH_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
+      throw new BadRequestException('Serviço de notificação não suportado');
+    }
     await this.prisma.pushSubscription.upsert({
       where: { endpoint: sub.endpoint },
       create: { userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
       update: { userId, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
     });
+    // No máximo 10 aparelhos por pessoa: apaga os mais antigos
+    const antigas = await this.prisma.pushSubscription.findMany({
+      where: { userId }, orderBy: { createdAt: 'desc' }, skip: 10, select: { id: true },
+    });
+    if (antigas.length) await this.prisma.pushSubscription.deleteMany({ where: { id: { in: antigas.map(a => a.id) } } });
   }
 
   async unsubscribe(userId: string, endpoint: string) {
@@ -100,6 +114,7 @@ export class PushService {
       vapidDetails: { subject: appUrl, publicKey: keys.publicKey, privateKey: keys.privateKey },
       TTL: 60 * 60 * 12, // tenta entregar por até 12h se o aparelho estiver sem internet
       urgency: 'high' as const,
+      timeout: 10_000, // serviço de push lento não segura conexões abertas
     };
     const body = JSON.stringify({
       ...payload,
@@ -107,8 +122,9 @@ export class PushService {
       icon: payload.icon || '/icon-192.png',
     });
 
-    await Promise.all(
-      subs.map(async s => {
+    // Em lotes de 20, para não travar o servidor com muitas criptografias de uma vez
+    for (let i = 0; i < subs.length; i += 20) await Promise.all(
+      subs.slice(i, i + 20).map(async s => {
         try {
           await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

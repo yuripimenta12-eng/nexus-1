@@ -106,7 +106,8 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         try {
           await detachPushFromAccount();
-          await api.post('/auth/logout');
+          // manda o refresh guardado: o servidor revoga a sessão mesmo sem o cookie
+          await api.post('/auth/logout', { refreshToken: localStorage.getItem('nexus_refresh_token') || undefined });
         } finally {
           localStorage.removeItem('nexus_access_token');
           localStorage.removeItem('nexus_refresh_token');

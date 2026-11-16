@@ -57,9 +57,11 @@ async function criarUsuario(sufixo) {
     r = await call('POST', '/auth/2fa/setup', null, tok);
     check('setup devolve QR e chave', r.status === 200 && r.data?.qrDataUrl?.startsWith('data:image/png') && !!r.data?.manualKey);
     const secret = (r.data?.manualKey || '').replace(/\s/g, '');
-    r = await call('POST', '/auth/2fa/enable', { code: '000000' }, tok);
+    r = await call('POST', '/auth/2fa/enable', { code: authenticator.generate(secret), password: 'senha-errada' }, tok);
+    check('ligar sem a senha certa falha', r.status === 400);
+    r = await call('POST', '/auth/2fa/enable', { code: '000000', password: SENHA }, tok);
     check('código errado não liga', r.status === 400);
-    r = await call('POST', '/auth/2fa/enable', { code: authenticator.generate(secret) }, tok);
+    r = await call('POST', '/auth/2fa/enable', { code: authenticator.generate(secret), password: SENHA }, tok);
     check('código certo liga e devolve 8 códigos', r.status === 200 && r.data?.recoveryCodes?.length === 8);
     const recovery = r.data?.recoveryCodes || [];
     const dbU = await prisma.user.findUnique({ where: { id: u1.id } });

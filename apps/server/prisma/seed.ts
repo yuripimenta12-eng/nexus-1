@@ -6,9 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed...');
 
-  // Em produção nunca cria contas com as senhas de exemplo deste arquivo (o repositório é público)
-  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
-    throw new Error('Seed em produção exige ADMIN_PASSWORD (e não cria a conta demo).');
+  // Só roda em desenvolvimento explícito: as senhas de exemplo estão no
+  // repositório público e não podem virar contas em nenhum banco de verdade
+  if (process.env.NODE_ENV !== 'development' || process.env.SEED_CONFIRMO_DEV !== 'sim') {
+    throw new Error('Seed só roda com NODE_ENV=development e SEED_CONFIRMO_DEV=sim (banco local de testes).');
   }
 
   // Admin

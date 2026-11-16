@@ -107,6 +107,26 @@ export class RolesService {
     });
   }
 
+  // Hierarquia: dono e ADMIN antigo mexem em tudo. Quem tem só "Gerenciar
+  // cargos" mexe apenas em cargos ABAIXO do seu mais alto e só concede
+  // permissões que ele mesmo tem (antes dava "administrador" a si mesmo).
+  private async roleActor(serverId: string, userId: string) {
+    await this.requirePermission(serverId, userId, 'manage_roles');
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: { server: { select: { ownerId: true } }, roleAssignments: { include: { role: true } } },
+    });
+    const privileged = !!member && (member.server.ownerId === userId || member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN);
+    const top = Math.max(-1, ...(member?.roleAssignments.map(a => a.role.position) ?? []));
+    const { permissions } = await this.effectivePermissions(serverId, userId);
+    return { privileged, top, perms: new Set<string>(permissions) };
+  }
+
+  private assertBelow(actor: { privileged: boolean; top: number }, role: { position: number; isDefault: boolean }) {
+    if (actor.privileged || role.isDefault) return;
+    if (role.position >= actor.top) throw new ForbiddenException('Você só pode mexer em cargos abaixo do seu cargo mais alto');
+  }
+
   // ── CRUD ──────────────────────────────────────────────────────
   async list(serverId: string, userId: string) {
     await this.requireMember(serverId, userId);
@@ -119,16 +139,21 @@ export class RolesService {
   }
 
   async create(serverId: string, userId: string, name?: string) {
-    await this.requirePermission(serverId, userId, 'manage_roles');
+    const actor = await this.roleActor(serverId, userId);
+    if ((await this.prisma.role.count({ where: { serverId } })) >= 100) {
+      throw new BadRequestException('Limite de 100 cargos por servidor');
+    }
     const top = await this.prisma.role.findFirst({
       where: { serverId, isDefault: false },
       orderBy: { position: 'desc' },
     });
+    const highest = (top?.position ?? 0) + 1;
     return this.prisma.role.create({
       data: {
         serverId,
-        name: (name || 'novo cargo').slice(0, 64),
-        position: (top?.position ?? 0) + 1,
+        name: (typeof name === 'string' && name ? name : 'novo cargo').slice(0, 64),
+        // quem não é dono/admin cria o cargo logo abaixo do seu
+        position: actor.privileged ? highest : Math.max(0, Math.min(highest, actor.top - 1)),
       },
     });
   }
@@ -139,33 +164,60 @@ export class RolesService {
     userId: string,
     dto: { name?: string; color?: string; hoist?: boolean; mentionable?: boolean; permissions?: string[]; position?: number },
   ) {
-    await this.requirePermission(serverId, userId, 'manage_roles');
+    const actor = await this.roleActor(serverId, userId);
     const role = await this.getRole(serverId, roleId);
+    this.assertBelow(actor, role);
 
     let permissions: string | undefined;
-    if (dto.permissions) {
+    if (dto.permissions !== undefined) {
+      if (!Array.isArray(dto.permissions)) throw new BadRequestException('Permissões inválidas');
       const valid = new Set<string>(ALL_PERMISSIONS);
-      permissions = JSON.stringify(dto.permissions.filter(p => valid.has(p)));
+      const pedidas = dto.permissions.filter(p => typeof p === 'string' && valid.has(p));
+      if (!actor.privileged) {
+        const atuais = new Set<string>(JSON.parse(role.permissions));
+        // Pode manter o que já existe, mas só ACRESCENTA o que ele mesmo tem
+        const semPoder = pedidas.filter(p => !atuais.has(p) && (!actor.perms.has(p) || p === 'administrator'));
+        if (semPoder.length) throw new ForbiddenException('Você não pode conceder permissões que não tem');
+      }
+      permissions = JSON.stringify(pedidas);
     }
+    if (dto.position !== undefined && !(Number.isInteger(dto.position) && dto.position >= 0 && dto.position < 10000)) {
+      throw new BadRequestException('Posição inválida');
+    }
+    if (!actor.privileged && dto.position !== undefined && dto.position >= actor.top) {
+      throw new ForbiddenException('Você não pode subir um cargo acima do seu');
+    }
+    const color = typeof dto.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(dto.color) ? dto.color : undefined;
+    if (dto.color !== undefined && dto.color !== null && !color) throw new BadRequestException('Cor inválida (use #RRGGBB)');
 
     return this.prisma.role.update({
       where: { id: role.id },
       data: {
         // @everyone não pode ser renomeado nem reposicionado
-        name: role.isDefault ? undefined : dto.name?.slice(0, 64),
+        name: role.isDefault || typeof dto.name !== 'string' ? undefined : dto.name.slice(0, 64),
         position: role.isDefault ? undefined : dto.position,
-        color: dto.color?.slice(0, 16),
-        hoist: dto.hoist,
-        mentionable: dto.mentionable,
+        color,
+        hoist: typeof dto.hoist === 'boolean' ? dto.hoist : undefined,
+        mentionable: typeof dto.mentionable === 'boolean' ? dto.mentionable : undefined,
         permissions,
       },
     });
   }
 
   async delete(serverId: string, roleId: string, userId: string) {
-    await this.requirePermission(serverId, userId, 'manage_roles');
+    const actor = await this.roleActor(serverId, userId);
     const role = await this.getRole(serverId, roleId);
     if (role.isDefault) throw new BadRequestException('O cargo @everyone não pode ser excluído');
+    this.assertBelow(actor, role);
+    // Sala restrita só a este cargo ficaria com a lista vazia = aberta a todos
+    const salas = await this.prisma.voiceRoom.findMany({
+      where: { serverId, allowedRoles: { some: { id: role.id } } },
+      select: { name: true, _count: { select: { allowedRoles: true } } },
+    });
+    const abririam = salas.filter(x => x._count.allowedRoles === 1).map(x => x.name);
+    if (abririam.length) {
+      throw new BadRequestException(`Este cargo é o único que libera a sala de voz ${abririam.join(', ')}. Mude a sala antes de excluir o cargo.`);
+    }
     await this.prisma.role.delete({ where: { id: role.id } });
   }
 
@@ -180,9 +232,10 @@ export class RolesService {
   }
 
   async assign(serverId: string, roleId: string, targetUserId: string, userId: string) {
-    await this.requirePermission(serverId, userId, 'manage_roles');
+    const actor = await this.roleActor(serverId, userId);
     const role = await this.getRole(serverId, roleId);
     if (role.isDefault) throw new BadRequestException('@everyone já vale para todos');
+    this.assertBelow(actor, role);
     const member = await this.prisma.serverMember.findUnique({
       where: { serverId_userId: { serverId, userId: targetUserId } },
     });
@@ -195,8 +248,9 @@ export class RolesService {
   }
 
   async unassign(serverId: string, roleId: string, targetUserId: string, userId: string) {
-    await this.requirePermission(serverId, userId, 'manage_roles');
+    const actor = await this.roleActor(serverId, userId);
     const role = await this.getRole(serverId, roleId);
+    this.assertBelow(actor, role);
     const member = await this.prisma.serverMember.findUnique({
       where: { serverId_userId: { serverId, userId: targetUserId } },
     });

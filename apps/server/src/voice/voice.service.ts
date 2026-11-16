@@ -154,6 +154,11 @@ export class VoiceService {
   // ── Cria salas de voz em um servidor ─────────────────────────
   async createVoiceRoom(serverId: string, userId: string, name: string, allowedRoleIds: string[] = []) {
     await this.serversService.requireRole(serverId, userId, ['OWNER', 'ADMIN'] as any);
+    // Cada sala vira uma chamada ao LiveKit na lista de presença: sem teto, um
+    // servidor com milhares de salas multiplicava a carga de cada abertura
+    if ((await this.prisma.voiceRoom.count({ where: { serverId } })) >= 50) {
+      throw new BadRequestException('Limite de 50 salas de voz por servidor');
+    }
 
     const livekitRoom = `${serverId}-${Date.now()}`;
     const roleIds = await this.validRoleIds(serverId, allowedRoleIds);
@@ -200,8 +205,9 @@ export class VoiceService {
         await Promise.all(participants.map(async (p) => {
           if (p.identity === 'dj-nexus') return;
           const m = await this.getMemberWithRoles(room.serverId, p.identity);
-          if (!m || !this.canAccessRoom(updated, m, server?.ownerId ?? '')) {
+          if (!m || m.banned || !this.canAccessRoom(updated, m, server?.ownerId ?? '')) {
             await this.roomService.removeParticipant(updated.livekitRoom, p.identity).catch(() => {});
+            this.gateway.leaveVoiceRoom(p.identity, voiceRoomId);
           }
         }));
       } catch { /* sala vazia ou LiveKit indisponível */ }
@@ -365,6 +371,17 @@ export class VoiceService {
       livekitUrl: this.config.get<string>('LIVEKIT_URL', 'ws://localhost:7880'),
       roomName,
     };
+  }
+
+  // Expulso, banido ou silenciado: derruba de todas as salas de voz do
+  // servidor no LiveKit (o token antigo foi emitido com as permissões de antes)
+  async disconnectFromServer(serverId: string, userId: string) {
+    const rooms = await this.prisma.voiceRoom.findMany({ where: { serverId }, select: { livekitRoom: true } });
+    await Promise.all(rooms.map(r => this.roomService.removeParticipant(r.livekitRoom, userId).catch(() => {})));
+    await this.prisma.callParticipant.updateMany({
+      where: { userId, leftAt: null, callSession: { voiceRoom: { serverId } } },
+      data: { leftAt: new Date() },
+    }).catch(() => {});
   }
 
   // ── Kick de participante (admin) ──────────────────────────────

@@ -27,7 +27,9 @@ self.addEventListener('push', (event) => {
 // Tocou na notificação: reaproveita uma janela do Nexus aberta ou abre uma nova
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || '/app', self.location.origin).href;
+  // Só abre páginas do próprio Nexus (endereço de outro site vira /app)
+  const alvo = new URL((event.notification.data && event.notification.data.url) || '/app', self.location.origin);
+  const url = alvo.origin === self.location.origin ? alvo.href : new URL('/app', self.location.origin).href;
   event.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const w of wins) {

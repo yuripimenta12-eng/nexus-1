@@ -40,7 +40,8 @@ export class MessagesService {
   ) {}
 
   async getMessages(channelId: string, userId: string, cursor?: string, limit?: number) {
-    const take = Number.isFinite(limit) && (limit as number) > 0 ? Math.floor(limit as number) : 50;
+    // Teto de 100 (igual às DMs): sem ele, ?limit=1e9 carregava o canal inteiro na memória
+    const take = Number.isFinite(limit) && (limit as number) > 0 ? Math.min(Math.floor(limit as number), 100) : 50;
     const channel = await this.findChannelAndCheckAccess(channelId, userId);
 
     const messages = await this.prisma.message.findMany({
@@ -168,6 +169,9 @@ export class MessagesService {
   async update(messageId: string, userId: string, content: string) {
     const message = await this.findMessageAndCheckOwnership(messageId, userId);
     if (message.deleted) throw new ForbiddenException('Mensagem apagada não pode ser editada');
+    // Mesmas regras de enviar: banido/expulso ou sem "enviar mensagens" não reescreve o que mandou
+    const channel = await this.findChannelAndCheckAccess(message.channelId, userId);
+    await this.roles.requirePermission(channel.serverId, userId, 'send_messages', 'Seu cargo não pode enviar mensagens neste canal');
 
     return this.prisma.message.update({
       where: { id: messageId },
@@ -206,7 +210,15 @@ export class MessagesService {
   async addReaction(messageId: string, userId: string, emoji: string) {
     const msg = await this.messageInMyServer(messageId, userId);
     await this.roles.requirePermission(msg.channel.serverId, userId, 'add_reactions', 'Seu cargo não pode reagir neste servidor');
-    if (typeof emoji !== 'string' || !emoji || emoji.length > 64) throw new BadRequestException('Reação inválida');
+    if (typeof emoji !== 'string' || !emoji || emoji.length > 16) throw new BadRequestException('Reação inválida');
+    // Limite de reações diferentes: sem ele uma pessoa enchia a mensagem de
+    // milhares de reações e cada abertura do canal ficava gigante
+    const [minhas, distintas] = await Promise.all([
+      this.prisma.reaction.count({ where: { messageId, userId } }),
+      this.prisma.reaction.groupBy({ by: ['emoji'], where: { messageId } }).then(g => g.length),
+    ]);
+    const jaTem = await this.prisma.reaction.findUnique({ where: { messageId_userId_emoji: { messageId, userId, emoji } } });
+    if (!jaTem && (minhas >= 20 || distintas >= 50)) throw new BadRequestException('Limite de reações nesta mensagem');
     // Upsert: não duplica se já reagiu com o mesmo emoji
     await this.prisma.reaction.upsert({
       where: { messageId_userId_emoji: { messageId, userId, emoji } },
@@ -217,6 +229,7 @@ export class MessagesService {
   }
 
   async removeReaction(messageId: string, userId: string, emoji: string) {
+    if (typeof emoji !== 'string' || !emoji) throw new BadRequestException('Reação inválida');
     const msg = await this.messageInMyServer(messageId, userId);
     await this.prisma.reaction.deleteMany({ where: { messageId, userId, emoji } });
     return { channelId: msg.channelId };

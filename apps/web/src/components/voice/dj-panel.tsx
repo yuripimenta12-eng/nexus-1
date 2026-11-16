@@ -10,6 +10,7 @@ import { useVoiceStore, DJ_IDENTITY, MUSIC_TRACK_NAME, type DjTrack } from '@/st
 import { isDesktopApp } from '@/lib/desktop';
 import { cn } from '@/lib/utils';
 import { registrarEventoPlacar } from '@/components/voice/placar';
+import { capaSegura } from '@/lib/seguro';
 
 function fmt(sec: number) {
   if (!sec || sec < 0) return '0:00';
@@ -148,9 +149,9 @@ export function DjPanel({ onClose, notify }: { onClose: () => void; notify: (msg
       {cur && (
         <div className="mx-3 mb-3 rounded-xl border border-[#5a2e8a]/60 bg-[#1d1428] p-3">
           <div className="flex gap-3">
-            {cur.thumbnail ? (
+            {capaSegura(cur.thumbnail) ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={cur.thumbnail} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+              <img src={capaSegura(cur.thumbnail)!} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
             ) : (
               <div className="w-14 h-14 rounded-lg grid place-items-center bg-[#2a1b3d] text-[#c59bff] flex-shrink-0">
                 <Music className="w-6 h-6" />

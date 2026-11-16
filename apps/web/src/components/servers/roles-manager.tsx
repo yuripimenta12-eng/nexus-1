@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import api from '@/lib/api';
+import { corSegura } from '@/lib/seguro';
 
 /* ── Permissões (espelho do backend) ─────────────────────────── */
 interface PermDef { key: string; label: string; desc: string; }
@@ -216,7 +217,7 @@ export function RolesManager({ serverId, notify }: { serverId: string; notify: (
             onClick={() => setEditing(r)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors text-left"
           >
-            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: r.color }} />
+            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: corSegura(r.color) }} />
             <b className="text-white text-sm truncate flex-1" style={{ color: r.color }}>{r.name}</b>
             <span className="flex items-center gap-1.5 text-[#92879f] text-xs">
               {r._count?.assignments ?? 0} <Users className="w-3.5 h-3.5" />

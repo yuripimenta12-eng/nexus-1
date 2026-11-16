@@ -110,9 +110,14 @@ function setupUpdater() {
   setInterval(check, 4 * 60 * 60 * 1000);
 }
 
+// Só https: com http, um link "http://nexuslink.art" numa mensagem carregava,
+// na janela com a ponte do app, uma página que alguém na mesma rede podia trocar
 const isAllowed = (url) => {
-  try { return ALLOWED_HOSTS.has(new URL(url).hostname); } catch { return false; }
+  try { const u = new URL(url); return u.protocol === 'https:' && !u.port && ALLOWED_HOSTS.has(u.hostname); } catch { return false; }
 };
+const OFFLINE_URL = require('url').pathToFileURL(path.join(__dirname, 'offline.html')).href;
+// Pedidos da ponte só valem vindos da página do Nexus (janela principal, https)
+const fromNexus = (e) => !!win && e.sender === win.webContents && isAllowed(e.senderFrame?.url || '');
 
 function iconPath(name) {
   return path.join(__dirname, 'assets', name);
@@ -165,8 +170,12 @@ function createWindow() {
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // Redirecionamento no meio do caminho passa pela mesma regra
+  win.webContents.on('will-redirect', (e, url, _inPlace, isMainFrame) => {
+    if (isMainFrame && !isAllowed(url)) e.preventDefault();
+  });
   win.webContents.on('will-navigate', (e, url) => {
-    if (url.startsWith('file:') || isAllowed(url)) return;
+    if (url.split('?')[0] === OFFLINE_URL || isAllowed(url)) return;
     e.preventDefault();
     if (/^https?:/i.test(url)) shell.openExternal(url);
   });
@@ -393,7 +402,8 @@ function openMusicWindow() {
 }
 
 // O site pede "música": abre/mostra a janela e marca que a PRÓXIMA captura é dela
-ipcMain.handle('music:arm', () => {
+ipcMain.handle('music:arm', (e) => {
+  if (!fromNexus(e)) return false;
   openMusicWindow();
   musicArmedUntil = Date.now() + 15000;
   return true;
@@ -401,7 +411,8 @@ ipcMain.handle('music:arm', () => {
 
 // Atalhos da chamada (silenciar/ensurdecer) valendo com o jogo em primeiro plano.
 // O site registra só durante a chamada e manda null ao sair — a tecla volta ao normal.
-ipcMain.handle('hotkeys:set', (_e, map) => {
+ipcMain.handle('hotkeys:set', (e, map) => {
+  if (!fromNexus(e)) return { mute: false, deafen: false };
   globalShortcut.unregisterAll();
   const ok = { mute: false, deafen: false };
   for (const action of ['mute', 'deafen']) {
@@ -418,7 +429,7 @@ ipcMain.handle('hotkeys:set', (_e, map) => {
 
 // Atualização: o site pergunta se já tem versão baixada e pede para instalar
 ipcMain.handle('update:get', () => updateReady);
-ipcMain.on('update:install', installUpdate);
+ipcMain.on('update:install', (e) => { if (fromNexus(e)) installUpdate(); });
 
 // O site pergunta o jogo atual (ao abrir/recarregar a página)
 ipcMain.handle('activity:get', () => (prefs.mostrarJogo ? gameWatcher?.current() ?? null : null));

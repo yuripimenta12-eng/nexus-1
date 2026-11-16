@@ -23,7 +23,15 @@ export class ServersService {
     private rolesService: RolesService,
   ) {}
 
+  // Teto de servidores por dono (cada um cria canais, sala de voz e cargo)
+  private async limiteDeServidores(userId: string) {
+    if ((await this.prisma.server.count({ where: { ownerId: userId } })) >= 50) {
+      throw new BadRequestException('Limite de 50 servidores criados por conta');
+    }
+  }
+
   async create(userId: string, dto: CreateServerDto) {
+    await this.limiteDeServidores(userId);
     const server = await this.prisma.server.create({
       data: {
         name: dto.name,
@@ -61,7 +69,7 @@ export class ServersService {
       where: { serverId_userId: { serverId, userId } },
       include: MEMBER_WITH_ROLES_INCLUDE,
     });
-    if (!member) throw new ForbiddenException('Você não é membro deste servidor');
+    if (!member || member.banned) throw new ForbiddenException('Você não é membro deste servidor');
 
     const server = await this.prisma.server.findUnique({
       where: { id: serverId },
@@ -162,6 +170,8 @@ export class ServersService {
     if (member.role === MemberRole.OWNER) {
       throw new ForbiddenException('O dono não pode sair. Transfira a propriedade primeiro.');
     }
+    // Banido não "sai": apagar a linha apagaria o banimento e o convite deixaria voltar
+    if (member.banned) throw new ForbiddenException('Você está banido deste servidor');
 
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId } },
@@ -169,7 +179,8 @@ export class ServersService {
   }
 
   async getMembers(serverId: string, userId: string) {
-    await this.checkMembership(serverId, userId);
+    const me = await this.checkMembership(serverId, userId);
+    if (!me || me.banned) throw new ForbiddenException('Sem acesso ao servidor');
 
     const members = await this.prisma.serverMember.findMany({
       where: { serverId, banned: false },
@@ -276,7 +287,12 @@ export class ServersService {
   async useTemplate(code: string, userId: string, name?: string) {
     const tpl = await this.prisma.serverTemplate.findUnique({ where: { code } });
     if (!tpl) throw new NotFoundException('Modelo não encontrado');
+    await this.limiteDeServidores(userId);
     const snap = JSON.parse(tpl.snapshot);
+    // Modelo copia no máximo o que um servidor pode ter
+    snap.channels = (snap.channels || []).slice(0, 200);
+    snap.voiceRooms = (snap.voiceRooms || []).slice(0, 50);
+    snap.roles = (snap.roles || []).slice(0, 100);
 
     const server = await this.prisma.server.create({
       data: {
@@ -327,7 +343,7 @@ export class ServersService {
 
   async requireRole(serverId: string, userId: string, allowedRoles: MemberRole[]) {
     const member = await this.checkMembership(serverId, userId);
-    if (!member || !allowedRoles.includes(member.role)) {
+    if (!member || member.banned || !allowedRoles.includes(member.role)) {
       throw new ForbiddenException('Permissão insuficiente');
     }
     return member;

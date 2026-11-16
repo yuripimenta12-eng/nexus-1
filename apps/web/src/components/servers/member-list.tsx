@@ -11,6 +11,7 @@ import { EmblemaBeta, SeloBeta } from '@/components/ui/emblema-beta';
 import { FaixaConquistas } from '@/components/voice/placar';
 import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
+import { corSegura } from '@/lib/seguro';
 
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
 type Status = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
@@ -271,7 +272,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
     member.role !== 'OWNER' &&
     ['OWNER', 'ADMIN', 'MODERATOR'].includes(myRole) &&
     ROLE_RANK[member.role] > ROLE_RANK[myRole];
-  const topColor = nameColorOf(member) || '#7a2cff';
+  const topColor = corSegura(nameColorOf(member), '#7a2cff');
 
   // Perfil público completo (banner, bio, frase, desde quando está no Nexus)
   const [pub, setPub] = useState<{
@@ -283,7 +284,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
   }, [member.userId]);
 
   const bannerUrl = pub?.profile?.bannerUrl;
-  const [bc1, bc2] = (pub?.profile?.bannerColor || '').split(',');
+  const [bc1, bc2] = (pub?.profile?.bannerColor || '').split(',').map(c => corSegura(c, ''));
   const bannerBg = bannerUrl
     ? `center / cover no-repeat url(${bannerUrl})`
     : bc1 && bc2
@@ -369,7 +370,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
                 <span key={r.id}
                   className="flex items-center gap-1.5 text-[11.5px] font-bold rounded-full px-2.5 py-[3px] border"
                   style={{ color: r.color, background: `${r.color}1f`, borderColor: `${r.color}59` }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: r.color }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: corSegura(r.color) }} />
                   {r.name}
                 </span>
               ))}

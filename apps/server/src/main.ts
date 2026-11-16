@@ -12,14 +12,13 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  // Confia no primeiro proxy (Railway/Vercel edge). Sem isto, o Express lê o
-  // IP do proxy interno em vez do IP real do cliente — o rate limit e os
-  // logs por IP não funcionam. '1' confia só no 1º hop (não em X-Forwarded-For
-  // arbitrário do cliente), evitando spoofing.
-  app.set('trust proxy', 1);
+  // Só confia no X-Forwarded-For quando quem conecta é o proxy local (Caddy
+  // no mesmo host). Com '1', um cliente que chegasse direto na porta podia
+  // inventar o IP e escapar do limite de tentativas de login.
 
   const configService = app.get(ConfigService);
   const appUrl = configService.get<string>('APP_URL', 'http://localhost:3000');
+  app.set('trust proxy', configService.get<string>('TRUST_PROXY') || 'loopback');
 
   // Segurança
   app.use(helmet({
@@ -28,10 +27,24 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS — origens permitidas via variável de ambiente CORS_ORIGIN (csv) ou APP_URL
+  // localhost só fora de produção: em produção qualquer página em
+  // http://localhost:3000 do navegador da vítima podia ler os tokens do refresh
   const rawOrigins = configService.get<string>('CORS_ORIGIN', appUrl);
+  const isProd = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = Array.from(
-    new Set([...rawOrigins.split(',').map(o => o.trim()), 'http://localhost:3000']),
+    new Set([...rawOrigins.split(',').map(o => o.trim()), ...(isProd ? [] : ['http://localhost:3000'])]),
   ).filter(Boolean);
+
+  // Rotas que mexem no cookie de sessão só aceitam o próprio site: um site
+  // malicioso não consegue logar a vítima na conta do atacante (CSRF de login)
+  const rotasDeSessao = /^\/api\/auth\/(login|login\/2fa|register|refresh|logout)\/?$/;
+  app.use((req: any, res: any, next: any) => {
+    const origin = req.headers.origin;
+    if (req.method === 'POST' && origin && rotasDeSessao.test(req.path) && !allowedOrigins.includes(origin)) {
+      return res.status(403).json({ statusCode: 403, message: 'Origem não permitida' });
+    }
+    next();
+  });
 
   app.enableCors({
     origin: allowedOrigins,
@@ -53,7 +66,7 @@ async function bootstrap() {
 
   // Swagger — só fora de produção. Em produção, expor /api/docs revela
   // toda a superfície da API (rotas, DTOs) para qualquer visitante.
-  if (configService.get<string>('NODE_ENV') !== 'production') {
+  if (configService.get<string>('NODE_ENV') === 'development') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Nexus API')
       .setDescription('API da plataforma de comunicação Nexus')
@@ -65,7 +78,7 @@ async function bootstrap() {
   }
 
   const port = configService.get<number>('PORT', 4000);
-  await app.listen(port);
+  await app.listen(port, configService.get<string>('HOST') || '0.0.0.0');
   console.log(`🚀 Nexus Server rodando em http://localhost:${port}/api`);
   console.log(`📚 Docs: http://localhost:${port}/api/docs`);
 }

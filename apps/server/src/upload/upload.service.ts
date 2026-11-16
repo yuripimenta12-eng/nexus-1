@@ -7,6 +7,15 @@ import type SharpFn from 'sharp';
 const sharp: typeof SharpFn = require('sharp');
 import { v4 as uuidv4 } from 'uuid';
 
+const EXT_POR_TIPO: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+  'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/wav': 'wav',
+  'application/pdf': 'pdf', 'text/plain': 'txt', 'application/zip': 'zip',
+  'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+};
+
 @Injectable()
 export class UploadService {
   private s3: AWS.S3;
@@ -55,14 +64,17 @@ export class UploadService {
     this.validateFile(file, folder);
 
     // Extensão e nome vêm do usuário: só letras/números (nada de "../" ou aspas no cabeçalho)
-    const ext = ((file.originalname || '').split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+    // Extensão vem do tipo já validado (não do nome): nada de ".html"/".exe" no bucket
+    const ext = EXT_POR_TIPO[file.mimetype] || 'bin';
     const safeName = (file.originalname || 'arquivo').replace(/[^\w.\- ()À-ÿ]/g, '_').slice(0, 120);
     const key = `${folder}/${uuidv4()}.${ext}`;
     let buffer = file.buffer;
 
     // Otimiza imagens com sharp
     if (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') {
-      buffer = await sharp(file.buffer)
+      // Teto de pixels para imagens pequenas: um PNG de poucos KB que declara
+      // 16000x16000 ocupava os workers que também fazem o login
+      buffer = await sharp(file.buffer, { limitInputPixels: 40_000_000 })
         .resize(
           folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 1920 : 1920,
           folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 480 : 1080,

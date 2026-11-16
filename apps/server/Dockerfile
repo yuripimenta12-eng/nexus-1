@@ -18,6 +18,11 @@ RUN npx prisma generate && npm run build && echo "=== BUILD OK ===" && ls -la /a
 
 EXPOSE 3001
 
+# Produção por padrão (Swagger e seed desligados) e sem rodar como root:
+# se algo der errado no app, o processo não tem poder de root no container
+ENV NODE_ENV=production
+USER node
+
 # Boot resiliente ao cold start do banco (Neon Free suspende o compute após
 # inatividade; a 1ª conexão precisa "acordar" o banco e pode estourar o
 # timeout de uma tentativa única, derrubando o boot). Tentamos a migração em

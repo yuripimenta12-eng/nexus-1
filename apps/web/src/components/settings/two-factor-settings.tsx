@@ -36,9 +36,11 @@ export function TwoFactorSettings() {
     e.preventDefault();
     setError('');
     if (code.replace(/\D/g, '').length !== 6) return setError('Digite os 6 números que aparecem no app');
+    if (!password) return setError('Digite sua senha para confirmar');
     setBusy(true);
     try {
-      const { data } = await api.post('/auth/2fa/enable', { code: code.replace(/\D/g, '') });
+      const { data } = await api.post('/auth/2fa/enable', { code: code.replace(/\D/g, ''), password });
+      setPassword('');
       setCodes(data.recoveryCodes || []); setStep('codes');
       refreshUser().catch(() => {});
     } catch (e) { fail(e, 'Código incorreto'); } finally { setBusy(false); }
@@ -109,6 +111,7 @@ export function TwoFactorSettings() {
           </div>
           <input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
             autoComplete="one-time-code" placeholder="000000" className={`${input} text-center tracking-[0.4em] text-lg font-bold`} />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Sua senha (para confirmar)" autoComplete="current-password" className={input} />
           {error && <p className="text-destructive text-xs">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setStep('idle')} className="px-4 py-2 rounded-lg bg-surface-raised text-muted hover:text-white text-sm">Cancelar</button>

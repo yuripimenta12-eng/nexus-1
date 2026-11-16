@@ -31,16 +31,28 @@ const messageRateMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_MESSAGES_PER_WINDOW = 20;
 const RATE_WINDOW_MS = 5000;
 
-function checkRateLimit(socketId: string): boolean {
+function checkRateLimit(key: string): boolean {
   const now = Date.now();
-  const entry = messageRateMap.get(socketId);
+  const entry = messageRateMap.get(key);
   if (!entry || now > entry.resetAt) {
-    messageRateMap.set(socketId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    messageRateMap.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
     return true;
   }
   if (entry.count >= MAX_MESSAGES_PER_WINDOW) return false;
   entry.count++;
   return true;
+}
+
+const eventBudget = new Map<string, { count: number; resetAt: number }>();
+function checkEventBudget(userId: string): boolean {
+  const now = Date.now();
+  const e = eventBudget.get(userId);
+  if (!e || now > e.resetAt) {
+    if (eventBudget.size > 50_000) eventBudget.clear();
+    eventBudget.set(userId, { count: 1, resetAt: now + 10_000 });
+    return true;
+  }
+  return ++e.count <= 120; // 120 eventos a cada 10 s
 }
 
 @UseFilters(new WsHttpExceptionFilter())
@@ -52,6 +64,7 @@ function checkRateLimit(socketId: string): boolean {
     credentials: true,
   },
   transports: ['websocket', 'polling'],
+  maxHttpBufferSize: 256 * 1024, // mensagens são texto curto; o padrão de 1 MB só servia para inundar
 })
 export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -112,6 +125,24 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     setInterval(() => {
       this.renewPresence().catch(err => this.logger.warn(`Falha ao renovar presença: ${err.message}`));
     }, 5 * 60 * 1000).unref();
+
+    // O token só é conferido ao conectar: a cada minuto derruba quem foi
+    // suspenso, excluiu a conta ou perdeu todas as sessões (logout/reset de senha)
+    setInterval(() => {
+      this.revalidarConectados().catch(err => this.logger.warn(`Falha ao revalidar sockets: ${err.message}`));
+    }, 60 * 1000).unref();
+  }
+
+  private async revalidarConectados() {
+    const ids = new Set<string>();
+    for (const s of this.server.sockets.sockets.values()) if (s.data?.userId) ids.add(s.data.userId);
+    if (!ids.size) return;
+    const validos = await this.prisma.user.findMany({
+      where: { id: { in: [...ids] }, isSuspended: false, sessions: { some: { expiresAt: { gt: new Date() } } } },
+      select: { id: true },
+    });
+    const ok = new Set(validos.map(u => u.id));
+    for (const id of ids) if (!ok.has(id)) this.disconnectUser(id);
   }
 
   private async renewPresence() {
@@ -153,6 +184,10 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
       });
 
+      // Mesma regra do REST (JwtStrategy): conta suspensa ou excluída não conecta
+      const dono = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { isSuspended: true, isVerified: true } });
+      if (!dono || dono.isSuspended || !dono.isVerified) throw new Error('Conta suspensa, inexistente ou sem e-mail confirmado');
+
       client.data.userId = payload.sub;
       client.data.email = payload.email;
 
@@ -160,6 +195,13 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       await this.redis.setUserOnline(payload.sub, client.id);
       // Sala pessoal: DMs, chamadas e avisos chegam a TODOS os aparelhos abertos
       await client.join(`user:${payload.sub}`);
+
+      // Teto geral de eventos por pessoa (somando todos os aparelhos): evita
+      // inundar salas com typing/reações/estado de voz
+      client.use((_packet, next) => {
+        if (!checkEventBudget(payload.sub)) return next(new Error('Muitas ações seguidas, espere um pouco'));
+        next();
+      });
 
       this.logger.log(`Cliente conectado: ${payload.sub} (${client.id})`);
       this.recordDesktopVersion(payload.sub, client.handshake.headers['user-agent']);
@@ -279,7 +321,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     if (!userId) throw new WsException('Não autenticado');
 
     // Rate limiting: máx 20 mensagens por 5 s por socket
-    if (!checkRateLimit(client.id)) {
+    if (!checkRateLimit(client.data.userId)) {
       client.emit('error', { message: 'Muitas mensagens. Aguarde alguns segundos.' });
       return;
     }
@@ -479,9 +521,13 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     const userId = client.data.userId;
     if (!this.inVoice(client, data?.voiceRoomId)) return; // só quem entrou na sala (voice:join autorizado)
 
+    // Só os campos conhecidos e o userId do servidor (antes o cliente podia trocar o userId)
     this.server.to(`voice:${data.voiceRoomId}`).emit('voice:state_changed', {
+      voiceRoomId: data.voiceRoomId,
+      micEnabled: !!data.micEnabled,
+      camEnabled: !!data.camEnabled,
+      screenSharing: !!data.screenSharing,
       userId,
-      ...data,
     });
   }
 
@@ -618,7 +664,7 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     if (!content) return;
 
     // Rate limiting compartilhado com as mensagens de canal
-    if (!checkRateLimit(client.id)) {
+    if (!checkRateLimit(client.data.userId)) {
       client.emit('error', { message: 'Muitas mensagens. Aguarde alguns segundos.' });
       return;
     }
@@ -659,9 +705,9 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   // ── Helper: extrai token do handshake ─────────────────────────
   private extractToken(client: Socket): string {
+    // Sem token na URL (?token=): ela fica nos logs de proxy
     const auth = client.handshake.auth?.token ||
-      client.handshake.headers?.authorization?.replace('Bearer ', '') ||
-      client.handshake.query?.token;
+      client.handshake.headers?.authorization?.replace('Bearer ', '');
 
     if (!auth) throw new Error('Token não fornecido');
     return auth as string;
@@ -678,6 +724,28 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   emitToUser(userId: string, event: string, data: any) {
     this.server.to(`user:${userId}`).emit(event, data);
+  }
+
+  // Derruba todos os aparelhos da pessoa (suspensão, exclusão de conta)
+  disconnectUser(userId: string) {
+    this.server.in(`user:${userId}`).disconnectSockets(true);
+  }
+
+  // Expulso/banido: tira os sockets da pessoa das salas do servidor (canais,
+  // voz e o próprio servidor) na hora — antes continuava recebendo tudo até reconectar
+  async evictFromServer(userId: string, serverId: string) {
+    const [channels, rooms] = await Promise.all([
+      this.prisma.channel.findMany({ where: { serverId }, select: { id: true } }),
+      this.prisma.voiceRoom.findMany({ where: { serverId }, select: { id: true } }),
+    ]);
+    const salas = [`server:${serverId}`, ...channels.map(c => `channel:${c.id}`), ...rooms.map(r => `voice:${r.id}`)];
+    this.server.in(`user:${userId}`).socketsLeave(salas);
+    this.server.to(`user:${userId}`).emit('server:removed', { serverId });
+  }
+
+  // Tira da sala de voz quem perdeu acesso a ela (cargo removido da sala)
+  leaveVoiceRoom(userId: string, voiceRoomId: string) {
+    this.server.in(`user:${userId}`).socketsLeave(`voice:${voiceRoomId}`);
   }
 
   // Todo mundo com o Nexus aberto (comunicados da plataforma)

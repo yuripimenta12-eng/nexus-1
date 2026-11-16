@@ -36,6 +36,19 @@ const FRAME_BYTES = SAMPLES_PER_FRAME * CHANNELS * 2;           // 3840 bytes (i
 const IDLE_LEAVE_MS = 3 * 60 * 1000;
 const ALONE_LEAVE_MS = 60 * 1000;
 const MAX_QUEUE = 50;
+const MAX_SESSIONS = Number(process.env.MAX_SESSIONS || 20);   // salas tocando ao mesmo tempo (CPU do VPS)
+const MAX_SESSIONS_POR_PESSOA = 2;
+const PAUSE_LEAVE_MS = 15 * 60 * 1000;                         // pausado demais: libera yt-dlp/ffmpeg
+// Links diretos só destes sites: antes qualquer URL ia para o yt-dlp, que roda
+// na rede do VPS e alcançava serviços internos (SSRF)
+const HOSTS_PERMITIDOS = ['youtube.com', 'youtu.be', 'soundcloud.com', 'bandcamp.com', 'vimeo.com'];
+const hostPermitido = (s) => {
+  try {
+    const u = new URL(s);
+    return (u.protocol === 'https:' || u.protocol === 'http:') && !u.port &&
+      HOSTS_PERMITIDOS.some(h => u.hostname === h || u.hostname.endsWith('.' + h));
+  } catch { return false; }
+};
 const MAX_DURATION_S = 3 * 3600;
 const YT_COOKIES = process.env.YT_COOKIES || '/data/yt-cookies.txt';
 const YTDLP_COMMON = ['--no-playlist', '--no-warnings', '--js-runtimes', 'node'];
@@ -114,7 +127,8 @@ async function resolveTrack(query) {
   const q = query.trim();
   if (!q) throw new Error('Cole um link do YouTube ou o nome da música.');
 
-  // Link de outra fonte (SoundCloud, Bandcamp, mp3 direto...): yt-dlp resolve direto
+  if (isUrl(q) && !hostPermitido(q)) throw new Error('Só links do YouTube, SoundCloud, Bandcamp ou Vimeo.');
+  // Link de outra fonte permitida (SoundCloud, Bandcamp...): yt-dlp resolve direto
   if (isUrl(q) && !isYouTube(q)) return probe(q);
 
   // Link do YouTube ou nome: tenta o YouTube (se não estiver em quarentena)
@@ -238,10 +252,14 @@ class Session {
   pause() {
     if (!this.current || this.paused) return;
     this.paused = true;
+    // Pausado não segura processos para sempre
+    clearTimeout(this.pauseTimer);
+    this.pauseTimer = setTimeout(() => { if (this.paused) { log(this.roomName, 'pausado há 15 min, saindo'); this.leave(); } }, PAUSE_LEAVE_MS);
     this.broadcast();
   }
 
   resume() {
+    clearTimeout(this.pauseTimer);
     if (!this.paused) return;
     this.paused = false;
     const w = this.pauseWaiters; this.pauseWaiters = [];
@@ -399,8 +417,8 @@ class Session {
 // ─────────────────────────────────────────────────────────────────────────────
 function cors(req, res) {
   const origin = req.headers.origin || '';
-  if (ORIGINS.length === 0 || ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  if (ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -430,7 +448,12 @@ async function auth(req) {
   catch { throw Object.assign(new Error('token inválido ou expirado'), { status: 401 }); }
   const room = claims?.video?.room;
   if (!room || !claims.video?.roomJoin) throw Object.assign(new Error('token sem sala'), { status: 403 });
-  return { room, identity: claims.sub, name: claims.name || claims.sub };
+  // O DJ fala na sala: quem foi silenciado ou não pode usar o microfone
+  // (token sem permissão de publicar áudio) não toca música por ele
+  const fontes = claims.video.canPublishSources;
+  const podeFalar = claims.video.canPublish !== false &&
+    (!Array.isArray(fontes) || fontes.length === 0 || fontes.some(f => String(f).toLowerCase() === 'microphone' || f === 2));
+  return { room, identity: claims.sub, name: claims.name || claims.sub, podeFalar };
 }
 
 // Recibo para o placar da call: a API confere a assinatura (mesmo segredo do
@@ -440,12 +463,26 @@ function reciboPlacar(identity, room, id) {
   return `${p}.${createHmac('sha256', API_SECRET).update('placar-dj.' + p).digest('base64url')}`;
 }
 
+// Teto de salas com DJ ao mesmo tempo (no total e por pessoa que chamou)
+function novaSessao(who) {
+  const ativas = [...sessions.values()].filter(x => !x.closed);
+  if (ativas.length >= MAX_SESSIONS) throw Object.assign(new Error('O DJ está ocupado em muitas salas agora, tente daqui a pouco'), { status: 503 });
+  if (ativas.filter(x => x.criadoPor === who.identity).length >= MAX_SESSIONS_POR_PESSOA) {
+    throw Object.assign(new Error('Você já chamou o DJ em outras salas'), { status: 429 });
+  }
+  const s = new Session(who.room);
+  s.criadoPor = who.identity;
+  sessions.set(who.room, s);
+  return s;
+}
+
 const RATE = new Map(); // identity → timestamps (anti-spam: 20 comandos/min)
 function rateLimit(identity) {
   const now = Date.now();
   const arr = (RATE.get(identity) || []).filter(t => now - t < 60000);
   if (arr.length >= 20) throw Object.assign(new Error('calma, muitos comandos por minuto'), { status: 429 });
   arr.push(now); RATE.set(identity, arr);
+  if (RATE.size > 10000) for (const [k, v] of RATE) if (!v.some(t => now - t < 60000)) RATE.delete(k);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -454,7 +491,8 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   try {
     if (req.method === 'GET' && url.pathname === '/health') {
-      return send(res, 200, { ok: true, rooms: [...sessions.keys()], uptime: Math.round(process.uptime()) });
+      // Sem a lista de salas: os nomes revelavam quem estava em chamada privada
+      return send(res, 200, { ok: true, uptime: Math.round(process.uptime()) });
     }
     const who = await auth(req);
     if (req.method === 'GET' && url.pathname === '/state') {
@@ -466,8 +504,9 @@ const server = http.createServer(async (req, res) => {
     const body = await readJson(req);
 
     if (url.pathname === '/summon') {
+      if (!who.podeFalar) throw Object.assign(new Error('Você está sem permissão de falar nesta sala'), { status: 403 });
       let s = sessions.get(who.room);
-      if (!s || s.closed) { s = new Session(who.room); sessions.set(who.room, s); }
+      if (!s || s.closed) { s = novaSessao(who); }
       await s.connect();
       return send(res, 200, s.state());
     }
@@ -475,7 +514,8 @@ const server = http.createServer(async (req, res) => {
       let s = sessions.get(who.room);
       const cmd = String(body.cmd || '');
       if (cmd === 'play') {
-        if (!s || s.closed) { s = new Session(who.room); sessions.set(who.room, s); }
+        if (!who.podeFalar) throw Object.assign(new Error('Você está sem permissão de falar nesta sala'), { status: 403 });
+        if (!s || s.closed) { s = novaSessao(who); }
         await s.connect();
         const item = await s.play(String(body.query || ''), who.name);
         return send(res, 200, { ok: true, added: item, state: s.state(), recibo: reciboPlacar(who.identity, who.room, item.id) });
