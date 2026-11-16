@@ -14,13 +14,13 @@ import { PUBLIC_USER } from '../common/public-user';
 
 // Assinaturas dos formatos de áudio aceitos (webm, ogg, mp4/m4a, mp3, wav)
 function pareceAudio(b?: Buffer): boolean {
-  if (!b || b.length < 12) return false;
+  if (!b || b.length < 4) return false;
   const hex = b.subarray(0, 4).toString('hex');
   return hex === '1a45dfa3' // webm/matroska
     || b.subarray(0, 4).toString('latin1') === 'OggS'
-    || b.subarray(4, 8).toString('latin1') === 'ftyp' // mp4/m4a
+    || (b.length >= 8 && b.subarray(4, 8).toString('latin1') === 'ftyp') // mp4/m4a
     || b.subarray(0, 3).toString('latin1') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) // mp3
-    || (b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE');
+    || (b.length >= 12 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE');
 }
 
 @Controller('upload')
