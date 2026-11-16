@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Identifica cada publicação: o app aberto compara com /versao e oferece recarregar
+  env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now()) },
   // Erros de TypeScript e ESLint devem ser visíveis durante o build
   // typescript.ignoreBuildErrors e eslint.ignoreDuringBuilds foram removidos
   // para garantir que erros reais sejam detectados antes do deploy.
