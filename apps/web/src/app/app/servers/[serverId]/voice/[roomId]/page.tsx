@@ -34,6 +34,7 @@ import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { SeloQualidade } from '@/components/voice/live-qualidade';
 import { corSegura, capaSegura } from '@/lib/seguro';
+import { HeadphoneOff } from '@/components/ui/fone-mutado';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -1507,7 +1508,7 @@ export default function VoicePage() {
                           {p.screenSharing && <span className="ml-1.5 align-middle"><LiveBadge small /></span>}
                           {focusModeUsers.has(p.identity) && <span className="ml-1.5"><FocusBadge small /></span>}
                           {!p.micEnabled && <MicOff className="w-3 h-3 inline ml-1.5 text-[#ff6b7f] align-middle" aria-label="Microfone mutado" />}
-                          {deafenedUsers.has(p.identity) && <HeadphoneOff className="w-3 h-3 inline ml-1 text-[#ff6b7f] align-middle" aria-label="Fone mutado" />}
+                          {deafenedUsers.has(p.identity) && <HeadphoneOff className="w-4 h-4 ml-1 align-middle" aria-label="Fone mutado" />}
                         </b>
                         <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
                           {serverMuted ? 'Silenciado no servidor'
@@ -2012,18 +2013,6 @@ function VoiceAudioPanel() {
   );
 }
 
-// ── Fone mutado (ensurdecido): fone com risco, estilo Discord ────
-function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
-  return (
-    <span className={cn('relative inline-flex shrink-0', className)} aria-label={ariaLabel} title={ariaLabel}>
-      <Headphones className="w-full h-full" />
-      <span className="absolute inset-0 flex items-center justify-center">
-        <span className="block w-[135%] h-[1.5px] bg-current rotate-45 rounded-full" />
-      </span>
-    </span>
-  );
-}
-
 // ── Selo do modo reunião (triângulo azul: ouvindo só a live) ─────
 function FocusBadge({ small }: { small?: boolean }) {
   return (
@@ -2261,7 +2250,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
           </span>
         )}
         {inFocusMode && <FocusBadge small />}
-        {isDeafenedUser && <HeadphoneOff className="w-3 h-3 text-[#ff6b7f]" />}
+        {isDeafenedUser && <HeadphoneOff className="w-5 h-5" aria-label="Fone mutado" />}
         {voiceParticipant.screenSharing && (
           <span className="flex items-center gap-1">
             <Monitor className="w-3 h-3 text-[#c887ff]" />

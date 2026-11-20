@@ -10,17 +10,7 @@ import { useMutes } from '@/lib/mutes';
 import { useSocketStore } from '@/stores/socket.store';
 import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
-// Fone mutado (ensurdecido): fone com risco, estilo Discord
-function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
-  return (
-    <span className={`relative inline-flex shrink-0 ${className || ''}`} aria-label={ariaLabel} title={ariaLabel}>
-      <Headphones className="w-full h-full" />
-      <span className="absolute inset-0 flex items-center justify-center">
-        <span className="block w-[135%] h-[1.5px] bg-current rotate-45 rounded-full" />
-      </span>
-    </span>
-  );
-}
+import { HeadphoneOff } from '@/components/ui/fone-mutado';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -589,7 +579,7 @@ export function AppSidebar() {
                             <MicOff className="w-3 h-3 text-[#ff6b7f]" aria-label="Microfone mutado" />
                           )}
                           {(u as any).deafened && (
-                            <HeadphoneOff className="w-3 h-3 text-[#ff6b7f]" aria-label="Fone mutado (não está ouvindo)" />
+                            <HeadphoneOff className="w-4 h-4" aria-label="Fone mutado (não está ouvindo)" />
                           )}
                         </span>
                       </div>
