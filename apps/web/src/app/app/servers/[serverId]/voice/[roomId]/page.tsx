@@ -657,7 +657,8 @@ export default function VoicePage() {
       ref={stageRef}
       className={cn(
         'flex flex-col nx-stage-bg',
-        isFullscreen ? 'fixed inset-0 z-50 bg-[#0a0713]' : 'flex-1',
+        // min-h-0: sem ele o palco crescia com a grade e empurrava os controles para fora da tela
+        isFullscreen ? 'fixed inset-0 z-50 bg-[#0a0713]' : 'flex-1 min-h-0',
         isFullscreen && !uiVisible && 'cursor-none',
       )}
     >
@@ -669,7 +670,7 @@ export default function VoicePage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
           <div className={cn(
             'h-[60px] md:h-[70px] flex items-center px-3 md:px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
@@ -1164,8 +1165,8 @@ export default function VoicePage() {
                 participantsList.length === 2 && 'grid-cols-1 sm:grid-cols-2 max-w-5xl',
                 participantsList.length === 3 && 'grid-cols-1 sm:grid-cols-3 max-w-6xl',
                 participantsList.length === 4 && 'grid-cols-1 sm:grid-cols-2 max-w-5xl',
-                participantsList.length > 4 && participantsList.length <= 6 && 'grid-cols-2 lg:grid-cols-3',
-                participantsList.length > 6 && 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+                participantsList.length > 4 && participantsList.length <= 6 && 'grid-cols-2 md:grid-cols-3',
+                participantsList.length > 6 && 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
               )}>
                 <AnimatePresence mode="popLayout">
                   {participantsList.map(p => (
