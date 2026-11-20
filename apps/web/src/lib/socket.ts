@@ -18,6 +18,9 @@ function dynamicAuth(cb: (data: { token: string | null }) => void) {
 }
 
 let recovering = false;
+// Recusas seguidas (ex.: e-mail ainda não confirmado): espera cada vez mais
+// (1s, 2s, 4s... até 60s) em vez de tentar várias vezes por segundo
+let recusasSeguidas = 0;
 
 // Recuperação: quando o SERVIDOR derruba a conexão (token expirado), o
 // socket.io não religa sozinho ('io server disconnect'). Renovamos o token
@@ -28,6 +31,9 @@ async function recoverFromServerDisconnect(s: Socket) {
   try {
     await api.get('/auth/me'); // 401 → interceptor renova o access token
   } catch { /* refresh falhou — sessão realmente acabou */ }
+  const espera = Math.min(60_000, 1000 * 2 ** recusasSeguidas);
+  recusasSeguidas++;
+  await new Promise(r => setTimeout(r, espera));
   recovering = false;
   if (!s.connected) s.connect(); // dynamicAuth lê o token novo
 }
@@ -80,6 +86,7 @@ export function leaveVoiceRoom() {
 
 function attachReconnectHandlers(s: Socket) {
   s.on('connect', () => {
+    recusasSeguidas = 0;
     // Re-join canais, servidores e sala de voz após (re)conexão
     activeServers.forEach(id => s.emit('server:join', { serverId: id }));
     activeChannels.forEach(id => s.emit('channel:join', { channelId: id }));
