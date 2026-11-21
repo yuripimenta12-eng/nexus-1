@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Copy, Check, Sparkles } from 'lucide-react';
+import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Sparkles, Gamepad2, Lightbulb } from 'lucide-react';
+import { pedirBoasVindas } from '@/components/servers/primeiros-passos';
 import { useMutes } from '@/lib/mutes';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -30,13 +31,11 @@ export function ServersSidebar() {
   const [newServerName, setNewServerName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [modelo, setModelo] = useState<'gamer' | 'padrao'>('gamer');
   // Aba do "+": criar um servidor ou entrar num com o convite de alguém
   const [aba, setAba] = useState<'criar' | 'entrar'>('criar');
   const [conviteColado, setConviteColado] = useState('');
   const [entrando, setEntrando] = useState(false);
-  // Depois de criar: o link de convite já pronto para mandar aos amigos
-  const [criado, setCriado] = useState<{ id: string; name: string; link: string | null } | null>(null);
-  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     const carregar = () => api.get('/users/@me/servers').then(({ data }) => {
@@ -53,9 +52,6 @@ export function ServersSidebar() {
     setCreateError('');
     setConviteColado('');
     setAba('criar');
-    if (criado) router.push(`/app/servers/${criado.id}`);
-    setCriado(null);
-    setCopiado(false);
   };
 
   const handleJoinInvite = async () => {
@@ -81,16 +77,14 @@ export function ServersSidebar() {
     setCreating(true);
     setCreateError('');
     try {
-      const { data } = await api.post('/servers', { name: newServerName.trim() });
+      const { data } = await api.post('/servers', { name: newServerName.trim(), modelo });
       setServers(prev => [...prev, data]);
       setNewServerName('');
-      // Já deixa um convite de 7 dias pronto para copiar
-      let link: string | null = null;
-      try {
-        const inv = await api.post(`/invites/servers/${data.id}`, { expiresInHours: 168 });
-        link = `${window.location.origin}/invite/${inv.data.code}`;
-      } catch { /* sem convite: dá para criar depois no menu do servidor */ }
-      setCriado({ id: data.id, name: data.name, link });
+      // Chega no servidor com as boas-vindas abertas (convite, ícone, descrição, sala de voz)
+      pedirBoasVindas(data.id);
+      setShowCreateModal(false);
+      setModelo('gamer');
+      router.push(`/app/servers/${data.id}`);
     } catch (e: any) {
       setCreateError(e?.response?.data?.message || 'Erro ao criar servidor');
     } finally {
@@ -159,6 +153,18 @@ export function ServersSidebar() {
         <Sparkles className="w-5 h-5" />
       </button>
 
+      {/* Em breve: votar no que vem por aí */}
+      <button
+        onClick={() => router.push('/app/em-breve')}
+        className="w-[46px] h-[46px] rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
+                   transition-all duration-200 flex items-center justify-center
+                   text-[#ffb070] hover:border-[#ffb070] hover:-translate-y-0.5"
+        title="Em breve: vote no que vem por aí"
+        aria-label="Em breve: vote no que vem por aí"
+      >
+        <Lightbulb className="w-5 h-5" />
+      </button>
+
       {/* Painel do dono — só aparece para o admin da plataforma */}
       {(user as any)?.isAdmin && (
         <button
@@ -180,7 +186,7 @@ export function ServersSidebar() {
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-white font-semibold text-lg">
-                {criado ? 'Servidor criado!' : aba === 'criar' ? 'Criar servidor' : 'Entrar num servidor'}
+                {aba === 'criar' ? 'Criar servidor' : 'Entrar num servidor'}
               </h2>
               <button onClick={fecharModal} aria-label="Fechar"
                 className="text-muted hover:text-white transition-colors -m-2 p-2">
@@ -188,34 +194,7 @@ export function ServersSidebar() {
               </button>
             </div>
 
-            {criado ? (
-              <>
-                <p className="text-muted text-sm mb-4">
-                  Mande este link para os seus amigos. Quem clicar entra direto em <strong className="text-white">{criado.name}</strong>.
-                </p>
-                {criado.link ? (
-                  <div className="flex items-center gap-2 bg-surface-raised border border-border rounded-lg p-1.5 pl-3 mb-1">
-                    <span className="flex-1 min-w-0 truncate text-[13px] text-[#c8b8d8] font-mono">{criado.link}</span>
-                    <button
-                      onClick={async () => {
-                        try { await navigator.clipboard.writeText(criado.link!); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { /* sem área de transferência */ }
-                      }}
-                      className={cn('shrink-0 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 transition-colors',
-                        copiado ? 'bg-success/15 text-success' : 'bg-accent hover:bg-accent-hover text-white')}
-                    >
-                      {copiado ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-muted text-xs mb-1">Crie o convite depois em: nome do servidor → Convidar pessoas.</p>
-                )}
-                <p className="text-muted text-[11px] mb-4">Vale por 7 dias. Dá para criar outros no menu do servidor.</p>
-                <button onClick={fecharModal}
-                  className="w-full py-2.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors">
-                  Ir para o servidor
-                </button>
-              </>
-            ) : (
+            {(
               <>
                 <div role="tablist" className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-raised mb-4">
                   {(['criar', 'entrar'] as const).map(a => (
@@ -230,7 +209,26 @@ export function ServersSidebar() {
 
                 {aba === 'criar' ? (
                   <>
-                    <p className="text-muted text-sm mb-4">Dê um nome ao seu servidor. Você sempre pode mudá-lo depois.</p>
+                    <p className="text-muted text-sm mb-3">Escolha como começar. Dá para mudar tudo depois.</p>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {([
+                        { id: 'gamer', titulo: 'Gamer BR', desc: 'Squads, campeonato, Valorant, Free Fire, GTA RP, clipes', icone: Gamepad2 },
+                        { id: 'padrao', titulo: 'Do zero', desc: 'Só #geral e uma sala de voz', icone: Plus },
+                      ] as const).map(m => (
+                        <button key={m.id} type="button" onClick={() => setModelo(m.id)} aria-pressed={modelo === m.id}
+                          className={cn('text-left rounded-xl border p-3 transition-all',
+                            modelo === m.id
+                              ? 'border-[#8b48ff] bg-gradient-to-br from-[#26143c] to-[#160e22] shadow-[0_0_20px_rgba(122,44,255,0.15)]'
+                              : 'border-border bg-surface-raised hover:border-[#4d3560]')}>
+                          <span className={cn('w-8 h-8 rounded-[10px] grid place-items-center mb-2',
+                            modelo === m.id ? 'bg-gradient-to-br from-orange to-accent text-white' : 'bg-[#2a1c45] text-[#c9a6ff]')}>
+                            <m.icone className="w-4 h-4" />
+                          </span>
+                          <b className="block text-sm text-white">{m.titulo}</b>
+                          <small className="block text-[11px] text-muted leading-snug mt-0.5">{m.desc}</small>
+                        </button>
+                      ))}
+                    </div>
                     <input
                       autoFocus
                       value={newServerName}

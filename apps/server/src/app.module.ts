@@ -28,6 +28,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { PlacarModule } from './placar/placar.module';
 import { PlanosModule } from './planos/planos.module';
 import { DepoimentosModule } from './depoimentos/depoimentos.module';
+import { IdeiasModule } from './ideias/ideias.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -58,6 +59,7 @@ import { HealthController } from './health.controller';
     PlacarModule,
     PlanosModule,
     DepoimentosModule,
+    IdeiasModule,
     DmsModule,
     FriendsModule,
     RolesModule,

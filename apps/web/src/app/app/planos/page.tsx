@@ -145,6 +145,9 @@ export default function PaginaPlanos() {
         <div className="grid gap-6 md:grid-cols-3">
           {cartoes.map((c) => <CartaoPlano key={c.id} c={c} atual={meu?.plano} />)}
         </div>
+        <a href="/app/em-breve" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#ffb070] hover:text-white">
+          O que está "em breve" chega na ordem dos votos: vote no que você quer primeiro →
+        </a>
 
         <p className="text-center text-xs text-[#8a8095]">
           O pagamento pelo site chega em breve. Por enquanto, quem libera os planos é o dono do Nexus.

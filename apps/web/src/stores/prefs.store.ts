@@ -49,7 +49,10 @@ interface PrefsState {
   modoJogo: boolean;
   // Trilho de servidores + lista de canais escondidos (só no PC; no celular já é gaveta)
   navRecolhida: boolean;
+  // Piscadas na call (a tela treme e toca um som quando alguém pisca para você)
+  receberPiscadas: boolean;
 
+  setReceberPiscadas: (on: boolean) => void;
   setAccent: (a: AccentTheme) => void;
   setNotifDesktop: (on: boolean) => void;
   setNotifSound: (on: boolean) => void;
@@ -68,7 +71,9 @@ export const usePrefsStore = create<PrefsState>()(
       modoLeve: false,
       modoJogo: true,
       navRecolhida: false,
+      receberPiscadas: true,
 
+      setReceberPiscadas: (receberPiscadas) => set({ receberPiscadas }),
       setAccent: (accent) => set({ accent }),
       setNotifDesktop: (notifDesktop) => set({ notifDesktop }),
       setNotifSound: (notifSound) => set({ notifSound }),

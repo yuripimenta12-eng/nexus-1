@@ -32,22 +32,23 @@ export class ServersService {
 
   async create(userId: string, dto: CreateServerDto) {
     await this.limiteDeServidores(userId);
+    // Modelo "Gamer BR": canais e salas prontos para jogar com a galera
+    const gamer = dto.modelo === 'gamer';
+    const canais: { name: string; type: 'TEXT' | 'ANNOUNCEMENT' }[] = gamer
+      ? [{ name: 'geral', type: 'TEXT' }, { name: 'anúncios', type: 'ANNOUNCEMENT' }, { name: 'clipes', type: 'TEXT' }, { name: 'procurando-time', type: 'TEXT' }]
+      : [{ name: 'geral', type: 'TEXT' }, { name: 'anúncios', type: 'ANNOUNCEMENT' }];
+    const salas = gamer
+      ? ['Geral', 'Squad 1', 'Squad 2', 'Campeonato', 'Valorant', 'Free Fire', 'GTA RP']
+      : ['Geral'];
+    const agora = Date.now();
     const server = await this.prisma.server.create({
       data: {
         name: dto.name,
         description: dto.description,
         ownerId: userId,
-        // Cria canais padrão
-        channels: {
-          create: [
-            { name: 'geral', type: 'TEXT', position: 0 },
-            { name: 'anúncios', type: 'ANNOUNCEMENT', position: 1 },
-          ],
-        },
+        channels: { create: canais.map((c, i) => ({ ...c, position: i })) },
         voiceRooms: {
-          create: [
-            { name: 'Geral', position: 0, livekitRoom: `server-${Date.now()}-voice-1` },
-          ],
+          create: salas.map((name, i) => ({ name, position: i, livekitRoom: `server-${agora}-voice-${i + 1}` })),
         },
         // Adiciona o criador como OWNER
         members: {

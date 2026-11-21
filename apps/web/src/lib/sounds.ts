@@ -145,6 +145,13 @@ export function playLiveEnd() {
   tone(523.25, 0.1, 0.28, 'triangle', 0.11); // C5
 }
 
+/** Alguém PISCOU para você na call — "zap": sopro subindo + dois toques rápidos */
+export function playPiscada() {
+  swoosh(0, 0.18, 600, 4200, 0.22);
+  tone(1318.5, 0.12, 0.07, 'square', 0.05);  // E6
+  tone(1760.0, 0.19, 0.1, 'square', 0.05);   // A6
+}
+
 /** Alguém MENCIONOU você (@nome) — dois toques altos e rápidos */
 export function playMention() {
   tone(880.0, 0, 0.09, 'sine', 0.16);    // A5

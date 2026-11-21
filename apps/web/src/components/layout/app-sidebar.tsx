@@ -11,6 +11,7 @@ import { useSocketStore } from '@/stores/socket.store';
 import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
 import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
+import { PrimeirosPassos } from '@/components/servers/primeiros-passos';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -411,6 +412,11 @@ export function AppSidebar() {
 
       {/* Canais */}
       <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+        {/* Dono de servidor novo: progresso dos primeiros passos + boas-vindas */}
+        <div className="-mx-2">
+          <PrimeirosPassos server={server as any} userId={user?.id} userName={user?.profile?.displayName || user?.username} />
+        </div>
+
         {/* Atalho: página de membros (toggle em Config. → Membros) */}
         {showMembersShortcut && (
           <button

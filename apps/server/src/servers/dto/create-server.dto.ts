@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max, IsIn } from 'class-validator';
 
 export class CreateServerDto {
   @IsString()
@@ -16,4 +16,9 @@ export class CreateServerDto {
   @Min(2)
   @Max(500)
   maxMembers?: number;
+
+  // Modelo pronto: "gamer" já vem com salas de squad, campeonato e jogos
+  @IsOptional()
+  @IsIn(['padrao', 'gamer'])
+  modelo?: 'padrao' | 'gamer';
 }

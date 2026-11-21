@@ -35,6 +35,9 @@ import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { SeloQualidade } from '@/components/voice/live-qualidade';
 import { corSegura, capaSegura } from '@/lib/seguro';
 import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
+import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
+import { Smile } from 'lucide-react';
+import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -156,6 +159,9 @@ export default function VoicePage() {
   const unidosPartida = useUnidos(s => s.partida);
   const unidosErro = useUnidos(s => s.erro);
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
+  const [reacoesAberto, setReacoesAberto] = useState(false); // bandeja de emojis voando
+  useEscutarReacoes();
+  useEffect(() => { if (serverId) marcarEntrouNaVoz(serverId); }, [serverId]);
   const tabMusicOn = useAnyTabMusic();                     // alguém transmitindo música de uma aba
   const djState = useVoiceStore(s => s.djState);
   const djInRoom = participants.has(DJ_IDENTITY);
@@ -671,7 +677,8 @@ export default function VoicePage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Palco */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <div data-nx-palco className="flex-1 flex flex-col min-w-0 min-h-0 relative">
+          <AvisoPiscada />
           {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
           <div className={cn(
             'h-[60px] md:h-[70px] flex items-center px-3 md:px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
@@ -751,6 +758,7 @@ export default function VoicePage() {
                tamanho da imagem recebida e a qualidade adaptativa, vendo um vídeo
                pequeno, pedia ainda menos (268p) — a live encolhia no meio, cercada de preto. */
             <div className="group flex-1 relative bg-black overflow-hidden">
+              <VoosDoQuadro identity="*" />
               <div
                 className={cn('absolute inset-0 flex items-center justify-center', showCam ? 'cursor-pointer' : 'cursor-zoom-out')}
                 onClick={() => (showCam ? setFocusedCam(null) : setFocusedParticipant(null))}
@@ -913,7 +921,8 @@ export default function VoicePage() {
             </div>
           ) : screenSharers.length > 0 ? (
             /* ── Grade de lives: todas visíveis ao mesmo tempo ── */
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col min-h-0 relative">
+              <VoosDoQuadro identity="*" />
               <div className="flex-1 overflow-auto p-[14px]">
                 {showCam ? (
                   /* Webcam ampliada — clique para voltar às lives */
@@ -1182,12 +1191,14 @@ export default function VoicePage() {
                       // todos na tela sem quadros altos e finos
                       className={cn('min-h-0', tileAspect(participantsList.length))}
                     >
-                      <ParticipantTile
-                        voiceParticipant={p}
-                        avatarUrl={membersMeta[p.identity]?.avatarUrl}
-                        inFocusMode={focusModeUsers.has(p.identity)}
-                        isDeafenedUser={deafenedUsers.has(p.identity)}
-                      />
+                      <QuadroTremendo identity={p.identity}>
+                        <ParticipantTile
+                          voiceParticipant={p}
+                          avatarUrl={membersMeta[p.identity]?.avatarUrl}
+                          inFocusMode={focusModeUsers.has(p.identity)}
+                          isDeafenedUser={deafenedUsers.has(p.identity)}
+                        />
+                      </QuadroTremendo>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -1220,6 +1231,20 @@ export default function VoicePage() {
             >
               {isDeafened ? <VolumeX className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
             </ControlButton>
+
+            {/* Reações: emojis que voam do seu quadro para todo mundo ver */}
+            <div className="relative">
+              <ControlButton
+                onClick={() => setReacoesAberto(v => !v)}
+                active={reacoesAberto}
+                title="Reagir com um emoji (voa do seu quadro)"
+              >
+                <Smile className="w-5 h-5" />
+              </ControlButton>
+              <AnimatePresence>
+                {reacoesAberto && <PainelReacoes onClose={() => setReacoesAberto(false)} />}
+              </AnimatePresence>
+            </div>
 
             {/* Modo reunião: silencia as vozes, mantém só o áudio da live (aparece quando há live) */}
             {screenSharers.length > 0 && (
@@ -2102,6 +2127,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
   const glow = glowFor(identity);
   const speaking = voiceParticipant.isSpeaking;
   const djState = useVoiceStore(s => s.djState);
+  const localIdentity = useVoiceStore(s => s.room?.localParticipant?.identity);
 
   // Tile do DJ Nexus (bot de música): ícone de música + faixa tocando
   if (identity === DJ_IDENTITY) {
@@ -2161,6 +2187,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
   const playingMusic = Array.from(voiceParticipant.participant.trackPublications.values())
     .some((pub: any) => pub.trackName === MUSIC_TRACK_NAME);
   const micOff = !voiceParticipant.micEnabled;
+  const souEu = localIdentity === identity;
 
   return (
     <motion.div
@@ -2168,7 +2195,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       className={cn(
-        'relative h-full rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
+        'group/quadro relative h-full rounded-[19px] overflow-hidden min-h-[190px] border transition-all duration-300',
         speaking
           ? 'border-[#ff8a3d]/70 shadow-[0_0_32px_rgba(122,44,255,0.25)]'
           : 'border-[var(--th-line-2)]',
@@ -2222,6 +2249,9 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
           </div>
         </>
       )}
+
+      <VoosDoQuadro identity={identity} />
+      {!souEu && <BotaoPiscar identity={identity} nome={name} />}
 
       {/* Canto superior: barrinhas de quem fala / selo de microfone desligado */}
       {speaking && !micOff && (

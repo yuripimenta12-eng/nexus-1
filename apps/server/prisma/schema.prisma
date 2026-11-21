@@ -70,6 +70,7 @@ model User {
   callStats              CallStat[]
   conquistas             Conquista[]
   depoimento             Depoimento?
+  ideiaVotos             IdeiaVoto[]
   indicadoPor            User?                   @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados              User[]                  @relation("Indicacoes")
 
@@ -724,4 +725,19 @@ model Depoimento {
 
   @@index([aprovado, atualizadoEm])
   @@map("depoimentos")
+}
+
+// Página "Em breve": cada pessoa vota uma vez em cada ideia (quero / não preciso).
+// A lista de ideias fica no código (src/ideias/ideias.lista.ts).
+model IdeiaVoto {
+  ideia    String   @db.VarChar(40)
+  userId   String
+  tipo     String   @db.VarChar(8)
+  criadoEm DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ideia, userId])
+  @@index([userId])
+  @@map("ideia_votos")
 }

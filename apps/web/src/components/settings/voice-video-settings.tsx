@@ -9,12 +9,15 @@ import {
 import { cn } from '@/lib/utils';
 import { useMediaStore, InputProfile } from '@/stores/media.store';
 import { useVoiceStore } from '@/stores/voice.store';
+import { usePrefsStore } from '@/stores/prefs.store';
 
 interface DeviceOption { deviceId: string; label: string; }
 
 export function VoiceVideoSettings() {
   const ms = useMediaStore();
   const { switchAudioInput, switchAudioOutput, switchVideoInput, setInputVolume, applyOutputVolume } = useVoiceStore();
+  const receberPiscadas = usePrefsStore(s => s.receberPiscadas);
+  const setReceberPiscadas = usePrefsStore(s => s.setReceberPiscadas);
 
   const [mics, setMics] = useState<DeviceOption[]>([]);
   const [speakers, setSpeakers] = useState<DeviceOption[]>([]);
@@ -198,6 +201,19 @@ export function VoiceVideoSettings() {
             />
           </div>
         )}
+      </section>
+
+      {/* ── Diversão na call ─────────────────────────────── */}
+      <section>
+        <SectionLabel>Na call</SectionLabel>
+        <div className="rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)]">
+          <ToggleRow
+            label="Receber piscadas"
+            desc="Quando alguém pisca para você, a call treme e toca um som curto"
+            checked={receberPiscadas}
+            onChange={setReceberPiscadas}
+          />
+        </div>
       </section>
 
       {/* ── Atalhos de teclado da chamada ─────────────────── */}
