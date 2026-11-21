@@ -34,7 +34,7 @@ import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { SeloQualidade } from '@/components/voice/live-qualidade';
 import { corSegura, capaSegura } from '@/lib/seguro';
-import { HeadphoneOff } from '@/components/ui/fone-mutado';
+import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -1507,7 +1507,7 @@ export default function VoicePage() {
                           )}
                           {p.screenSharing && <span className="ml-1.5 align-middle"><LiveBadge small /></span>}
                           {focusModeUsers.has(p.identity) && <span className="ml-1.5"><FocusBadge small /></span>}
-                          {!p.micEnabled && <MicOff className="w-3 h-3 inline ml-1.5 text-[#ff6b7f] align-middle" aria-label="Microfone mutado" />}
+                          {!p.micEnabled && <MicOff3D className="w-4 h-4 ml-1.5 align-middle" aria-label="Microfone mutado" />}
                           {deafenedUsers.has(p.identity) && <HeadphoneOff className="w-4 h-4 ml-1 align-middle" aria-label="Fone mutado" />}
                         </b>
                         <small className={cn('text-[10px]', serverMuted ? 'text-destructive' : 'text-[#92879f]')}>
@@ -2234,8 +2234,8 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       )}
       {micOff && (
         <span title="Microfone desligado"
-              className="absolute right-3 top-3 w-7 h-7 rounded-[9px] bg-[#ed4245]/90 grid place-items-center shadow-[0_4px_14px_rgba(237,66,69,0.35)]">
-          <MicOff className="w-3.5 h-3.5 text-white" />
+              className="absolute right-3 top-3 w-8 h-8 rounded-[10px] bg-black/45 backdrop-blur border border-white/10 grid place-items-center">
+          <MicOff3D className="w-5 h-5" />
         </span>
       )}
 

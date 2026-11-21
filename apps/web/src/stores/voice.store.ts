@@ -737,7 +737,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         // (baixa um pouco a nitidez se precisar).
         degradationPreference: 'maintain-framerate',
         simulcast,
-        ...(simulcast ? { screenShareSimulcastLayers: [new VideoPreset(1280, 720, 3_000_000, 30)] } : {}),
+        ...(simulcast ? { screenShareSimulcastLayers: [new VideoPreset(1280, 720, 1_500_000, 30)] } : {}),
       },
     );
 

@@ -16,7 +16,8 @@ export function planoAtivo(u: { plano?: string | null; planoAte?: string | Date 
 export const LIVE_POR_PLANO: Record<Plano, { width: number; height: number; frameRate: number; maxBitrate: number; rotulo: string }> = {
   gratis: { width: 960, height: 540, frameRate: 60, maxBitrate: 2_500_000, rotulo: '540p 60fps' },
   mais: { width: 1280, height: 720, frameRate: 60, maxBitrate: 4_500_000, rotulo: '720p 60fps' },
-  pro: { width: 1920, height: 1080, frameRate: 60, maxBitrate: 8_000_000, rotulo: '1080p 60fps' },
+  // 6 Mbps (antes 8): com a cópia 720p, 8+3 Mbps de envio cortava a voz de quem tem internet fraca
+  pro: { width: 1920, height: 1080, frameRate: 60, maxBitrate: 6_000_000, rotulo: '1080p 60fps' },
 };
 
 // Preços mostrados no site (página de planos e página inicial)

@@ -10,7 +10,7 @@ import { useMutes } from '@/lib/mutes';
 import { useSocketStore } from '@/stores/socket.store';
 import { VoiceRoomModal } from '@/components/voice/voice-room-modal';
 
-import { HeadphoneOff } from '@/components/ui/fone-mutado';
+import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -576,7 +576,7 @@ export function AppSidebar() {
                             </span>
                           )}
                           {(u as any).micMuted && (
-                            <MicOff className="w-3 h-3 text-[#ff6b7f]" aria-label="Microfone mutado" />
+                            <MicOff3D className="w-4 h-4" aria-label="Microfone mutado" />
                           )}
                           {(u as any).deafened && (
                             <HeadphoneOff className="w-4 h-4" aria-label="Fone mutado (não está ouvindo)" />

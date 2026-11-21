@@ -3,6 +3,44 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
+// Microfone mutado, no mesmo estilo 3D do fone (cápsula em gradiente, haste, base e risco)
+export function MicOff3D({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
+  const id = useId().replace(/:/g, '');
+  const url = (n: string) => `url(#${id}${n})`;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn('inline-block shrink-0 drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.7)]', className)}
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {ariaLabel && <title>{ariaLabel}</title>}
+      <defs>
+        <radialGradient id={`${id}capsula`} cx=".35" cy=".25" r=".9">
+          <stop offset="0" stopColor="#ffd0d6" />
+          <stop offset=".35" stopColor="#ff4d66" />
+          <stop offset="1" stopColor="#7d0a1d" />
+        </radialGradient>
+        <linearGradient id={`${id}haste`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffc2ca" />
+          <stop offset=".5" stopColor="#ff5c72" />
+          <stop offset="1" stopColor="#a80f28" />
+        </linearGradient>
+        <linearGradient id={`${id}risco`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#ffc9d1" />
+        </linearGradient>
+      </defs>
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3M8.5 21h7" fill="none" stroke="#4a0410" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3M8.5 21h7" fill="none" stroke={url('haste')} strokeWidth="2.2" strokeLinecap="round" />
+      <rect x="8.4" y="2.4" width="7.2" height="12.2" rx="3.6" fill={url('capsula')} stroke="#4a0410" strokeWidth=".8" />
+      <ellipse cx="10.4" cy="5.6" rx=".9" ry="1.8" fill="#fff" opacity=".6" />
+      <path d="M4.2 4.2 19.8 19.8" stroke="#3a030d" strokeWidth="2.7" strokeLinecap="round" />
+      <path d="M4.2 4.2 19.8 19.8" stroke={url('risco')} strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Fone mutado (ensurdecido) com volume: arco e conchas em gradiente, brilho,
 // contorno escuro e sombra. Vetor, então fica nítido em qualquer tamanho.
 export function HeadphoneOff({ className, 'aria-label': ariaLabel }: { className?: string; 'aria-label'?: string }) {
