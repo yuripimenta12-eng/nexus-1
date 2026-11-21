@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSocketStore } from '@/stores/socket.store';
 import { getSocket } from '@/lib/socket';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
+import { BannerPresenca } from '@/components/nex/central-nex';
 import api from '@/lib/api';
 
 /* ── Types ───────────────────────────────────── */
@@ -208,6 +209,9 @@ export default function MePage() {
           ))}
         </div>
       </div>
+
+      {/* Presença Nexus de hoje (some depois de pegar) */}
+      <BannerPresenca />
 
       {/* ── Search bar (só na aba Conversas) ───── */}
       {tab === 'conversas' && (

@@ -8,6 +8,7 @@ import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WsHttpExceptionFilter } from '../../gateway/ws-http.filter';
 import * as J from './unidos.engine';
+import { NexService } from '../../nex/nex.service';
 
 const TEMPO_VEZ = 30_000;      // 30 s por jogada
 const TEMPO_AUSENTE = 4_000;   // quem saiu da chamada joga sozinho rápido
@@ -33,8 +34,9 @@ export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
   private porSala = new Map<string, string>();          // voiceRoomId → partidaId
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private ultimoUso = new Map<string, number>();
+  private vitoriasContadas = new Set<string>();         // partidaId:início (conta cada vitória uma vez)
 
-  constructor(private prisma: PrismaService, private redis: RedisService) {
+  constructor(private prisma: PrismaService, private redis: RedisService, private nex: NexService) {
     // Limpa mesas abandonadas
     setInterval(() => this.limpar(), 60_000).unref();
   }
@@ -132,6 +134,17 @@ export class UnidosGateway implements OnGatewayDisconnect, OnGatewayInit {
   private enviar(p: J.Estado) {
     this.ultimoUso.set(p.id, Date.now());
     this.salvar(p);
+    // Acabou com vencedor: conta a vitória nas missões Nex (uma vez por partida)
+    if (p.status === 'fim' && p.vencedorId) {
+      const chave = `${p.id}:${p.iniciadoEm ?? 0}`;
+      if (!this.vitoriasContadas.has(chave)) {
+        this.vitoriasContadas.add(chave);
+        if (this.vitoriasContadas.size > 5000) this.vitoriasContadas.clear();
+        const humanos = p.jogadores.filter(j => !j.ausente).length;
+        this.nex.registrarVitoriaUnidos(p.vencedorId, humanos, Date.now() - (p.iniciadoEm ?? Date.now()))
+          .catch(e => this.logger.warn(`vitória Nex: ${e.message}`));
+      }
+    }
     for (const j of p.jogadores) {
       this.server.to(`user:${j.id}`).emit('unidos:estado', J.visao(p, j.id));
     }

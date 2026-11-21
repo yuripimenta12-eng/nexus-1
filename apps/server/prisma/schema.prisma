@@ -71,6 +71,9 @@ model User {
   conquistas             Conquista[]
   depoimento             Depoimento?
   ideiaVotos             IdeiaVoto[]
+  carteira               Carteira?
+  nexMovimentos          NexMovimento[]
+  missaoResgates         MissaoResgate[]
   indicadoPor            User?                   @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados              User[]                  @relation("Indicacoes")
 
@@ -725,6 +728,55 @@ model Depoimento {
 
   @@index([aprovado, atualizadoEm])
   @@map("depoimentos")
+}
+
+// ── Economia Nex ────────────────────────────────────────────────
+// Moeda ganha jogando (presença diária, roleta, missões) e gasta na loja.
+// Nunca é vendida por dinheiro. Datas de "hoje" em horário de Brasília (AAAA-MM-DD).
+model Carteira {
+  userId          String   @id
+  saldo           Int      @default(0)
+  totalGanho      Int      @default(0)
+  presencaDia     Int      @default(0) // último dia pego no ciclo de 7
+  presencaData    String?  @db.VarChar(10)
+  presencaMelhor  Int      @default(0) // maior sequência já feita
+  roletaData      String?  @db.VarChar(10)
+  roletaGiros     Int      @default(0)
+  unidosVitorias  Int      @default(0)
+  unidosData      String?  @db.VarChar(10)
+  unidosHoje      Int      @default(0)
+  atualizadoEm    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("carteiras")
+}
+
+// Extrato: toda entrada e saída de Nex, com o motivo
+model NexMovimento {
+  id       String   @id @default(cuid())
+  userId   String
+  valor    Int
+  motivo   String   @db.VarChar(48)
+  criadoEm DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, criadoEm])
+  @@map("nex_movimentos")
+}
+
+// Missão já resgatada: periodo = "sempre" ou o dia (AAAA-MM-DD) das diárias
+model MissaoResgate {
+  userId   String
+  missao   String   @db.VarChar(40)
+  periodo  String   @db.VarChar(10)
+  criadoEm DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, missao, periodo])
+  @@map("missao_resgates")
 }
 
 // Página "Em breve": cada pessoa vota uma vez em cada ideia (quero / não preciso).

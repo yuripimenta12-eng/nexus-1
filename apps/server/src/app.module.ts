@@ -29,6 +29,7 @@ import { PlacarModule } from './placar/placar.module';
 import { PlanosModule } from './planos/planos.module';
 import { DepoimentosModule } from './depoimentos/depoimentos.module';
 import { IdeiasModule } from './ideias/ideias.module';
+import { NexModule } from './nex/nex.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -60,6 +61,7 @@ import { HealthController } from './health.controller';
     PlanosModule,
     DepoimentosModule,
     IdeiasModule,
+    NexModule,
     DmsModule,
     FriendsModule,
     RolesModule,

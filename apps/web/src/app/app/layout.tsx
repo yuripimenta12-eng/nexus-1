@@ -23,6 +23,7 @@ import { UnidosHost } from '@/components/games/unidos/unidos-host';
 import { PushPrompt } from '@/components/layout/push-prompt';
 import { AtualizacaoApp } from '@/components/layout/atualizacao-app';
 import { ComunicadosHost } from '@/components/layout/comunicados';
+import { CentralNex } from '@/components/nex/central-nex';
 import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
 
@@ -143,6 +144,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AtualizacaoApp />
       {/* Comunicados do dono do Nexus: destaque até "Entendi" */}
       <ComunicadosHost />
+      {/* Recompensas Nex (presença, roleta, missões): abre de qualquer tela */}
+      <CentralNex />
 
       {/* Navegação (trilho + canais): fixa no desktop, gaveta no celular */}
       <div

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Sparkles, Gamepad2, Lightbulb } from 'lucide-react';
 import { pedirBoasVindas } from '@/components/servers/primeiros-passos';
+import { useNex } from '@/lib/nex';
+import { MoedaNex, nexCurto } from '@/components/nex/moeda-nex';
 import { useMutes } from '@/lib/mutes';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -32,6 +34,18 @@ export function ServersSidebar() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [modelo, setModelo] = useState<'gamer' | 'padrao'>('gamer');
+  const nex = useNex(s => s.dados);
+  const abrirNex = useNex(s => s.abrir);
+  const temPremio = !!nex && (!nex.presenca.pegouHoje || nex.roleta.girosRestantes > 0
+    || nex.missoes.some(m => !m.resgatada && m.progresso >= m.meta));
+  // Saldo e avisos: ao abrir o app, ao voltar para a janela e a cada 10 min
+  useEffect(() => {
+    const atualizar = () => useNex.getState().carregar();
+    atualizar();
+    const t = setInterval(atualizar, 10 * 60_000);
+    window.addEventListener('focus', atualizar);
+    return () => { clearInterval(t); window.removeEventListener('focus', atualizar); };
+  }, []);
   // Aba do "+": criar um servidor ou entrar num com o convite de alguém
   const [aba, setAba] = useState<'criar' | 'entrar'>('criar');
   const [conviteColado, setConviteColado] = useState('');
@@ -155,6 +169,20 @@ export function ServersSidebar() {
         aria-label="Planos e indicações"
       >
         <Sparkles className="w-5 h-5" />
+      </button>
+
+      {/* Nex: presença, roleta e missões (bolinha = tem prêmio para pegar) */}
+      <button
+        onClick={() => abrirNex()}
+        className="relative w-[46px] min-h-[46px] py-1.5 rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
+                   transition-all duration-200 flex flex-col items-center justify-center gap-0.5
+                   hover:border-[#ff8a3d] hover:-translate-y-0.5"
+        title={nex ? `${nex.saldo.toLocaleString('pt-BR')} Nex · Presença, roleta e missões` : 'Recompensas Nex'}
+        aria-label="Recompensas Nex"
+      >
+        <MoedaNex className="w-6 h-6" />
+        <span className="text-[9px] font-black text-[#ffd08a] leading-none tabular-nums">{nex ? nexCurto(nex.saldo) : '…'}</span>
+        {temPremio && <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#ff6a00] border-2 border-[var(--th-rail)] animate-pulse" />}
       </button>
 
       {/* Em breve: votar no que vem por aí */}
