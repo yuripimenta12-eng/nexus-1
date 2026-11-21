@@ -1196,3 +1196,23 @@ html[data-tema='t-84'] {
   --th-bg: #12060f; --th-glow: #6e1a4a; --th-glow-2: #6e3a0d; --th-panel: #1c0a17; --th-panel-2: #260e1f;
   --th-side: #160811; --th-rail: #12060e; --th-line: #4a1f3d; --th-line-2: #5c2649;
 }
+
+/* Baús da loja: flutuam de leve; com o mouse em cima chacoalham, pulam e brilham */
+@keyframes nx-bau-flutua { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+@keyframes nx-bau-mexe {
+  0% { transform: translateY(0) rotate(0) scale(1) }
+  15% { transform: translateY(-10px) rotate(-7deg) scale(1.08) }
+  30% { transform: translateY(-12px) rotate(6deg) scale(1.1) }
+  45% { transform: translateY(-8px) rotate(-5deg) scale(1.08) }
+  60% { transform: translateY(-10px) rotate(4deg) scale(1.09) }
+  75% { transform: translateY(-4px) rotate(-2deg) scale(1.05) }
+  100% { transform: translateY(0) rotate(0) scale(1) }
+}
+.nx-bau-arte { animation: nx-bau-flutua 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
+.nx-bau-card:hover .nx-bau-arte {
+  animation: nx-bau-mexe .9s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(255, 176, 80, .55)) drop-shadow(0 14px 24px rgba(0, 0, 0, .5)) brightness(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nx-bau-arte, .nx-bau-card:hover .nx-bau-arte { animation: none; }
+}

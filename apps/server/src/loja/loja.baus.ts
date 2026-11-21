@@ -4,37 +4,41 @@
 export interface PremioBau { item?: string; nex?: number; peso: number }
 export interface Bau { id: string; nome: string; preco: number; cor: string; desc: string; ate?: string; premios: PremioBau[] }
 
+// Estreia é o simples (Nex e coisas comuns). Os outros dão SEMPRE item, quase
+// sempre algo raro para cima, e têm coisas que só saem deles.
 export const BAUS: Bau[] = [
   {
     id: 'bau-estreia', nome: 'Baú Estreia', preco: 600, cor: '#3b9bff',
-    desc: 'O primeiro de todo mundo. Sai placa, ícone ou Nex; com sorte, uma moldura.',
+    desc: 'O primeiro de todo mundo: Nex, placas e ícones simples. Com sorte, uma moldura.',
     premios: [
       { nex: 150, peso: 30 }, { nex: 300, peso: 22 }, { item: 'p-violeta', peso: 12 }, { item: 'p-brasa', peso: 10 },
-      { item: 'i-controle', peso: 10 }, { item: 'i-alien', peso: 8 }, { item: 'm-sakura', peso: 6 }, { nex: 1200, peso: 2 },
+      { item: 'i-controle', peso: 12 }, { item: 'i-alien', peso: 8 }, { item: 'm-neon-roxo', peso: 4 }, { nex: 1200, peso: 2 },
     ],
   },
   {
-    id: 'bau-neon', nome: 'Baú Neon', preco: 1800, cor: '#b366ff',
-    desc: 'Molduras de verdade começam aqui. Pixel e Cristal só saem dele.',
+    id: 'bau-neon', nome: 'Baú Neon', preco: 2500, cor: '#b366ff',
+    desc: 'Sempre sai item. Molduras raras e épicas, e Sakura, Pixel, Cristal, Troféu e Taça só saem dele.',
     premios: [
-      { nex: 500, peso: 26 }, { item: 'm-neon-roxo', peso: 18 }, { item: 'm-limao', peso: 16 }, { item: 'm-holografica', peso: 12 },
-      { item: 'm-sakura', peso: 10 }, { item: 'p-arco-iris', peso: 8 }, { item: 'm-pixel', peso: 7 }, { item: 'm-cristal', peso: 3 },
+      { item: 'm-holografica', peso: 16 }, { item: 'm-oceano', peso: 14 }, { item: 'm-sakura', peso: 14 }, { item: 'i-camera', peso: 12 },
+      { item: 'i-tv', peso: 10 }, { item: 'i-coruja', peso: 8 }, { item: 'p-neon', peso: 7 }, { item: 'i-trofeu', peso: 6 },
+      { item: 'm-pixel', peso: 6 }, { item: 'm-glitch', peso: 3 }, { item: 'i-taca', peso: 2 }, { item: 'm-cristal', peso: 2 },
     ],
   },
   {
-    id: 'bau-som', nome: 'Baú do Som', preco: 2000, cor: '#ff8a3d',
-    desc: 'Sons de entrada na call. A Buzina e o Rugido do Dragão só saem aqui.',
+    id: 'bau-som', nome: 'Baú do Som', preco: 2500, cor: '#ff8a3d',
+    desc: 'Sempre sai item. Sons de entrada e ícones de música; Buzina, Dragão, Vinil e Microfone só saem dele.',
     premios: [
-      { nex: 400, peso: 34 }, { item: 's-moeda', peso: 18 }, { item: 's-sino', peso: 16 }, { item: 's-buzina', peso: 14 },
-      { item: 's-laser', peso: 9 }, { item: 's-tambor', peso: 6 }, { item: 's-dragao', peso: 3 },
+      { item: 'i-nota', peso: 14 }, { item: 'i-cd', peso: 12 }, { item: 's-sino', peso: 12 }, { item: 'i-vinil', peso: 12 },
+      { item: 'i-mic', peso: 10 }, { item: 's-buzina', peso: 11 }, { item: 's-laser', peso: 9 }, { item: 'i-microfone', peso: 7 },
+      { item: 's-tambor', peso: 6 }, { item: 's-fanfarra', peso: 4 }, { item: 's-dragao', peso: 3 },
     ],
   },
   {
-    id: 'bau-natal', nome: 'Baú de Natal', preco: 2500, cor: '#ff3b3b', ate: '2027-01-07T03:00:00.000Z',
-    desc: 'Só até o Dia de Reis. Guirlanda, Pisca-pisca, gorro e boneco de neve só saem aqui.',
+    id: 'bau-natal', nome: 'Baú de Natal', preco: 3000, cor: '#ff3b3b', ate: '2027-01-07T03:00:00.000Z',
+    desc: 'Só até o Dia de Reis e sempre sai item: Papai Noel, Boneco de Neve, placa e molduras de Natal.',
     premios: [
-      { nex: 400, peso: 30 }, { item: 'i-gorro', peso: 22 }, { item: 'i-boneco', peso: 22 }, { item: 'p-natal', peso: 12 },
-      { item: 'm-guirlanda', peso: 10 }, { item: 'm-pisca-pisca', peso: 4 },
+      { item: 'i-gorro', peso: 24 }, { item: 'i-boneco', peso: 24 }, { item: 'p-natal', peso: 22 },
+      { item: 'm-guirlanda', peso: 20 }, { item: 'm-pisca-pisca', peso: 7 }, { item: 'm-aurora', peso: 3 },
     ],
   },
 ];

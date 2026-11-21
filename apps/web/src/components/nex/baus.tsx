@@ -74,7 +74,7 @@ export function BannerEvento({ onAbrir }: { onAbrir: () => void }) {
   useEffect(() => { api.get('/loja/baus').then(({ data }) => setNatal(data.find((b: BauLoja) => b.id === 'bau-natal') || null)).catch(() => {}); }, []);
   if (!natal?.ate) return null;
   return (
-    <div className="relative overflow-hidden rounded-[22px] border border-white/10 mb-4 p-5 sm:p-6 flex items-center gap-4"
+    <div className="nx-bau-card relative overflow-hidden rounded-[22px] border border-white/10 mb-4 p-5 sm:p-6 flex items-center gap-4"
       style={{ background: 'radial-gradient(circle at 85% 40%, rgba(255,59,59,0.35), transparent 55%), linear-gradient(110deg, #1d0f1a, #12301e)' }}>
       <div className="relative z-10 min-w-0 flex-1">
         <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff3b3b] text-white">● Evento de Natal</span>
@@ -85,7 +85,7 @@ export function BannerEvento({ onAbrir }: { onAbrir: () => void }) {
           <span className="flex items-center gap-1.5 h-10 px-3 rounded-full text-xs font-black text-white border border-white/20"><Clock className="w-3.5 h-3.5" /> faltam {faltam(natal.ate)} dias</span>
         </div>
       </div>
-      <BauArte id={natal.id} cor={natal.cor} className="relative z-10 w-28 h-24 sm:w-40 sm:h-32 shrink-0 drop-shadow-[0_14px_30px_rgba(255,59,59,0.35)]" />
+      <BauArte id={natal.id} cor={natal.cor} className="nx-bau-arte relative z-10 w-28 h-24 sm:w-40 sm:h-32 shrink-0 drop-shadow-[0_14px_30px_rgba(255,59,59,0.35)]" />
     </div>
   );
 }
@@ -117,10 +117,10 @@ export function SecaoBaus({ onMudou }: { onMudou: () => void }) {
     <div className="space-y-3">
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
         {baus.map(b => (
-          <div key={b.id} className="relative rounded-2xl border border-white/10 overflow-hidden flex flex-col"
+          <div key={b.id} className="nx-bau-card relative rounded-2xl border border-white/10 overflow-hidden flex flex-col"
             style={{ background: `radial-gradient(circle at 50% 30%, ${b.cor}33, transparent 60%), linear-gradient(180deg,#1b1428,#130e1c)` }}>
             {b.ate && <span className="absolute top-3 left-3 text-[10px] font-black px-2 py-1 rounded-full bg-[#ff3b3b] text-white">Natal · faltam {faltam(b.ate)} dias</span>}
-            <BauArte id={b.id} cor={b.cor} className="w-40 h-32 mx-auto mt-4 drop-shadow-[0_14px_24px_rgba(0,0,0,0.5)]" />
+            <BauArte id={b.id} cor={b.cor} className="nx-bau-arte w-40 h-32 mx-auto mt-4 drop-shadow-[0_14px_24px_rgba(0,0,0,0.5)]" />
             <div className="px-4 pb-4 flex-1 flex flex-col">
               <b className="text-white text-lg font-black">{b.nome}</b>
               <small className="text-[12px] text-[#a99fc0] leading-snug">{b.desc}</small>

@@ -67,6 +67,9 @@ export const ICONES: Record<string, string> = {
   'i-caveira': '💀', 'i-foguete': '🚀', 'i-arara': '🦜', 'i-bola': '⚽',
   'i-fogo': '🔥', 'i-raio': '⚡', 'i-coroa': '👑', 'i-diamante': '💎',
   'i-alien': '👽', 'i-gorro': '🎅', 'i-boneco': '⛄',
+  // Só nos baús
+  'i-camera': '📹', 'i-tv': '📺', 'i-coruja': '🦉', 'i-trofeu': '🏆', 'i-taca': '🏆',
+  'i-nota': '🎵', 'i-cd': '💿', 'i-vinil': '💿', 'i-mic': '🎤', 'i-microfone': '🎙️',
 };
 
 // Molduras com arte 3D (public/itens/molduras/<id>.webp). Medido pelo furo do meio:

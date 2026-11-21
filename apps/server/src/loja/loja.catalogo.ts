@@ -90,6 +90,17 @@ export const CATALOGO: Item[] = [
   it('icone', 'i-alien', 'Alien', 'rara', { preco: null }),
   it('som', 's-buzina', 'Buzina', 'rara', { preco: null }),
   it('som', 's-dragao', 'Rugido do Dragão', 'lendaria', { preco: null }),
+  // Ícones que só saem nos baús Neon (troféus e cia.) e do Som (música)
+  it('icone', 'i-camera', 'Câmera', 'rara', { preco: null }),
+  it('icone', 'i-tv', 'TV Retrô', 'rara', { preco: null }),
+  it('icone', 'i-coruja', 'Coruja', 'epica', { preco: null }),
+  it('icone', 'i-trofeu', 'Troféu', 'epica', { preco: null }),
+  it('icone', 'i-taca', 'Taça de Campeão', 'lendaria', { preco: null }),
+  it('icone', 'i-nota', 'Nota Musical', 'comum', { preco: null }),
+  it('icone', 'i-cd', 'CD', 'comum', { preco: null }),
+  it('icone', 'i-vinil', 'Vinil', 'rara', { preco: null }),
+  it('icone', 'i-mic', 'Microfone', 'rara', { preco: null }),
+  it('icone', 'i-microfone', 'Microfone de Estúdio', 'epica', { preco: null }),
   // Natal 2026 (só no Baú de Natal, até 6 de janeiro)
   it('moldura', 'm-guirlanda', 'Guirlanda', 'epica', { preco: null }),
   it('moldura', 'm-pisca-pisca', 'Pisca-pisca', 'lendaria', { preco: null }),
@@ -99,7 +110,7 @@ export const CATALOGO: Item[] = [
 ];
 
 /** Valor de referência (para devolver metade quando sai item repetido no baú). */
-export const VALOR_RARIDADE: Record<Raridade, number> = { comum: 800, rara: 1600, epica: 3200, lendaria: 6400 };
-export const valorDoItem = (i: Item) => i.preco ?? VALOR_RARIDADE[i.raridade];
+// Item sem preço (baú/evento) vale o mesmo que um item da loja do mesmo tipo e raridade
+export const valorDoItem = (i: Item) => i.preco ?? PRECO[i.tipo][i.raridade];
 
 export const itemPorId = (id: string) => CATALOGO.find(i => i.id === id);

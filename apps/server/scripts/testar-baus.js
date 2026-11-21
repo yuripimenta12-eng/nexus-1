@@ -29,6 +29,11 @@ for (const b of baus.BAUS) {
   const media = b.premios.reduce((t, p) => t + (p.peso / total) * (p.nex || cat.valorDoItem(cat.itemPorId(p.item))), 0);
   caso(`${b.nome}: na média devolve menos do que custa (${Math.round(media)} < ${b.preco})`, media < b.preco);
 }
+for (const id of ['bau-neon', 'bau-som', 'bau-natal']) {
+  const b = baus.bauPorId(id);
+  caso(`${b.nome}: sempre sai item (nada de só Nex)`, b.premios.every(p => p.item));
+  caso(`${b.nome}: tem item que só sai dele`, b.premios.some(p => cat.itemPorId(p.item).preco === null));
+}
 const natal = baus.bauPorId('bau-natal');
 caso('Baú de Natal vale em dezembro', baus.bauAtivo(natal, new Date('2026-12-20T12:00:00Z')));
 caso('Baú de Natal some depois do Dia de Reis', !baus.bauAtivo(natal, new Date('2027-01-08T12:00:00Z')));
