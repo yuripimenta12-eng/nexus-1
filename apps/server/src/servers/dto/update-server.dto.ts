@@ -26,4 +26,9 @@ export class UpdateServerDto {
   @Min(2)
   @Max(500)
   maxMembers?: number;
+
+  // Zoeiras pesadas na call (calar, tampão, batismo)
+  @IsOptional()
+  @IsBoolean()
+  zoeirasPesadas?: boolean;
 }

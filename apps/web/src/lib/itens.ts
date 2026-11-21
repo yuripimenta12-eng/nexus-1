@@ -1,6 +1,11 @@
 // Visual dos itens da loja Nex (mesmos ids do catálogo do servidor: src/loja/loja.catalogo.ts).
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
-export type TipoItem = 'moldura' | 'icone' | 'placa';
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som';
+
+// Sons de entrada: emoji do cartão (o som em si é sintetizado em lib/sounds.ts)
+export const SONS: Record<string, string> = {
+  's-moeda': '🪙', 's-sino': '🔔', 's-laser': '🔫', 's-arcade': '🕹️', 's-tambor': '🥁', 's-raio': '🌩️', 's-fanfarra': '🎺',
+};
 
 export const RARIDADE: Record<Raridade, { nome: string; cor: string; fundo: string }> = {
   comum: { nome: 'Comum', cor: '#a7a3b8', fundo: 'linear-gradient(180deg,#1d1828,#15111d)' },

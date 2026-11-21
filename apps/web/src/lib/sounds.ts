@@ -145,6 +145,35 @@ export function playLiveEnd() {
   tone(523.25, 0.1, 0.28, 'triangle', 0.11); // C5
 }
 
+/** Sons de entrada da loja Nex: tocam para a sala quando a pessoa entra na call. */
+export function playSomEntrada(id: string | null | undefined): boolean {
+  switch (id) {
+    case 's-moeda': // moedinha de fliperama
+      tone(987.77, 0, 0.08, 'square', 0.07); tone(1318.5, 0.08, 0.3, 'square', 0.07); return true;
+    case 's-sino':
+      [1567.98, 2093].forEach((f, i) => softTone(f, i * 0.12, 0.9, 'sine', 0.1, 0, 6000)); return true;
+    case 's-laser': {
+      const c = ac(); if (!c) return false;
+      const t0 = c.currentTime, o = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(1800, t0); o.frequency.exponentialRampToValueAtTime(180, t0 + 0.35);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+      o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + 0.42); return true;
+    }
+    case 's-arcade': // "power-up" subindo
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, i * 0.06, 0.09, 'square', 0.06)); return true;
+    case 's-tambor':
+      for (let i = 0; i < 10; i++) swoosh(i * 0.06, 0.07, 180, 120, 0.25);
+      tone(98, 0.62, 0.4, 'triangle', 0.18); swoosh(0.62, 0.5, 6000, 3000, 0.18); return true;
+    case 's-raio':
+      swoosh(0, 0.12, 8000, 2000, 0.35); swoosh(0.1, 0.9, 400, 60, 0.4); tone(55, 0.12, 0.8, 'sawtooth', 0.06); return true;
+    case 's-fanfarra':
+      [[523.25, 0], [523.25, 0.12], [523.25, 0.24], [659.25, 0.36], [783.99, 0.56]].forEach(([f, t], i) =>
+        softTone(f, t, i === 4 ? 0.7 : 0.14, 'sawtooth', 0.07, 4, 2600)); return true;
+    default:
+      return false;
+  }
+}
+
 /** Alguém PISCOU para você na call — "zap": sopro subindo + dois toques rápidos */
 export function playPiscada() {
   swoosh(0, 0.18, 600, 4200, 0.22);

@@ -24,7 +24,7 @@ import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { cn, getInitials } from '@/lib/utils';
 import { getSocket } from '@/lib/socket';
-import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd } from '@/lib/sounds';
+import { playCallJoin, playCallLeave, playLiveStart, playLiveEnd, playSomEntrada } from '@/lib/sounds';
 import { Avatar } from '@/components/ui/avatar';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import api from '@/lib/api';
@@ -39,6 +39,7 @@ import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelRea
 import { Smile } from 'lucide-react';
 import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
+import { useEscutarZoeiras, ZoeirasDoQuadro, BotaoZoeira, BotaoEscudo, AvisoZoeira, useApelido } from '@/components/voice/zoeiras';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -68,7 +69,7 @@ function glowFor(identity: string): string {
 
 interface MetaMembro {
   role: string; mutedBy: boolean; roles: { id: string; name: string; color: string; hoist: boolean; position: number }[]; avatarUrl?: string | null;
-  moldura?: string | null; icone?: string | null; placa?: string | null;
+  moldura?: string | null; icone?: string | null; placa?: string | null; somEntrada?: string | null;
 }
 
 export default function VoicePage() {
@@ -167,6 +168,7 @@ export default function VoicePage() {
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
   const [reacoesAberto, setReacoesAberto] = useState(false); // bandeja de emojis voando
   useEscutarReacoes();
+  useEscutarZoeiras(roomId);
   useEffect(() => { if (serverId) marcarEntrouNaVoz(serverId); }, [serverId]);
   const tabMusicOn = useAnyTabMusic();                     // alguém transmitindo música de uma aba
   const djState = useVoiceStore(s => s.djState);
@@ -288,6 +290,7 @@ export default function VoicePage() {
   // estado entre renders. Silencioso quando você está em "Silenciar tudo".
   const prevIdsRef = useRef<Set<string> | null>(null);
   const prevSharersRef = useRef<Set<string> | null>(null);
+  const metaRef = useRef<Record<string, MetaMembro>>({}); // membersMeta mais recente (som de entrada)
 
   useEffect(() => {
     if (!isConnected) return;
@@ -308,7 +311,12 @@ export default function VoicePage() {
 
     if (!isDeafened) {
       const antes = prevIdsRef.current;
-      if (Array.from(ids).some(id => !antes.has(id))) playCallJoin();
+      const novos = Array.from(ids).filter(id => !antes.has(id));
+      // Quem tem som de entrada da loja Nex toca o dele; os outros, o som padrão
+      if (novos.length) {
+        const comSom = novos.find(id => metaRef.current[id]?.somEntrada);
+        if (!comSom || !playSomEntrada(metaRef.current[comSom]?.somEntrada)) playCallJoin();
+      }
       if (Array.from(antes).some(id => !ids.has(id))) playCallLeave();
 
       const antesLive = prevSharersRef.current ?? new Set<string>();
@@ -346,8 +354,9 @@ export default function VoicePage() {
         data.forEach((m: any) => {
           const pf = m.user?.profile;
           map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [], avatarUrl: pf?.avatarUrl || null,
-            moldura: pf?.moldura || null, icone: pf?.icone || null, placa: pf?.placa || null };
+            moldura: pf?.moldura || null, icone: pf?.icone || null, placa: pf?.placa || null, somEntrada: pf?.somEntrada || null };
         });
+        metaRef.current = map;
         setMembersMeta(map);
       })
       .catch(() => {});
@@ -689,6 +698,7 @@ export default function VoicePage() {
         {/* Palco */}
         <div data-nx-palco className="flex-1 flex flex-col min-w-0 min-h-0 relative">
           <AvisoPiscada />
+          <AvisoZoeira />
           {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
           <div className={cn(
             'h-[60px] md:h-[70px] flex items-center px-3 md:px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
@@ -2144,6 +2154,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
   const speaking = voiceParticipant.isSpeaking;
   const djState = useVoiceStore(s => s.djState);
   const localIdentity = useVoiceStore(s => s.room?.localParticipant?.identity);
+  const apelido = useApelido(identity);
 
   // Tile do DJ Nexus (bot de música): ícone de música + faixa tocando
   if (identity === DJ_IDENTITY) {
@@ -2268,7 +2279,10 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       )}
 
       <VoosDoQuadro identity={identity} />
+      <ZoeirasDoQuadro identity={identity} />
       {!souEu && <BotaoPiscar identity={identity} nome={name} />}
+      {!souEu && <BotaoZoeira identity={identity} nome={name} />}
+      {souEu && <BotaoEscudo />}
 
       {/* Canto superior: barrinhas de quem fala / selo de microfone desligado */}
       {speaking && !micOff && (
@@ -2289,7 +2303,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       {/* Nameplate */}
       <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
                       bg-[#09070d]/70 backdrop-blur font-bold text-white text-sm max-w-[calc(100%-56px)]">
-        <NomeComItens nome={name} icone={icone} placa={placa} className="max-w-[180px]" />
+        <NomeComItens nome={apelido ? `🏷️ ${apelido}` : name} icone={icone} placa={placa} className="max-w-[180px]" />
         {speaking && <span className="text-[11px] font-semibold text-[#ffb070] shrink-0">falando</span>}
         {playingMusic && (
           <span className="flex items-center gap-1 text-[11px] font-semibold text-[#c9a6ff] shrink-0">

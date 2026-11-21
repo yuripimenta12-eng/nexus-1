@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { planoAtivo } from '../planos/planos.regras';
-import { CATALOGO, itemPorId, type TipoItem } from './loja.catalogo';
+import { CATALOGO, CAMPO_PERFIL, itemPorId, type TipoItem } from './loja.catalogo';
 
-const TIPOS: TipoItem[] = ['moldura', 'icone', 'placa'];
+const TIPOS: TipoItem[] = ['moldura', 'icone', 'placa', 'som'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
 
 @Injectable()
@@ -15,14 +15,14 @@ export class LojaService {
     const [carteira, posses, perfil, user] = await Promise.all([
       this.prisma.carteira.findUnique({ where: { userId }, select: { saldo: true } }),
       this.prisma.itemPosse.findMany({ where: { userId }, select: { itemId: true, expiraEm: true } }),
-      this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true } }),
+      this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true, somEntrada: true } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } }),
     ]);
     const tem = new Map(posses.filter(valido).map(p => [p.itemId, p.expiraEm]));
     return {
       saldo: carteira?.saldo ?? 0,
       plano: planoAtivo(user?.plano, user?.planoAte),
-      equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null },
+      equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null },
       itens: CATALOGO.map(i => ({ ...i, possui: tem.has(i.id), expiraEm: tem.get(i.id) ?? null })),
     };
   }
@@ -57,15 +57,16 @@ export class LojaService {
   async equipar(userId: string, tipo: unknown, itemId: unknown) {
     if (!TIPOS.includes(tipo as TipoItem)) throw new BadRequestException('Tipo inválido');
     const t = tipo as TipoItem;
+    const campo = CAMPO_PERFIL[t];
     if (itemId === null) {
-      await this.prisma.profile.update({ where: { userId }, data: { [t]: null } });
+      await this.prisma.profile.update({ where: { userId }, data: { [campo]: null } });
       return { tipo: t, itemId: null };
     }
     const item = typeof itemId === 'string' ? itemPorId(itemId) : undefined;
     if (!item || item.tipo !== t) throw new BadRequestException('Item inválido para esse lugar');
     const posse = await this.prisma.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId: item.id } } });
     if (!posse || !valido(posse)) throw new ForbiddenException('Você não tem esse item');
-    await this.prisma.profile.update({ where: { userId }, data: { [t]: item.id } });
+    await this.prisma.profile.update({ where: { userId }, data: { [campo]: item.id } });
     return { tipo: t, itemId: item.id };
   }
 }

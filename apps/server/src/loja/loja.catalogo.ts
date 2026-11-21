@@ -1,6 +1,8 @@
 // Catálogo da loja Nex. O visual de cada item fica no site (apps/web/src/lib/itens.ts),
 // com o mesmo id. Preço null = não vende direto (só baú, evento ou roleta).
-export type TipoItem = 'moldura' | 'icone' | 'placa';
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som';
+/** Onde cada tipo fica guardado no perfil quando equipado. */
+export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa', som: 'somEntrada' } as const;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean }
 
@@ -8,6 +10,7 @@ const PRECO = {
   moldura: { comum: 1000, rara: 2000, epica: 4000, lendaria: 8000 },
   icone: { comum: 500, rara: 1000, epica: 2000, lendaria: 3000 },
   placa: { comum: 800, rara: 1500, epica: 2500, lendaria: 4000 },
+  som: { comum: 2000, rara: 3000, epica: 4000, lendaria: 5000 },
 } as const;
 const it = (tipo: TipoItem, id: string, nome: string, raridade: Raridade, extra: Partial<Item> = {}): Item =>
   ({ id, tipo, nome, raridade, preco: PRECO[tipo][raridade], ...extra });
@@ -51,6 +54,14 @@ export const CATALOGO: Item[] = [
   it('placa', 'p-ouro', 'Ouro', 'epica'),
   it('placa', 'p-neon', 'Neon', 'epica'),
   it('placa', 'p-galaxia', 'Galáxia', 'lendaria'),
+  // Sons de entrada: tocam para a sala quando você entra na call
+  it('som', 's-moeda', 'Moedinha', 'comum'),
+  it('som', 's-sino', 'Sininho', 'comum'),
+  it('som', 's-laser', 'Laser', 'rara'),
+  it('som', 's-arcade', 'Fliperama', 'rara'),
+  it('som', 's-tambor', 'Rufar', 'epica'),
+  it('som', 's-raio', 'Trovão', 'epica'),
+  it('som', 's-fanfarra', 'Fanfarra', 'lendaria'),
 ];
 
 export const itemPorId = (id: string) => CATALOGO.find(i => i.id === id);

@@ -740,6 +740,7 @@ function InvitesSection({ serverId, notify }: { serverId: string; notify: (m: st
 function AccessSection({ serverId, notify }: { serverId: string; notify: (m: string) => void }) {
   const [isPublic, setIsPublic] = useState(false);
   const [maxMembers, setMaxMembers] = useState(100);
+  const [zoeirasPesadas, setZoeirasPesadas] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -747,13 +748,14 @@ function AccessSection({ serverId, notify }: { serverId: string; notify: (m: str
     api.get(`/servers/${serverId}`).then(({ data }) => {
       setIsPublic(!!data.isPublic);
       setMaxMembers(data.maxMembers ?? 100);
+      setZoeirasPesadas(!!data.zoeirasPesadas);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [serverId]);
 
   const save = async () => {
     setSaving(true);
     try {
-      await api.patch(`/servers/${serverId}`, { isPublic, maxMembers });
+      await api.patch(`/servers/${serverId}`, { isPublic, maxMembers, zoeirasPesadas });
       notify('Acesso atualizado!');
     } catch (e: any) {
       notify(e?.response?.data?.message || 'Sem permissão');
@@ -778,6 +780,19 @@ function AccessSection({ serverId, notify }: { serverId: string; notify: (m: str
         <button role="switch" aria-checked={isPublic} onClick={() => setIsPublic(v => !v)}
           className={cn('relative w-10 h-6 rounded-full transition-colors shrink-0', isPublic ? 'bg-success' : 'bg-[#4a4356]')}>
           <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', isPublic ? 'left-[18px]' : 'left-0.5')} />
+        </button>
+      </div>
+      <div className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] p-4">
+        <div>
+          <p className="text-white text-sm font-medium">Zoeiras pesadas na call 🤐</p>
+          <p className="text-[#92879f] text-xs mt-0.5">
+            Libera "Cala a boca" (15 s), "Tampão" (10 s) e "Batismo" (apelido da lista por 5 min). Nunca valem em dono ou admin,
+            e quem desligou "Receber zoeiras" fica de fora. As leves (tomate, torta, confete...) valem sempre.
+          </p>
+        </div>
+        <button role="switch" aria-checked={zoeirasPesadas} onClick={() => setZoeirasPesadas(v => !v)} aria-label="Zoeiras pesadas"
+          className={cn('relative w-10 h-6 rounded-full transition-colors shrink-0', zoeirasPesadas ? 'bg-success' : 'bg-[#4a4356]')}>
+          <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', zoeirasPesadas ? 'left-[18px]' : 'left-0.5')} />
         </button>
       </div>
       <div>

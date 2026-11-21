@@ -107,6 +107,7 @@ export class ServersService {
         tag: dto.tag,
         isPublic: dto.isPublic,
         maxMembers: dto.maxMembers,
+        zoeirasPesadas: dto.zoeirasPesadas,
       },
     });
   }

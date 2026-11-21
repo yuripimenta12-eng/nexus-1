@@ -4,26 +4,29 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown } from 'lucide-react';
+import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play } from 'lucide-react';
+import { playSomEntrada } from '@/lib/sounds';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNex } from '@/lib/nex';
-import { RARIDADE, ICONES, type Raridade, type TipoItem } from '@/lib/itens';
+import { RARIDADE, ICONES, SONS, type Raridade, type TipoItem } from '@/lib/itens';
 import { Avatar } from '@/components/ui/avatar';
 import { NomeComItens } from '@/components/nex/itens-visuais';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 
 interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; possui: boolean }
-interface DadosLoja { saldo: number; plano: string; equipados: Record<TipoItem, string | null>; itens: ItemLoja[] }
+interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[] }
 
 const SECOES = [
   { id: 'destaques', nome: 'Destaques', icone: Sparkles },
   { id: 'moldura', nome: 'Molduras', icone: Frame },
   { id: 'icone', nome: 'Ícones', icone: Smile },
   { id: 'placa', nome: 'Placas do nome', icone: Tag },
+  { id: 'som', nome: 'Sons de entrada', icone: Volume2 },
+  { id: 'zoeiras', nome: 'Zoeiras', icone: Laugh },
   { id: 'meus', nome: 'Meus itens', icone: Backpack },
 ] as const;
 type Secao = (typeof SECOES)[number]['id'];
@@ -116,7 +119,9 @@ export default function LojaPage() {
 
           {/* Vitrine */}
           <section>
-            {!dados ? (
+            {secao === 'zoeiras' ? (
+              <SecaoZoeiras onMudou={() => { carregar(); useNex.getState().carregar(); }} />
+            ) : !dados ? (
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="h-[230px] rounded-2xl nx-skeleton" />)}</div>
             ) : lista.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#3a2a4d] p-8 text-center text-sm text-[#a99fc0]">
@@ -228,9 +233,81 @@ export default function LojaPage() {
   );
 }
 
+interface ZoeiraLoja { id: string; nome: string; emoji: string; preco: number; pesada: boolean; desc: string; qtd: number; propria?: boolean }
+
+/** Zoeiras: compra em quantidade e usa na call clicando na pessoa. */
+function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
+  const [dados, setDados] = useState<{ saldo: number; receberZoeiras: boolean; zoeiras: ZoeiraLoja[] } | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const carregar = () => api.get('/zoeiras').then(({ data }) => setDados(data)).catch(() => {});
+  useEffect(() => { carregar(); }, []);
+  const comprar = async (z: ZoeiraLoja, qtd: number) => {
+    setOcupado(z.id + qtd);
+    try {
+      await api.post(`/zoeiras/comprar/${z.id}`, { qtd });
+      toast(`+${qtd} ${z.nome} no seu estoque`, 'success');
+      await carregar(); onMudou();
+    } catch (e: any) { toast(e?.response?.data?.message || 'Não deu para comprar', 'error'); }
+    setOcupado(null);
+  };
+  const alternar = async () => {
+    if (!dados) return;
+    try {
+      await api.put('/zoeiras/preferencia', { receber: !dados.receberZoeiras });
+      setDados({ ...dados, receberZoeiras: !dados.receberZoeiras });
+    } catch { toast('Não deu agora', 'error'); }
+  };
+  if (!dados) return <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2].map(i => <div key={i} className="h-[200px] rounded-2xl nx-skeleton" />)}</div>;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-2xl border border-[#2e2340] bg-[#140f1e] p-4">
+        <span className="text-2xl" aria-hidden>🎯</span>
+        <div className="flex-1 min-w-0">
+          <b className="block text-sm text-white">Receber zoeiras</b>
+          <small className="block text-xs text-[#92879f]">A galera pode usar zoeiras em você na call. As pesadas só valem se o dono do servidor liberar.</small>
+        </div>
+        <button onClick={alternar} role="switch" aria-checked={dados.receberZoeiras} aria-label="Receber zoeiras"
+          className={cn('w-12 h-7 rounded-full p-1 transition-colors shrink-0', dados.receberZoeiras ? 'bg-[#7a2cff]' : 'bg-[#3a2a4d]')}>
+          <span className={cn('block w-5 h-5 rounded-full bg-white transition-transform', dados.receberZoeiras && 'translate-x-5')} />
+        </button>
+      </div>
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+        {dados.zoeiras.map(z => (
+          <div key={z.id} className="relative rounded-2xl border border-white/10 p-3 flex flex-col"
+            style={{ background: z.pesada ? 'linear-gradient(180deg,#3a1630,#170f1c)' : 'linear-gradient(180deg,#1d1828,#15111d)' }}>
+            {z.pesada && <span className="absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ff4d6d]/15 text-[#ff7a92]">Pesada</span>}
+            {z.qtd > 0 && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-white">Tem {z.qtd}</span>}
+            <span className="text-[44px] leading-none text-center mt-4 mb-2 drop-shadow-[0_6px_12px_rgba(0,0,0,0.5)]" aria-hidden>{z.emoji}</span>
+            <b className="text-white text-sm">{z.nome}</b>
+            <small className="text-[11px] text-[#92879f] leading-snug">{z.desc}</small>
+            <div className="mt-auto pt-3 flex gap-1.5">
+              <button disabled={!!ocupado} onClick={() => comprar(z, 1)}
+                className="flex-1 h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1 bg-black/35 text-white hover:bg-black/50 border border-white/10 disabled:opacity-60">
+                <MoedaNex className="w-4 h-4" /> {formatarNex(z.preco)}
+              </button>
+              {!z.propria && (
+                <button disabled={!!ocupado} onClick={() => comprar(z, 5)} title={`5 por ${formatarNex(z.preco * 5)} Nex`}
+                  className="h-9 px-2.5 rounded-[11px] text-xs font-black bg-[#2a1c45] text-[#c9a6ff] hover:bg-[#33204f] disabled:opacity-60">×5</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-[#8d82a0]">Para usar: na call, passe o mouse no quadro da pessoa e clique em <b className="text-[#ffb3e6]">Zoeira</b>. O Escudo você usa em você mesmo e fica imune por 1 hora.</p>
+    </div>
+  );
+}
+
 /** Miniatura do item no cartão: moldura na sua foto, ícone grande ou placa no seu nome. */
 function PreviaItem({ item, nome, avatar }: { item: ItemLoja; nome: string; avatar?: string | null }) {
   if (item.tipo === 'moldura') return <Avatar src={avatar} name={nome} size="xl" moldura={item.id} />;
   if (item.tipo === 'icone') return <span className="text-[52px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{ICONES[item.id]}</span>;
+  if (item.tipo === 'som') return (
+    <span className="flex items-center gap-3">
+      <span className="text-[46px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{SONS[item.id]}</span>
+      <button onClick={(e) => { e.stopPropagation(); playSomEntrada(item.id); }} aria-label={`Ouvir ${item.nome}`}
+        className="w-9 h-9 rounded-full grid place-items-center bg-white/10 hover:bg-white/20 text-white"><Play className="w-4 h-4 ml-0.5" /></button>
+    </span>
+  );
   return <NomeComItens nome={nome} placa={item.id} className="text-white text-base font-black max-w-[90%]" />;
 }
