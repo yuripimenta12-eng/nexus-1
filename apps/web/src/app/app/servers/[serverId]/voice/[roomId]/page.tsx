@@ -39,6 +39,7 @@ import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelRea
 import { Smile } from 'lucide-react';
 import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
+import { corNomeDe } from '@/lib/planos';
 import { useEscutarZoeiras, ZoeirasDoQuadro, BotaoZoeira, BotaoEscudo, AvisoZoeira, useApelido } from '@/components/voice/zoeiras';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -69,7 +70,7 @@ function glowFor(identity: string): string {
 
 interface MetaMembro {
   role: string; mutedBy: boolean; roles: { id: string; name: string; color: string; hoist: boolean; position: number }[]; avatarUrl?: string | null;
-  moldura?: string | null; icone?: string | null; placa?: string | null; somEntrada?: string | null;
+  moldura?: string | null; icone?: string | null; placa?: string | null; somEntrada?: string | null; corNome?: string | null;
 }
 
 export default function VoicePage() {
@@ -354,7 +355,7 @@ export default function VoicePage() {
         data.forEach((m: any) => {
           const pf = m.user?.profile;
           map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [], avatarUrl: pf?.avatarUrl || null,
-            moldura: pf?.moldura || null, icone: pf?.icone || null, placa: pf?.placa || null, somEntrada: pf?.somEntrada || null };
+            moldura: pf?.moldura || null, icone: pf?.icone || null, placa: pf?.placa || null, somEntrada: pf?.somEntrada || null, corNome: corNomeDe(m.user) };
         });
         metaRef.current = map;
         setMembersMeta(map);
@@ -1218,6 +1219,7 @@ export default function VoicePage() {
                           moldura={membersMeta[p.identity]?.moldura}
                           icone={membersMeta[p.identity]?.icone}
                           placa={membersMeta[p.identity]?.placa}
+                          corNome={membersMeta[p.identity]?.corNome}
                           inFocusMode={focusModeUsers.has(p.identity)}
                           isDeafenedUser={deafenedUsers.has(p.identity)}
                         />
@@ -2142,9 +2144,9 @@ function tileAspect(count: number): string {
 // ── Tile de participante ──────────────────────────────────────────
 // memo: com a lista de participantes reaproveitando quem não mudou, só o
 // quadro de quem começou/parou de falar é redesenhado
-const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser, moldura, icone, placa }: {
+const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser, moldura, icone, placa, corNome }: {
   voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean;
-  moldura?: string | null; icone?: string | null; placa?: string | null;
+  moldura?: string | null; icone?: string | null; placa?: string | null; corNome?: string | null;
 }) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
@@ -2303,7 +2305,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       {/* Nameplate */}
       <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
                       bg-[#09070d]/70 backdrop-blur font-bold text-white text-sm max-w-[calc(100%-56px)]">
-        <NomeComItens nome={apelido ? `🏷️ ${apelido}` : name} icone={icone} placa={placa} className="max-w-[180px]" />
+        <NomeComItens nome={apelido ? `🏷️ ${apelido}` : name} icone={icone} placa={placa} corNome={apelido ? null : corNome} className="max-w-[180px]" />
         {speaking && <span className="text-[11px] font-semibold text-[#ffb070] shrink-0">falando</span>}
         {playingMusic && (
           <span className="flex items-center gap-1 text-[11px] font-semibold text-[#c9a6ff] shrink-0">

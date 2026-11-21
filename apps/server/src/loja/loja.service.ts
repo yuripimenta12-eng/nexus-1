@@ -1,12 +1,13 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { planoAtivo } from '../planos/planos.regras';
+import { planoAtivo, planoCobre, type Plano } from '../planos/planos.regras';
 import { randomInt } from 'crypto';
 import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoPerfil } from './loja.catalogo';
 import { BAUS, bauPorId, bauAtivo, sortearPremio, somaPesos } from './loja.baus';
 
 const TIPOS: TipoPerfil[] = ['moldura', 'icone', 'placa', 'som'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
+const incluso = (exigido: Plano | undefined, plano: Plano) => !!exigido && planoCobre(plano, exigido);
 
 @Injectable()
 export class LojaService {
@@ -21,11 +22,12 @@ export class LojaService {
       this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } }),
     ]);
     const tem = new Map(posses.filter(valido).map(p => [p.itemId, p.expiraEm]));
+    const plano = planoAtivo(user?.plano, user?.planoAte);
     return {
       saldo: carteira?.saldo ?? 0,
-      plano: planoAtivo(user?.plano, user?.planoAte),
+      plano,
       equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null },
-      itens: CATALOGO.map(i => ({ ...i, possui: tem.has(i.id), expiraEm: tem.get(i.id) ?? null })),
+      itens: CATALOGO.map(i => ({ ...i, possui: tem.has(i.id) || incluso(i.incluiPlano, plano), expiraEm: tem.get(i.id) ?? null })),
     };
   }
 
@@ -140,8 +142,15 @@ export class LojaService {
     }
     const item = typeof itemId === 'string' ? itemPorId(itemId) : undefined;
     if (!item || item.tipo !== t) throw new BadRequestException('Item inválido para esse lugar');
-    const posse = await this.prisma.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId: item.id } } });
-    if (!posse || !valido(posse)) throw new ForbiddenException('Você não tem esse item');
+    if (item.incluiPlano) {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } });
+      if (!incluso(item.incluiPlano, planoAtivo(u?.plano, u?.planoAte))) {
+        throw new ForbiddenException(`Vem com o ${item.incluiPlano === 'pro' ? 'Nexus Pro' : 'Nexus+'}`);
+      }
+    } else {
+      const posse = await this.prisma.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId: item.id } } });
+      if (!posse || !valido(posse)) throw new ForbiddenException('Você não tem esse item');
+    }
     await this.prisma.profile.update({ where: { userId }, data: { [campo]: item.id } });
     return { tipo: t, itemId: item.id };
   }

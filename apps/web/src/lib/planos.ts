@@ -12,6 +12,19 @@ export function planoAtivo(u: { plano?: string | null; planoAte?: string | Date 
   return u.planoAte && new Date(u.planoAte).getTime() > Date.now() ? p : 'gratis';
 }
 
+// O que cada plano libera (igual a BENEFICIOS em apps/server/src/planos/planos.regras.ts)
+export const BENEFICIOS: Record<Plano, { arquivoMB: number; avatarAnimado: boolean; corNome: boolean; filaDj: number }> = {
+  gratis: { arquivoMB: 50, avatarAnimado: false, corNome: false, filaDj: 15 },
+  mais: { arquivoMB: 100, avatarAnimado: true, corNome: true, filaDj: 25 },
+  pro: { arquivoMB: 200, avatarAnimado: true, corNome: true, filaDj: 50 },
+};
+
+/** Cor do nome escolhida (só vale com Nexus+ ou Pro ativo). */
+export function corNomeDe(u: { plano?: string | null; planoAte?: string | Date | null; profile?: { corNome?: string | null } | null } | null | undefined): string | null {
+  const c = u?.profile?.corNome;
+  return c && BENEFICIOS[planoAtivo(u)].corNome ? c : null;
+}
+
 // Live de tela: quem define é o plano de quem transmite
 export const LIVE_POR_PLANO: Record<Plano, { width: number; height: number; frameRate: number; maxBitrate: number; rotulo: string }> = {
   gratis: { width: 960, height: 540, frameRate: 60, maxBitrate: 2_500_000, rotulo: '540p 60fps' },

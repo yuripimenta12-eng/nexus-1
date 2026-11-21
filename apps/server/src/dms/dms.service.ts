@@ -1,3 +1,5 @@
+import { BENEFICIOS } from '../planos/planos.regras';
+import { planoDe } from '../planos/plano-de';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NexusGateway } from '../gateway/nexus.gateway';
@@ -225,7 +227,7 @@ export class DmsService {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
     await this.assertCanMessage(senderId, receiverId);
     const content = cleanContent(rawContent, true);
-    const { url } = await this.upload.uploadFile(file, 'attachments');
+    const { url } = await this.upload.uploadFile(file, 'attachments', { limiteMB: BENEFICIOS[await planoDe(this.prisma, senderId)].arquivoMB });
     const dm = await this.prisma.directMessage.create({
       data: {
         senderId, receiverId, content,

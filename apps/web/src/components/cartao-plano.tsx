@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Check, Crown, Gem, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { LIVE_POR_PLANO, PRECO_PLANO, type Plano } from '@/lib/planos';
+import { BENEFICIOS, LIVE_POR_PLANO, PRECO_PLANO, type Plano } from '@/lib/planos';
 
 type Beneficio = { texto: string; emBreve?: boolean };
 export type Cartao = {
@@ -31,6 +31,8 @@ export const PARA_VOCE: Cartao[] = [
       { texto: 'Calls de voz e vídeo, chat e servidores' },
       { texto: `Live de tela em ${LIVE_POR_PLANO.gratis.rotulo}` },
       { texto: 'DJ na call, placar e conquistas' },
+      { texto: 'Perfil gamer: jogos, conexões e "procurando duo"' },
+      { texto: `Arquivos de até ${BENEFICIOS.gratis.arquivoMB} MB` },
     ],
   },
   {
@@ -40,10 +42,12 @@ export const PARA_VOCE: Cartao[] = [
     beneficios: [
       { texto: 'Tudo do Grátis' },
       { texto: `Live de tela em ${LIVE_POR_PLANO.mais.rotulo}` },
+      { texto: 'Foto e capa animadas (GIF)' },
+      { texto: 'Cor ou degradê no nome, em todo lugar' },
+      { texto: 'Moldura exclusiva Nexus+' },
+      { texto: `Arquivos de até ${BENEFICIOS.mais.arquivoMB} MB` },
+      { texto: '+25% de Nex na presença e nas missões' },
       { texto: 'Emblema Nexus+ no perfil e na lista de membros' },
-      { texto: 'Avatar e banner animados (GIF)', emBreve: true },
-      { texto: 'Cor ou gradiente no nome', emBreve: true },
-      { texto: 'Envio de arquivos maiores', emBreve: true },
     ],
   },
   {
@@ -54,9 +58,11 @@ export const PARA_VOCE: Cartao[] = [
       { texto: 'Tudo do Nexus+' },
       { texto: `Live de tela em ${LIVE_POR_PLANO.pro.rotulo}` },
       { texto: 'Versão mais leve da live para quem tem internet fraca' },
+      { texto: 'Molduras animadas exclusivas do Pro (e a Realeza na loja)' },
+      { texto: `Arquivos de até ${BENEFICIOS.pro.arquivoMB} MB` },
+      { texto: `Fila do DJ maior: até ${BENEFICIOS.pro.filaDj} músicas suas` },
+      { texto: '+50% de Nex na presença e nas missões, e 2 giros na roleta' },
       { texto: 'Emblema Nexus Pro no perfil e na lista de membros' },
-      { texto: 'Fila do DJ maior', emBreve: true },
-      { texto: 'Moldura animada no avatar', emBreve: true },
     ],
   },
 ];

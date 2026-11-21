@@ -5,7 +5,8 @@ export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema';
 export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa', som: 'somEntrada' } as const;
 export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
-export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean }
+// incluiPlano: vem de graça com o plano (não vende; some se o plano acabar)
+export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro' }
 
 const PRECO = {
   moldura: { comum: 1000, rara: 2000, epica: 4000, lendaria: 8000 },
@@ -33,6 +34,10 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-galaxia', 'Galáxia', 'epica'),
   it('moldura', 'm-aurora', 'Aurora Nexus', 'lendaria'),
   it('moldura', 'm-coroa', 'Realeza', 'lendaria', { soPro: true }),
+  // Incluídas nos planos
+  it('moldura', 'm-mais', 'Nexus+', 'epica', { preco: null, incluiPlano: 'mais' }),
+  it('moldura', 'm-pro', 'Nexus Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
+  it('moldura', 'm-pro-eletrica', 'Elétrica Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   // Ícones: ao lado do nome, na lista, no chat e na call
   it('icone', 'i-controle', 'Controle', 'comum'),
   it('icone', 'i-fantasma', 'Fantasma', 'comum'),

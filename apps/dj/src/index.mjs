@@ -35,7 +35,9 @@ const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_MS) / 1000;      // 960 por canal
 const FRAME_BYTES = SAMPLES_PER_FRAME * CHANNELS * 2;           // 3840 bytes (int16)
 const IDLE_LEAVE_MS = 3 * 60 * 1000;
 const ALONE_LEAVE_MS = 60 * 1000;
-const MAX_QUEUE = 50;
+const MAX_QUEUE = 100;
+// Músicas de cada pessoa na fila ao mesmo tempo, pelo plano (igual a BENEFICIOS em apps/server/src/planos/planos.regras.ts)
+const FILA_POR_PLANO = { gratis: 15, mais: 25, pro: 50 };
 const MAX_SESSIONS = Number(process.env.MAX_SESSIONS || 20);   // salas tocando ao mesmo tempo (CPU do VPS)
 const MAX_SESSIONS_POR_PESSOA = 2;
 const PAUSE_LEAVE_MS = 15 * 60 * 1000;                         // pausado demais: libera yt-dlp/ffmpeg
@@ -230,10 +232,17 @@ class Session {
   clearIdle() { if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; } }
 
   // ── Comandos ──
-  async play(query, requestedBy) {
-    if (this.queue.length >= MAX_QUEUE) throw new Error('Fila cheia (50 músicas).');
+  async play(query, requestedBy, who = {}) {
+    if (this.queue.length >= MAX_QUEUE) throw new Error(`Fila cheia (${MAX_QUEUE} músicas).`);
+    const limite = FILA_POR_PLANO[who.plano] || FILA_POR_PLANO.gratis;
+    if (who.identity && this.queue.filter(q => q.requestedById === who.identity).length >= limite) {
+      throw new Error(who.plano === 'pro'
+        ? `Você já tem ${limite} músicas na fila.`
+        : `Você já tem ${limite} músicas na fila. Com o Nexus Pro dá para pôr até ${FILA_POR_PLANO.pro}.`);
+    }
     const item = await resolveTrack(query);
     item.requestedBy = requestedBy;
+    item.requestedById = who.identity;
     item.id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     this.queue.push(item);
     this.lastError = null;
@@ -453,7 +462,8 @@ async function auth(req) {
   const fontes = claims.video.canPublishSources;
   const podeFalar = claims.video.canPublish !== false &&
     (!Array.isArray(fontes) || fontes.length === 0 || fontes.some(f => String(f).toLowerCase() === 'microphone' || f === 2));
-  return { room, identity: claims.sub, name: claims.name || claims.sub, podeFalar };
+  const plano = claims.attributes?.plano;
+  return { room, identity: claims.sub, name: claims.name || claims.sub, podeFalar, plano: plano === 'mais' || plano === 'pro' ? plano : 'gratis' };
 }
 
 // Recibo para o placar da call: a API confere a assinatura (mesmo segredo do
@@ -517,7 +527,7 @@ const server = http.createServer(async (req, res) => {
         if (!who.podeFalar) throw Object.assign(new Error('Você está sem permissão de falar nesta sala'), { status: 403 });
         if (!s || s.closed) { s = novaSessao(who); }
         await s.connect();
-        const item = await s.play(String(body.query || ''), who.name);
+        const item = await s.play(String(body.query || ''), who.name, who);
         return send(res, 200, { ok: true, added: item, state: s.state(), recibo: reciboPlacar(who.identity, who.room, item.id) });
       }
       if (!s || s.closed) return send(res, 200, { ok: true, state: null });

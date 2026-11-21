@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PresenceService } from '../presence/presence.service';
+import { BENEFICIOS, planoAtivo } from '../planos/planos.regras';
+import { limparConexoes, limparCorNome, limparJogos } from './perfil-gamer';
 import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -7,7 +11,7 @@ import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private presence: PresenceService) {}
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -18,8 +22,9 @@ export class UsersService {
     return toSafeUser(user);
   }
 
-  // Perfil de OUTRA pessoa: só o que é público (sem e-mail, admin, suspensão etc.)
-  async findPublicProfile(id: string) {
+  // Perfil de OUTRA pessoa: só o que é público (sem e-mail, admin, suspensão etc.).
+  // Com viewerId vem também o perfil gamer: números, em comum e o jogo aberto.
+  async findPublicProfile(id: string, viewerId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -32,12 +37,44 @@ export class UsersService {
           select: {
             displayName: true, avatarUrl: true, bannerUrl: true, bannerColor: true,
             bio: true, status: true, customStatus: true, moldura: true, icone: true, placa: true,
+            corNome: true, jogos: true, conexoes: true, procurandoDuo: true,
           },
         },
       },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
-    return user;
+    if (!viewerId) return user;
+
+    const amigosDe = (uid: string) => this.prisma.friendship.findMany({
+      where: { status: 'ACCEPTED', OR: [{ requesterId: uid }, { addresseeId: uid }] },
+      select: { requesterId: true, addresseeId: true },
+    }).then(fs => new Set(fs.map(f => (f.requesterId === uid ? f.addresseeId : f.requesterId))));
+    const proprio = viewerId === id;
+
+    const [call, carteira, servidores, amigosDele, amigosMeus, jogando] = await Promise.all([
+      this.prisma.callStat.aggregate({ where: { userId: id }, _sum: { segundosCall: true } }),
+      this.prisma.carteira.findUnique({ where: { userId: id }, select: { unidosVitorias: true } }),
+      proprio ? Promise.resolve([]) : this.prisma.server.findMany({
+        where: { AND: [
+          { members: { some: { userId: id, banned: false } } },
+          { members: { some: { userId: viewerId, banned: false } } },
+        ] },
+        select: { id: true, name: true, iconUrl: true },
+        take: 20,
+      }),
+      proprio ? Promise.resolve(new Set<string>()) : amigosDe(id),
+      proprio ? Promise.resolve(new Set<string>()) : amigosDe(viewerId),
+      this.presence.getActivity(id),
+    ]);
+    return {
+      ...user,
+      numeros: {
+        horasCall: Math.floor((call._sum.segundosCall ?? 0) / 3600),
+        vitoriasUnidos: carteira?.unidosVitorias ?? 0,
+      },
+      emComum: proprio ? null : { servidores, amigos: [...amigosDele].filter(a => amigosMeus.has(a)).length },
+      jogando,
+    };
   }
 
   async findByUsername(username: string) {
@@ -69,9 +106,24 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const gamer: Prisma.ProfileUpdateInput = {};
+    try {
+      if (dto.jogos !== undefined) gamer.jogos = (limparJogos(dto.jogos) as Prisma.InputJsonValue | null) ?? Prisma.DbNull;
+      if (dto.conexoes !== undefined) gamer.conexoes = limparConexoes(dto.conexoes) ?? Prisma.DbNull;
+      if (dto.corNome !== undefined) gamer.corNome = limparCorNome(dto.corNome);
+    } catch (e: any) {
+      throw new BadRequestException(e.message);
+    }
+    if (dto.procurandoDuo !== undefined) gamer.procurandoDuo = dto.procurandoDuo;
+    // Cor no nome é do Nexus+ e do Pro (tirar a cor vale para todos)
+    if (gamer.corNome) {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } });
+      if (!BENEFICIOS[planoAtivo(u?.plano, u?.planoAte)].corNome) throw new ForbiddenException('A cor no nome vem com o Nexus+ ou o Pro');
+    }
     const profile = await this.prisma.profile.update({
       where: { userId },
       data: {
+        ...gamer,
         displayName: dto.displayName,
         bio: dto.bio,
         customStatus: dto.customStatus,

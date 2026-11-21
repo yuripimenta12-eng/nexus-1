@@ -1,3 +1,4 @@
+import { planoAtivo } from '../planos/planos.regras';
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
@@ -87,6 +88,8 @@ export class VoiceService {
         identity: userId,
         name: user?.profile?.displayName || user?.username || userId,
         ttl: '4h',
+        // O DJ lê o plano daqui (fila maior para o Pro)
+        attributes: { plano: planoAtivo(user?.plano, user?.planoAte) },
       },
     );
 

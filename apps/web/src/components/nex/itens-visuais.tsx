@@ -46,14 +46,19 @@ export function IconeNome({ id, className }: { id?: string | null; className?: s
 }
 
 /** Nome com placa atrás (se tiver) e ícone ao lado. */
-export function NomeComItens({ nome, icone, placa, className, style }: {
-  nome: React.ReactNode; icone?: string | null; placa?: string | null; className?: string; style?: React.CSSProperties;
+// corNome: "#hex" ou "#hex,#hex" (Nexus+/Pro; use corNomeDe() de lib/planos) — vence a cor do cargo
+export function NomeComItens({ nome, icone, placa, corNome, className, style }: {
+  nome: React.ReactNode; icone?: string | null; placa?: string | null; corNome?: string | null; className?: string; style?: React.CSSProperties;
 }) {
   const fundo = placa ? PLACAS[placa] : undefined;
+  const [c1, c2] = (corNome || '').split(',').map(c => (/^#[0-9a-fA-F]{6}$/.test(c) ? c : ''));
+  const corTexto: React.CSSProperties = c1 && c2
+    ? { backgroundImage: `linear-gradient(90deg, ${c1}, ${c2})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+    : c1 ? { color: c1 } : {};
   return (
     <span className={cn('inline-flex items-center gap-1 min-w-0 max-w-full', fundo && 'rounded-md px-1.5 -mx-0.5', className)}
       style={{ ...(fundo ? { background: fundo } : {}), ...style }}>
-      <span className="truncate">{nome}</span>
+      <span className="truncate" style={corTexto}>{nome}</span>
       <IconeNome id={icone} />
     </span>
   );

@@ -4,7 +4,8 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package, Palette } from 'lucide-react';
+import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package, Palette, Gem } from 'lucide-react';
+import Link from 'next/link';
 import { SecaoBaus, BannerEvento } from '@/components/nex/baus';
 import { playSomEntrada } from '@/lib/sounds';
 import api from '@/lib/api';
@@ -18,7 +19,7 @@ import { NomeComItens } from '@/components/nex/itens-visuais';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 
-interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; possui: boolean }
+interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; possui: boolean }
 interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[] }
 
 const SECOES = [
@@ -150,6 +151,7 @@ export default function LojaPage() {
                         <PreviaItem item={i} nome={nome} avatar={user?.profile?.avatarUrl} />
                         {usando && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#3ddc84]/15 text-[#3ddc84]">Usando</span>}
                         {i.soPro && <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ffc23d]/15 text-[#ffc23d]"><Crown className="w-3 h-3" /> Pro</span>}
+                        {i.incluiPlano && <span className={cn('absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full', i.incluiPlano === 'pro' ? 'bg-[#ffc23d]/15 text-[#ffc23d]' : 'bg-[#3ee0ff]/15 text-[#8ff0ff]')}>{i.incluiPlano === 'pro' ? <Crown className="w-3 h-3" /> : <Gem className="w-3 h-3" />} Grátis no {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</span>}
                       </div>
                       <div className="px-3 pb-3 flex-1 flex flex-col">
                         <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: r.cor }}>◆ {r.nome}</span>
@@ -170,6 +172,10 @@ export default function LojaPage() {
                             <span className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/30 text-[#a99fc0]">
                               <Lock className="w-3.5 h-3.5" /> Só com Pro
                             </span>
+                          ) : i.incluiPlano ? (
+                            <Link href="/app/planos" className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/30 text-[#a99fc0] hover:text-white">
+                              <Lock className="w-3.5 h-3.5" /> Vem com o {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}
+                            </Link>
                           ) : i.preco !== null ? (
                             <button onClick={() => setComprando(i)}
                               className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/35 text-white hover:bg-black/50 border border-white/10">

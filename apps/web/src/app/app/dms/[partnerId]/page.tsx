@@ -18,6 +18,7 @@ import { GifButton } from '@/components/chat/gif-picker';
 import { CartaoConvite, textoComLinks } from '@/components/chat/links-mensagem';
 import { codigosDeConviteNoTexto } from '@/lib/convite';
 import api from '@/lib/api';
+import { BENEFICIOS, planoAtivo } from '@/lib/planos';
 
 /* ── Types ───────────────────────────────────── */
 interface Partner {
@@ -232,7 +233,8 @@ export default function DmPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) { flash('Arquivo muito grande (máximo 50 MB)'); return; }
+    const maxMB = BENEFICIOS[planoAtivo(useAuthStore.getState().user)].arquivoMB;
+    if (file.size > maxMB * 1024 * 1024) { flash(`Arquivo muito grande (máximo ${maxMB} MB${maxMB < BENEFICIOS.pro.arquivoMB ? ', o Nexus+ e o Pro mandam maiores' : ''})`); return; }
     setUploading(true);
     try {
       await sendFile(file, file.name, input.trim());

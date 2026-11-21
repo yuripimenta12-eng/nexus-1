@@ -11,6 +11,8 @@ import { MessagesService } from '../messages/messages.service';
 import { NexusGateway } from '../gateway/nexus.gateway';
 import { RolesService } from '../roles/roles.service';
 import { PUBLIC_USER } from '../common/public-user';
+import { BENEFICIOS } from '../planos/planos.regras';
+import { planoDe } from '../planos/plano-de';
 
 // Assinaturas dos formatos de áudio aceitos (webm, ogg, mp4/m4a, mp3, wav)
 function pareceAudio(b?: Buffer): boolean {
@@ -94,7 +96,8 @@ export class UploadController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser('id') userId: string,
   ) {
-    const { url } = await this.uploadService.uploadFile(file, 'avatars');
+    const plano = await planoDe(this.prisma, userId);
+    const { url } = await this.uploadService.uploadFile(file, 'avatars', { animado: BENEFICIOS[plano].avatarAnimado });
 
     await this.prisma.profile.update({
       where: { userId },
@@ -112,7 +115,8 @@ export class UploadController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser('id') userId: string,
   ) {
-    const { url } = await this.uploadService.uploadFile(file, 'banners');
+    const plano = await planoDe(this.prisma, userId);
+    const { url } = await this.uploadService.uploadFile(file, 'banners', { animado: BENEFICIOS[plano].avatarAnimado });
 
     await this.prisma.profile.update({
       where: { userId },
@@ -145,7 +149,8 @@ export class UploadController {
       }
     }
 
-    const { url } = await this.uploadService.uploadFile(file, 'attachments');
+    const plano = await planoDe(this.prisma, userId);
+    const { url } = await this.uploadService.uploadFile(file, 'attachments', { limiteMB: BENEFICIOS[plano].arquivoMB });
 
     // Sem messageId: cria a mensagem junto com o anexo e transmite ao canal
     if (!messageId) {

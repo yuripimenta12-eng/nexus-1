@@ -42,6 +42,10 @@ export const MOLDURAS: Record<string, { anel: string; brilho?: string; anim?: 'g
   'm-galaxia': { anel: 'conic-gradient(#1a0b3d,#7a2cff,#ff4dd8,#1d4bff,#1a0b3d)', brilho: '#7a2cff', anim: 'gira', grossura: 1.8, selo: '✨' },
   'm-aurora': { anel: 'conic-gradient(#3dffb0,#7a2cff,#00d4ff,#ff6a00,#3dffb0)', brilho: '#3dffb0', anim: 'gira', grossura: 2.2, enfeite: '✦', selo: '🌌' },
   'm-coroa': { anel: 'linear-gradient(135deg,#fff1a8,#ffc23d,#b8860b,#ffc23d)', brilho: '#ffc23d', anim: 'pulsa', grossura: 2.2, enfeite: '👑', selo: '💎' },
+  // Incluídas nos planos (vêm de graça com o Nexus+ / Pro)
+  'm-mais': { anel: 'conic-gradient(#21d4fd,#7a2cff,#3ee0ff,#b721ff,#21d4fd)', brilho: '#3ee0ff', anim: 'gira', grossura: 1.8, selo: '💎' },
+  'm-pro': { anel: 'conic-gradient(#ff6a00,#ffc23d,#ff4f79,#ffc23d,#ff6a00)', brilho: '#ff8a00', anim: 'gira', grossura: 2.2, enfeite: '👑', selo: '🔥' },
+  'm-pro-eletrica': { anel: 'conic-gradient(#ffe600,#ff6a00,#fff7b0,#ff4f79,#ffe600)', brilho: '#ffd000', anim: 'pisca', grossura: 2.2, enfeite: '⚡', selo: '⚡' },
   // Só em baú
   'm-sakura': { anel: 'conic-gradient(#ffd1e8,#ff8cc6,#ffd1e8,#ff8cc6,#ffd1e8)', brilho: '#ff8cc6', grossura: 1.4, selo: '🌸' },
   'm-pixel': { anel: 'conic-gradient(#ff3b6b 0 12.5%,#ffd23b 0 25%,#3bff8a 0 37.5%,#3bc4ff 0 50%,#a23bff 0 62.5%,#ff3b6b 0 75%,#ffd23b 0 87.5%,#3bff8a 0)', brilho: '#3bc4ff', anim: 'glitch', grossura: 1.8, selo: '👾' },

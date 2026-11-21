@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { DIAS_POR_INDICACAO, ehPlano, estender, planoAtivo, recompensaIndicacao } from './planos.regras';
+import { BENEFICIOS, DIAS_POR_INDICACAO, ehPlano, estender, planoAtivo, planoCobre, recompensaIndicacao } from './planos.regras';
+import { itemPorId } from '../loja/loja.catalogo';
 
 const LETRAS = 'abcdefghjkmnpqrstuvwxyz23456789'; // sem 0/o/1/l/i para não confundir
 const SELECAO_MEU = { plano: true, planoAte: true, codigoIndicacao: true, diasGanhos: true } as const;
@@ -14,10 +15,15 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
 
   // Plano pago vencido volta para "gratis" (assim o emblema some para os outros)
   onModuleInit() {
-    const vencer = () => this.prisma.user.updateMany({
-      where: { plano: { not: 'gratis' }, OR: [{ planoAte: null }, { planoAte: { lt: new Date() } }] },
-      data: { plano: 'gratis', planoAte: null },
-    }).catch(() => {});
+    const vencer = async () => {
+      try {
+        const where = { plano: { not: 'gratis' }, OR: [{ planoAte: null }, { planoAte: { lt: new Date() } }] };
+        const vencidos = await this.prisma.user.findMany({ where, select: { id: true } });
+        if (!vencidos.length) return;
+        await this.prisma.user.updateMany({ where: { id: { in: vencidos.map(v => v.id) } }, data: { plano: 'gratis', planoAte: null } });
+        await this.ajustarPerfil(vencidos.map(v => v.id));
+      } catch { /* tenta de novo na próxima volta */ }
+    };
     void vencer();
     this.timer = setInterval(vencer, 10 * 60_000);
     this.timer.unref?.();
@@ -54,6 +60,31 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /** Tira do perfil o que o plano atual não cobre: cor do nome, moldura do plano e foto/capa animada. */
+  async ajustarPerfil(userIds: string[]) {
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, plano: true, planoAte: true, profile: { select: { corNome: true, moldura: true, avatarUrl: true, bannerUrl: true } } },
+    });
+    // Foto animada enviada com plano tem uma cópia parada ao lado (ver UploadService)
+    const parar = (url: string | null) => (url && /-anim\.gif$/.test(url) ? url.replace(/-anim\.gif$/, '-anim-estatico.webp') : undefined);
+    for (const u of users) {
+      const p = u.profile;
+      if (!p) continue;
+      const plano = planoAtivo(u.plano, u.planoAte);
+      const b = BENEFICIOS[plano];
+      const data: { corNome?: null; moldura?: null; avatarUrl?: string; bannerUrl?: string } = {};
+      if (!b.corNome && p.corNome) data.corNome = null;
+      const m = p.moldura ? itemPorId(p.moldura) : undefined;
+      if (m?.incluiPlano && !planoCobre(plano, m.incluiPlano)) data.moldura = null;
+      if (!b.avatarAnimado) {
+        const a = parar(p.avatarUrl); if (a) data.avatarUrl = a;
+        const c = parar(p.bannerUrl); if (c) data.bannerUrl = c;
+      }
+      if (Object.keys(data).length) await this.prisma.profile.update({ where: { userId: u.id }, data });
+    }
+  }
+
   /** Quem indicou, pelo código do link (usado no cadastro). */
   async quemIndicou(codigo: unknown) {
     if (typeof codigo !== 'string' || !/^[a-z0-9]{4,12}$/.test(codigo)) return null;
@@ -75,6 +106,7 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
 
     if (plano === 'gratis') {
       await this.prisma.user.update({ where: { id: targetId }, data: { plano: 'gratis', planoAte: null } });
+      await this.ajustarPerfil([targetId]);
       return { id: targetId, plano: 'gratis', planoAte: null };
     }
     const n = Math.round(Number(dias));
@@ -98,6 +130,7 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
         data: { ...recompensaIndicacao(quem.plano, quem.planoAte), diasGanhos: { increment: DIAS_POR_INDICACAO } },
       });
     });
+    await this.ajustarPerfil([targetId]); // de Pro para Nexus+: sai a moldura do Pro
     return { id: targetId, plano, planoAte };
   }
 }

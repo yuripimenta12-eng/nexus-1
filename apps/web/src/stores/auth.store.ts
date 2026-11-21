@@ -22,6 +22,11 @@ export interface User {
     bio: string | null;
     status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
     customStatus: string | null;
+    // Loja e perfil gamer (podem não vir em versões antigas do servidor)
+    moldura?: string | null; icone?: string | null; placa?: string | null;
+    corNome?: string | null; procurandoDuo?: boolean;
+    jogos?: { jogo: string; rank?: string; nick?: string }[] | null;
+    conexoes?: Partial<Record<string, string>> | null;
   } | null;
 }
 

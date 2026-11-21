@@ -24,6 +24,7 @@ import { MessageSkeleton } from '@/components/ui/message-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EmblemaBeta } from '@/components/ui/emblema-beta';
 import { NomeComItens } from '@/components/nex/itens-visuais';
+import { corNomeDe } from '@/lib/planos';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -1080,6 +1081,7 @@ function MessageRow({
               nome={msg.author.profile.displayName}
               icone={(msg.author.profile as any).icone}
               placa={(msg.author.profile as any).placa}
+              corNome={corNomeDe(msg.author as any)}
               className="font-semibold text-[15px] hover:underline cursor-default self-center"
               style={{ color: nameColor || '#f3eefa' }}
             />

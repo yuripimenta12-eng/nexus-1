@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { NomeComItens } from '@/components/nex/itens-visuais';
+import { BENEFICIOS, corNomeDe, planoAtivo } from '@/lib/planos';
 import { useRef, useState } from 'react';
 import { Camera, Loader2, Palette, X } from 'lucide-react';
 import { cn, getInitials, STATUS_COLORS } from '@/lib/utils';
@@ -205,7 +208,9 @@ export function ProfileCard() {
           </div>
 
           <div className="min-w-0 pb-1">
-            <h3 className="text-white font-bold text-lg leading-tight truncate">{displayName}</h3>
+            <h3 className="text-white font-bold text-lg leading-tight truncate">
+              <NomeComItens nome={displayName} icone={profile?.icone} placa={profile?.placa} corNome={corNomeDe(user)} />
+            </h3>
             <p className="text-[#92879f] text-sm truncate">@{user?.username}</p>
           </div>
         </div>
@@ -223,6 +228,9 @@ export function ProfileCard() {
           <p className="text-[#92879f] text-sm mt-2 leading-relaxed">{profile.bio}</p>
         )}
 
+        {!BENEFICIOS[planoAtivo(user)].avatarAnimado && (
+          <p className="text-[11.5px] text-[#6f6478] mt-3">Foto e capa em GIF animado vêm com o <Link href="/app/planos" className="text-[#8ff0ff] hover:underline">Nexus+</Link> (no grátis o GIF fica parado).</p>
+        )}
         {error && <p className="text-destructive text-xs mt-3">{error}</p>}
       </div>
     </div>

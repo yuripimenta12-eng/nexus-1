@@ -6,6 +6,7 @@ import type SharpFn from 'sharp';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp: typeof SharpFn = require('sharp');
 import { v4 as uuidv4 } from 'uuid';
+import { ARQUIVO_MAX_MB } from '../planos/planos.regras';
 
 const EXT_POR_TIPO: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
@@ -57,24 +58,36 @@ export class UploadService {
   async uploadFile(
     file: Express.Multer.File,
     folder: 'avatars' | 'attachments' | 'banners' | 'server-icons' | 'emojis',
+    // limiteMB: tamanho máximo pelo plano; animado: foto/capa em GIF continua animada (Nexus+/Pro)
+    opts: { limiteMB?: number; animado?: boolean } = {},
   ): Promise<{ url: string; key: string }> {
     if (!file?.buffer) throw new BadRequestException('Nenhum arquivo enviado');
     // "audio/webm;codecs=opus" (gravador do navegador) → "audio/webm"
     file.mimetype = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    this.validateFile(file, folder);
+    this.validateFile(file, folder, opts.limiteMB);
 
     // Extensão e nome vêm do usuário: só letras/números (nada de "../" ou aspas no cabeçalho)
     // Extensão vem do tipo já validado (não do nome): nada de ".html"/".exe" no bucket
     const ext = EXT_POR_TIPO[file.mimetype] || 'bin';
     const safeName = (file.originalname || 'arquivo').replace(/[^\w.\- ()À-ÿ]/g, '_').slice(0, 120);
-    const key = `${folder}/${uuidv4()}.${ext}`;
+    let key = `${folder}/${uuidv4()}.${ext}`;
     let buffer = file.buffer;
 
+    // Foto e capa: animação (GIF ou WebP animado) só para Nexus+/Pro; no
+    // grátis vira imagem parada (o primeiro quadro)
+    const perfil = folder === 'avatars' || folder === 'banners';
+    if (perfil && opts.animado && file.mimetype === 'image/gif' && file.size > 15 * 1024 * 1024) {
+      throw new BadRequestException('GIF muito grande para foto ou capa (máximo 15 MB)');
+    }
+    const manterGif = file.mimetype === 'image/gif' && (!perfil || opts.animado);
+    // "-anim" marca as fotos que têm a cópia parada (as antigas não têm)
+    if (perfil && manterGif) key = key.replace(/\.gif$/, '-anim.gif');
+
     // Otimiza imagens com sharp
-    if (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') {
+    if (file.mimetype.startsWith('image/') && !manterGif) {
       // Teto de pixels para imagens pequenas: um PNG de poucos KB que declara
       // 16000x16000 ocupava os workers que também fazem o login
-      buffer = await sharp(file.buffer, { limitInputPixels: 40_000_000 })
+      buffer = await sharp(file.buffer, { limitInputPixels: 40_000_000, animated: perfil && !!opts.animado && file.mimetype === 'image/webp' })
         .resize(
           folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 1920 : 1920,
           folder === 'avatars' ? 256 : folder === 'server-icons' ? 512 : folder === 'emojis' ? 128 : folder === 'banners' ? 480 : 1080,
@@ -114,6 +127,18 @@ export class UploadService {
       return { url: this.toDataUrl(buffer, file.mimetype), key };
     }
 
+    // GIF animado de foto/capa: guarda também uma versão parada, usada se o
+    // plano vencer (ver PlanosService: troca ".gif" por "-estatico.webp")
+    if (perfil && manterGif) {
+      const parado = await sharp(file.buffer, { limitInputPixels: 40_000_000 })
+        .resize(folder === 'avatars' ? 256 : 1920, folder === 'avatars' ? 256 : 480, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 85 }).toBuffer();
+      await this.s3.putObject({
+        Bucket: this.bucket, Key: key.replace(/\.gif$/, '-estatico.webp'), Body: parado, ContentType: 'image/webp',
+        ...(this.useAcl ? { ACL: 'public-read' } : {}),
+      }).promise();
+    }
+
     // Upload direto para não-imagens ou GIFs
     await this.s3.putObject({
       Bucket: this.bucket,
@@ -150,10 +175,10 @@ export class UploadService {
     await this.s3.deleteObject({ Bucket: this.bucket, Key: key }).promise();
   }
 
-  private validateFile(file: Express.Multer.File, folder: string) {
-    const maxSizeMB = parseInt(this.config.get<string>('MAX_FILE_SIZE_MB', '50'));
+  private validateFile(file: Express.Multer.File, folder: string, limiteMB?: number) {
+    const maxSizeMB = limiteMB ?? parseInt(this.config.get<string>('MAX_FILE_SIZE_MB', '50'));
     if (file.size > maxSizeMB * 1024 * 1024) {
-      throw new BadRequestException(`Arquivo muito grande. Máximo: ${maxSizeMB}MB`);
+      throw new BadRequestException(`Arquivo muito grande. Máximo: ${maxSizeMB} MB${limiteMB && limiteMB < ARQUIVO_MAX_MB ? ' (com o Nexus+ ou o Pro dá para mandar maiores)' : ''}`);
     }
 
     if (folder === 'avatars' || folder === 'banners' || folder === 'server-icons' || folder === 'emojis') {

@@ -33,3 +33,18 @@ export function recompensaIndicacao(plano: string | null | undefined, ate: Date 
     planoAte: estender(atual === 'gratis' ? null : ate, DIAS_POR_INDICACAO, agora),
   };
 }
+
+// O que cada plano libera (o site mostra o mesmo em apps/web/src/lib/planos.ts)
+export const BENEFICIOS: Record<Plano, { arquivoMB: number; avatarAnimado: boolean; corNome: boolean; filaDj: number }> = {
+  gratis: { arquivoMB: 50, avatarAnimado: false, corNome: false, filaDj: 15 },
+  mais: { arquivoMB: 100, avatarAnimado: true, corNome: true, filaDj: 25 },
+  pro: { arquivoMB: 200, avatarAnimado: true, corNome: true, filaDj: 50 },
+};
+/** Maior arquivo que alguém pode mandar (teto do multer). */
+export const ARQUIVO_MAX_MB = BENEFICIOS.pro.arquivoMB;
+
+const NIVEL: Record<Plano, number> = { gratis: 0, mais: 1, pro: 2 };
+/** O plano atual cobre o exigido? (Pro cobre o Nexus+) */
+export function planoCobre(atual: Plano, exigido: Plano): boolean {
+  return NIVEL[atual] >= NIVEL[exigido];
+}

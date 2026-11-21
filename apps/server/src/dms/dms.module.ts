@@ -1,3 +1,4 @@
+import { ARQUIVO_MAX_MB } from '../planos/planos.regras';
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -13,7 +14,7 @@ import { VoiceModule } from '../voice/voice.module';
     PrismaModule,
     GatewayModule,
     VoiceModule,
-    MulterModule.register({ storage: memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1 } }),
+    MulterModule.register({ storage: memoryStorage(), limits: { fileSize: ARQUIVO_MAX_MB * 1024 * 1024, files: 1 } }),
   ],
   controllers: [DmsController],
   // UploadService direto (sem importar UploadModule) para não criar ciclo de módulos

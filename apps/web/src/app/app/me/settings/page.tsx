@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { User, Bell, Shield, Palette, Mic, LogOut, Check, X, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Mic, LogOut, Check, X, Loader2, Gamepad2 } from 'lucide-react';
+import { EditorPerfilGamer } from '@/components/perfil/editor-perfil';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { VoiceVideoSettings } from '@/components/settings/voice-video-settings';
@@ -14,6 +15,7 @@ import { desktopAppVersion, watchAppUpdate } from '@/lib/desktop';
 
 const sections = [
   { id: 'profile', label: 'Minha Conta', icon: User },
+  { id: 'gamer', label: 'Perfil gamer', icon: Gamepad2 },
   { id: 'voice', label: 'Voz e vídeo', icon: Mic },
   { id: 'notifications', label: 'Notificações', icon: Bell },
   { id: 'privacy', label: 'Privacidade & Segurança', icon: Shield },
@@ -180,7 +182,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Mascote da seção, com luzes pulsando atrás */}
-      <div
+      {SECTION_MASCOTS[activeSection] && <div
         className="hidden min-[1680px]:block fixed right-[3vw] z-0 pointer-events-none"
         // a arte da "Minha Conta" é cortada reta na barriga — afunda mais pra esconder o corte
         style={{ bottom: activeSection === 'profile' ? -46 : -16 }}
@@ -209,7 +211,7 @@ export default function SettingsPage() {
             filter: 'drop-shadow(0 18px 44px rgba(122,44,255,0.45)) drop-shadow(0 6px 18px rgba(255,106,0,0.22))',
           }}
         />
-      </div>
+      </div>}
 
       {/* Botão fechar (X · ESC) */}
       <div className="fixed top-2 right-2 md:top-5 md:right-5 z-40 flex flex-col items-center gap-1">
@@ -226,7 +228,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 md:p-8 max-w-2xl relative z-10">
+      <div className={`flex-1 min-h-0 overflow-y-auto p-4 pb-24 md:p-8 relative z-10 ${activeSection === 'gamer' ? 'max-w-5xl' : 'max-w-2xl'}`}>
         {/* Toast de sucesso */}
         {saveSuccess && (
           <div className="fixed top-4 right-4 bg-success/90 text-white px-4 py-2 rounded-lg
@@ -295,6 +297,18 @@ export default function SettingsPage() {
               Senha, verificação em duas etapas e exclusão da conta ficam em{' '}
               <button onClick={() => setActiveSection('privacy')} className="text-[#c9a8ff] hover:underline font-medium">Privacidade &amp; Segurança</button>.
             </p>
+          </div>
+        )}
+
+        {activeSection === 'gamer' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Perfil gamer</h2>
+              <p className="text-[#92879f] text-sm mt-1">
+                Seus jogos, onde te achar e a cor do seu nome. A prévia mostra como a galera vê, e dá para ver como fica em cada plano.
+              </p>
+            </div>
+            <EditorPerfilGamer />
           </div>
         )}
 

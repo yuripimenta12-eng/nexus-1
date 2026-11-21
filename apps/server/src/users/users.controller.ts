@@ -46,8 +46,8 @@ export class UsersController {
 
   // Antes devolvia o usuário inteiro (com e-mail) para qualquer pessoa logada
   @Get(':id/profile')
-  getUserProfile(@Param('id') id: string) {
-    return this.usersService.findPublicProfile(id);
+  getUserProfile(@Param('id') id: string, @CurrentUser('id') viewerId: string) {
+    return this.usersService.findPublicProfile(id, viewerId);
   }
 
   @Get(':id')

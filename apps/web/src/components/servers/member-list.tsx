@@ -13,6 +13,9 @@ import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
 import { corSegura } from '@/lib/seguro';
 import { NomeComItens } from '@/components/nex/itens-visuais';
+import { corNomeDe } from '@/lib/planos';
+import { JogandoAgora, SecoesPerfilGamer } from '@/components/perfil/secoes-perfil';
+import type { PerfilCompleto } from '@/lib/perfil-gamer';
 
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
 type Status = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
@@ -234,6 +237,7 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
                     nome={name}
                     icone={(m.user.profile as any)?.icone}
                     placa={(m.user.profile as any)?.placa}
+                    corNome={corNomeDe(m.user as any)}
                     className="text-[14px]"
                     style={{ color: nameColorOf(m) || '#d7cfe0' }}
                   />
@@ -277,10 +281,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
   const topColor = corSegura(nameColorOf(member), '#7a2cff');
 
   // Perfil público completo (banner, bio, frase, desde quando está no Nexus)
-  const [pub, setPub] = useState<{
-    createdAt?: string;
-    profile?: { bannerUrl?: string | null; bannerColor?: string | null; bio?: string | null; customStatus?: string | null } | null;
-  } | null>(null);
+  const [pub, setPub] = useState<PerfilCompleto | null>(null);
   useEffect(() => {
     api.get(`/users/${member.userId}/profile`).then(({ data }) => setPub(data)).catch(() => {});
   }, [member.userId]);
@@ -294,9 +295,6 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
       : `linear-gradient(120deg, ${topColor}, #ff6a00)`;
   const customStatus = pub?.profile?.customStatus ?? member.user.profile?.customStatus;
   const bio = pub?.profile?.bio;
-  const since = pub?.createdAt
-    ? new Date(pub.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '')
-    : null;
 
   const act = async (kind: 'mute' | 'kick' | 'ban') => {
     setBusy(kind);
@@ -316,7 +314,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
   return (
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-[320px] rounded-[18px] overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)]
+        className="relative w-full max-w-[340px] max-h-[90vh] overflow-y-auto nx-no-scrollbar rounded-[18px] border border-[var(--th-line-2)] bg-[var(--th-panel)]
                    shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
@@ -339,11 +337,12 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
             <NomeComItens nome={name}
               icone={(pub?.profile as any)?.icone ?? (member.user.profile as any)?.icone}
               placa={(pub?.profile as any)?.placa ?? (member.user.profile as any)?.placa}
+              corNome={corNomeDe({ plano: (member.user as any).plano, profile: pub?.profile ?? (member.user.profile as any) })}
               className="text-lg font-extrabold" style={{ color: nameColorOf(member) || '#fff' }} />
             <RoleIcon role={member.role} />
           </div>
           <p className="text-[#8a8095] text-[12.5px]">
-            @{member.user.username}{since ? ` · no Nexus desde ${since}` : ''}
+            @{member.user.username}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {member.user.isBetaTester && <SeloBeta className="mt-2" />}
@@ -352,12 +351,8 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           <FaixaConquistas userId={member.userId} className="mt-3" />
 
           {member.activity && (
-            <div className="mt-3 rounded-xl px-3 py-2.5 flex items-center gap-2.5" style={{ background: 'rgba(67,227,163,0.08)', border: '1px solid rgba(67,227,163,0.25)' }}>
-              <span className="text-xl" aria-hidden>🎮</span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#43e3a3]">Jogando agora</p>
-                <p className="text-[13px] text-white font-semibold truncate">{member.activity}</p>
-              </div>
+            <div className="mt-3">
+              <JogandoAgora nome={member.activity} desde={pub?.jogando?.nome === member.activity ? pub.jogando.desde : null} />
             </div>
           )}
 
@@ -368,6 +363,9 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
               {bio && <p className="text-[12px] text-[#a99cb8] whitespace-pre-line break-words">{bio}</p>}
             </div>
           )}
+
+          {/* Perfil gamer: jogos, conexões, números e em comum */}
+          {pub && <div className="mt-3"><SecoesPerfilGamer perfil={pub} /></div>}
 
           {/* Cargos personalizados */}
           {(member.roles?.length ?? 0) > 0 && (
