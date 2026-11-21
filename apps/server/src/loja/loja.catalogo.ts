@@ -34,9 +34,15 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-galaxia', 'Galáxia', 'epica'),
   it('moldura', 'm-aurora', 'Aurora Nexus', 'lendaria'),
   it('moldura', 'm-coroa', 'Realeza', 'lendaria', { soPro: true }),
+  it('moldura', 'm-circuito', 'Circuito', 'rara'),
+  it('moldura', 'm-portal', 'Portal', 'rara'),
+  it('moldura', 'm-pulso', 'Pulso Sonoro', 'rara'),
+  it('moldura', 'm-cristal-plasma', 'Cristal Plasma', 'epica'),
+  it('moldura', 'm-eclipse', 'Eclipse', 'epica'),
+  it('moldura', 'm-cauda-estelar', 'Cauda Estelar', 'lendaria'),
   // Incluídas nos planos
-  it('moldura', 'm-mais', 'Nexus+', 'epica', { preco: null, incluiPlano: 'mais' }),
-  it('moldura', 'm-pro', 'Nexus Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
+  it('moldura', 'm-mais', 'Órbita Nexus+', 'epica', { preco: null, incluiPlano: 'mais' }),
+  it('moldura', 'm-pro', 'Axolote Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   it('moldura', 'm-pro-eletrica', 'Elétrica Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   // Ícones: ao lado do nome, na lista, no chat e na call
   it('icone', 'i-controle', 'Controle', 'comum'),

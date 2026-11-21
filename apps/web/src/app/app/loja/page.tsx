@@ -4,7 +4,7 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package, Palette, Gem } from 'lucide-react';
+import { Store, Check, Lock, Loader2, X, Crown, Play, Palette, Gem } from 'lucide-react';
 import Link from 'next/link';
 import { SecaoBaus, BannerEvento } from '@/components/nex/baus';
 import { playSomEntrada } from '@/lib/sounds';
@@ -13,25 +13,26 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNex } from '@/lib/nex';
-import { RARIDADE, ICONES, SONS, TEMAS, type Raridade, type TipoItem } from '@/lib/itens';
+import { RARIDADE, SONS, SONS_ARTE, TEMAS, arteDaZoeira, arteDoTema, type Raridade, type TipoItem } from '@/lib/itens';
 import { Avatar } from '@/components/ui/avatar';
-import { NomeComItens } from '@/components/nex/itens-visuais';
+import { ArteIcone, NomeComItens } from '@/components/nex/itens-visuais';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 
 interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; possui: boolean }
 interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[] }
 
+// arte: ícone 3D da seção (public/itens/secoes/<arte>.webp)
 const SECOES = [
-  { id: 'destaques', nome: 'Destaques', icone: Sparkles },
-  { id: 'baus', nome: 'Baús', icone: Package },
-  { id: 'moldura', nome: 'Molduras', icone: Frame },
-  { id: 'icone', nome: 'Ícones', icone: Smile },
-  { id: 'placa', nome: 'Placas do nome', icone: Tag },
-  { id: 'som', nome: 'Sons de entrada', icone: Volume2 },
-  { id: 'tema', nome: 'Temas de servidor', icone: Palette },
-  { id: 'zoeiras', nome: 'Zoeiras', icone: Laugh },
-  { id: 'meus', nome: 'Meus itens', icone: Backpack },
+  { id: 'destaques', nome: 'Destaques', arte: 'destaques' },
+  { id: 'baus', nome: 'Baús', arte: 'baus' },
+  { id: 'moldura', nome: 'Molduras', arte: 'molduras' },
+  { id: 'icone', nome: 'Ícones', arte: 'icone' },
+  { id: 'placa', nome: 'Placas do nome', arte: 'placa' },
+  { id: 'som', nome: 'Sons de entrada', arte: 'som' },
+  { id: 'tema', nome: 'Temas de servidor', arte: 'tema' },
+  { id: 'zoeiras', nome: 'Zoeiras', arte: 'zoeiras' },
+  { id: 'meus', nome: 'Meus itens', arte: 'meus' },
 ] as const;
 type Secao = (typeof SECOES)[number]['id'];
 const ORDEM: Raridade[] = ['comum', 'rara', 'epica', 'lendaria'];
@@ -115,9 +116,12 @@ export default function LojaPage() {
           <nav className="flex lg:flex-col gap-1 overflow-x-auto nx-no-scrollbar -mx-1 px-1" aria-label="Seções da loja">
             {SECOES.map(s => (
               <button key={s.id} onClick={() => { setSecao(s.id); setProvando(null); }}
-                className={cn('shrink-0 flex items-center gap-2.5 h-10 px-3 rounded-[12px] text-sm font-bold transition-colors',
+                className={cn('group shrink-0 flex items-center gap-2.5 h-11 pl-1.5 pr-3 rounded-[12px] text-sm font-bold transition-colors',
                   secao === s.id ? 'bg-[#2a1c45] text-white' : 'text-[#a99fc0] hover:bg-white/5 hover:text-white')}>
-                <s.icone className="w-4 h-4" /> {s.nome}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/itens/secoes/${s.arte}.webp`} alt="" aria-hidden draggable={false}
+                  className={cn('w-8 h-8 object-contain transition-transform group-hover:scale-110 drop-shadow-[0_3px_6px_rgba(0,0,0,0.45)]', s.arte === 'tema' && 'rounded-lg object-cover', secao === s.id && 'scale-110')} />
+                {s.nome}
               </button>
             ))}
           </nav>
@@ -345,7 +349,8 @@ function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
             style={{ background: z.pesada ? 'linear-gradient(180deg,#3a1630,#170f1c)' : 'linear-gradient(180deg,#1d1828,#15111d)' }}>
             {z.pesada && <span className="absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ff4d6d]/15 text-[#ff7a92]">Pesada</span>}
             {z.qtd > 0 && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-white">Tem {z.qtd}</span>}
-            <span className="text-[44px] leading-none text-center mt-4 mb-2 drop-shadow-[0_6px_12px_rgba(0,0,0,0.5)]" aria-hidden>{z.emoji}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={arteDaZoeira(z.id)} alt="" aria-hidden className="w-20 h-20 mx-auto object-contain mt-3 mb-1 drop-shadow-[0_6px_12px_rgba(0,0,0,0.5)]" />
             <b className="text-white text-sm">{z.nome}</b>
             <small className="text-[11px] text-[#92879f] leading-snug">{z.desc}</small>
             <div className="mt-auto pt-3 flex gap-1.5">
@@ -369,28 +374,25 @@ function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
 /** Miniatura do item no cartão: moldura na sua foto, ícone grande ou placa no seu nome. */
 function PreviaItem({ item, nome, avatar }: { item: ItemLoja; nome: string; avatar?: string | null }) {
   if (item.tipo === 'moldura') return <Avatar src={avatar} name={nome} size="xl" moldura={item.id} />;
-  if (item.tipo === 'icone') return <span className="text-[52px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{ICONES[item.id]}</span>;
+  if (item.tipo === 'icone') return <ArteIcone id={item.id} tamanho={72} className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-110" />;
   if (item.tipo === 'tema') {
     const t = TEMAS[item.id];
     if (!t) return null;
     return (
-      <div className="w-[150px] h-[90px] rounded-xl overflow-hidden border border-white/10 flex shadow-[0_10px_24px_rgba(0,0,0,0.45)]"
-        style={{ background: `radial-gradient(circle at 80% 20%, ${t.brilho}55, transparent 60%), ${t.fundo}` }}>
-        <div className="w-5" style={{ background: t.lado }} />
-        <div className="w-10 p-1.5 space-y-1" style={{ background: t.lado, borderLeft: '1px solid rgba(255,255,255,.06)' }}>
-          {[0, 1, 2, 3].map(k => <div key={k} className="h-1.5 rounded-full" style={{ background: k === 0 ? t.brilho : 'rgba(255,255,255,.15)' }} />)}
-        </div>
-        <div className="flex-1 p-2 space-y-1.5">
-          <div className="h-2 w-3/4 rounded-full" style={{ background: 'rgba(255,255,255,.25)' }} />
-          <div className="h-6 rounded-md" style={{ background: t.painel }} />
-          <div className="h-1.5 w-1/2 rounded-full" style={{ background: t.brilho }} />
-        </div>
+      <div className="relative w-[160px] h-[90px] rounded-xl overflow-hidden border border-white/10 shadow-[0_10px_24px_rgba(0,0,0,0.45)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={arteDoTema(item.id)} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105" />
+        <div className="absolute left-0 inset-y-0 w-6" style={{ background: `${t.lado}cc` }} />
+        <div className="absolute left-7 right-2 bottom-2 h-1.5 rounded-full" style={{ background: t.brilho }} />
       </div>
     );
   }
   if (item.tipo === 'som') return (
     <span className="flex items-center gap-3">
-      <span className="text-[46px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{SONS[item.id]}</span>
+      {SONS_ARTE.has(item.id)
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={`/itens/sons/${item.id}.webp`} alt="" className="w-16 h-16 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]" />
+        : <span className="text-[46px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{SONS[item.id]}</span>}
       <button onClick={(e) => { e.stopPropagation(); playSomEntrada(item.id); }} aria-label={`Ouvir ${item.nome}`}
         className="w-9 h-9 rounded-full grid place-items-center bg-white/10 hover:bg-white/20 text-white"><Play className="w-4 h-4 ml-0.5" /></button>
     </span>

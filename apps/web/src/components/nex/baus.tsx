@@ -8,9 +8,11 @@ import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
-import { RARIDADE, ICONES, SONS, type Raridade, type TipoItem } from '@/lib/itens';
+import { RARIDADE, ICONES, SONS, SONS_ARTE, arteDoBau, type Raridade, type TipoItem } from '@/lib/itens';
+
+const ARTE_BAUS = new Set(['bau-estreia', 'bau-neon', 'bau-som', 'bau-natal']);
 import { Avatar } from '@/components/ui/avatar';
-import { NomeComItens } from '@/components/nex/itens-visuais';
+import { ArteIcone, NomeComItens } from '@/components/nex/itens-visuais';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 
 interface ItemP { id: string; nome: string; tipo: TipoItem; raridade: Raridade }
@@ -18,7 +20,16 @@ interface BauLoja { id: string; nome: string; preco: number; cor: string; desc: 
 interface Resultado { premio: { tipo: 'item'; item: ItemP } | { tipo: 'nex'; nex: number }; repetido: boolean; reembolso: number; saldo: number }
 
 /** Baú desenhado em SVG (cor de cada baú, brilho e fecho). */
-export function BauArte({ cor, className, aberto }: { cor: string; className?: string; aberto?: boolean }) {
+export function BauArte({ cor, className, aberto, id: bauId }: { cor: string; className?: string; aberto?: boolean; id?: string }) {
+  // Baú com arte 3D: aberto = cresce e brilha (a arte não abre a tampa)
+  if (bauId && ARTE_BAUS.has(bauId)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={arteDoBau(bauId)} alt="" aria-hidden draggable={false}
+        className={cn('object-contain select-none transition-[transform,filter] duration-300', className)}
+        style={aberto ? { transform: 'scale(1.08)', filter: `drop-shadow(0 0 28px ${cor})` } : undefined} />
+    );
+  }
   const id = cor.replace('#', 'b');
   return (
     <svg viewBox="0 0 120 100" className={className} aria-hidden>
@@ -49,7 +60,8 @@ export function BauArte({ cor, className, aberto }: { cor: string; className?: s
 function MiniPremio({ item, nex, nome, avatar }: { item: ItemP | null; nex: number | null; nome: string; avatar?: string | null }) {
   if (!item) return <span className="flex items-center gap-1 font-black text-white"><MoedaNex className="w-7 h-7" />{formatarNex(nex || 0)}</span>;
   if (item.tipo === 'moldura') return <Avatar src={avatar} name={nome} size="lg" moldura={item.id} />;
-  if (item.tipo === 'icone') return <span className="text-[34px] leading-none">{ICONES[item.id]}</span>;
+  if (item.tipo === 'icone') return <ArteIcone id={item.id} tamanho={42} />;
+  if (item.tipo === 'som' && SONS_ARTE.has(item.id)) return <img src={`/itens/sons/${item.id}.webp`} alt="" className="w-11 h-11 object-contain" />;
   if (item.tipo === 'som') return <span className="text-[34px] leading-none">{SONS[item.id]}</span>;
   return <NomeComItens nome={nome} placa={item.id} className="text-white text-sm font-black max-w-[110px]" />;
 }
@@ -73,7 +85,7 @@ export function BannerEvento({ onAbrir }: { onAbrir: () => void }) {
           <span className="flex items-center gap-1.5 h-10 px-3 rounded-full text-xs font-black text-white border border-white/20"><Clock className="w-3.5 h-3.5" /> faltam {faltam(natal.ate)} dias</span>
         </div>
       </div>
-      <BauArte cor={natal.cor} className="relative z-10 w-28 h-24 sm:w-40 sm:h-32 shrink-0 drop-shadow-[0_14px_30px_rgba(255,59,59,0.35)]" />
+      <BauArte id={natal.id} cor={natal.cor} className="relative z-10 w-28 h-24 sm:w-40 sm:h-32 shrink-0 drop-shadow-[0_14px_30px_rgba(255,59,59,0.35)]" />
     </div>
   );
 }
@@ -108,7 +120,7 @@ export function SecaoBaus({ onMudou }: { onMudou: () => void }) {
           <div key={b.id} className="relative rounded-2xl border border-white/10 overflow-hidden flex flex-col"
             style={{ background: `radial-gradient(circle at 50% 30%, ${b.cor}33, transparent 60%), linear-gradient(180deg,#1b1428,#130e1c)` }}>
             {b.ate && <span className="absolute top-3 left-3 text-[10px] font-black px-2 py-1 rounded-full bg-[#ff3b3b] text-white">Natal · faltam {faltam(b.ate)} dias</span>}
-            <BauArte cor={b.cor} className="w-40 h-32 mx-auto mt-4 drop-shadow-[0_14px_24px_rgba(0,0,0,0.5)]" />
+            <BauArte id={b.id} cor={b.cor} className="w-40 h-32 mx-auto mt-4 drop-shadow-[0_14px_24px_rgba(0,0,0,0.5)]" />
             <div className="px-4 pb-4 flex-1 flex flex-col">
               <b className="text-white text-lg font-black">{b.nome}</b>
               <small className="text-[12px] text-[#a99fc0] leading-snug">{b.desc}</small>
@@ -152,7 +164,7 @@ export function SecaoBaus({ onMudou }: { onMudou: () => void }) {
               <motion.div
                 animate={fase === 'tremendo' ? { rotate: [0, -6, 6, -8, 8, -4, 4, 0], scale: [1, 1.04, 1, 1.06, 1] } : { scale: 0.75, y: 30, opacity: 0.6 }}
                 transition={fase === 'tremendo' ? { duration: 0.8, repeat: Infinity } : { duration: 0.4 }}>
-                <BauArte cor={abrindo.cor} aberto={fase === 'revelado'} className="w-56 h-44 mx-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]" />
+                <BauArte id={abrindo.id} cor={abrindo.cor} aberto={fase === 'revelado'} className="w-56 h-44 mx-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]" />
               </motion.div>
               {fase === 'tremendo' ? (
                 <p className="text-white/80 font-black mt-2 flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Abrindo o {abrindo.nome}…</p>

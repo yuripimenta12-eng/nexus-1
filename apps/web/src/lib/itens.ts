@@ -46,6 +46,13 @@ export const MOLDURAS: Record<string, { anel: string; brilho?: string; anim?: 'g
   'm-mais': { anel: 'conic-gradient(#21d4fd,#7a2cff,#3ee0ff,#b721ff,#21d4fd)', brilho: '#3ee0ff', anim: 'gira', grossura: 1.8, selo: '💎' },
   'm-pro': { anel: 'conic-gradient(#ff6a00,#ffc23d,#ff4f79,#ffc23d,#ff6a00)', brilho: '#ff8a00', anim: 'gira', grossura: 2.2, enfeite: '👑', selo: '🔥' },
   'm-pro-eletrica': { anel: 'conic-gradient(#ffe600,#ff6a00,#fff7b0,#ff4f79,#ffe600)', brilho: '#ffd000', anim: 'pisca', grossura: 2.2, enfeite: '⚡', selo: '⚡' },
+  // Novas (arte 3D)
+  'm-cauda-estelar': { anel: 'conic-gradient(#7a2cff,#ff8a3d,#ffd36e,#7a2cff)', brilho: '#ff8a3d', grossura: 2.2 },
+  'm-cristal-plasma': { anel: 'conic-gradient(#b721ff,#ff8a3d,#b721ff)', brilho: '#b721ff', grossura: 1.8 },
+  'm-eclipse': { anel: 'conic-gradient(#3a1a66,#ff8a3d,#3a1a66)', brilho: '#ff8a3d', grossura: 1.8 },
+  'm-circuito': { anel: 'conic-gradient(#7a2cff,#ff6a00,#7a2cff)', brilho: '#7a2cff', grossura: 1.4 },
+  'm-portal': { anel: 'conic-gradient(#7a2cff,#ffc23d,#7a2cff)', brilho: '#ffc23d', grossura: 1.4 },
+  'm-pulso': { anel: 'conic-gradient(#7a2cff,#ff8a3d,#7a2cff)', brilho: '#ff8a3d', grossura: 1.4 },
   // Só em baú
   'm-sakura': { anel: 'conic-gradient(#ffd1e8,#ff8cc6,#ffd1e8,#ff8cc6,#ffd1e8)', brilho: '#ff8cc6', grossura: 1.4, selo: '🌸' },
   'm-pixel': { anel: 'conic-gradient(#ff3b6b 0 12.5%,#ffd23b 0 25%,#3bff8a 0 37.5%,#3bc4ff 0 50%,#a23bff 0 62.5%,#ff3b6b 0 75%,#ffd23b 0 87.5%,#3bff8a 0)', brilho: '#3bc4ff', anim: 'glitch', grossura: 1.8, selo: '👾' },
@@ -61,6 +68,29 @@ export const ICONES: Record<string, string> = {
   'i-fogo': '🔥', 'i-raio': '⚡', 'i-coroa': '👑', 'i-diamante': '💎',
   'i-alien': '👽', 'i-gorro': '🎅', 'i-boneco': '⛄',
 };
+
+// Molduras com arte 3D (public/itens/molduras/<id>.webp). Medido pelo furo do meio:
+// escala = tamanho da arte em "fotos"; x/y = canto da arte em relação à foto (fração)
+export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number }> = {
+  'm-aurora': { escala: 1.589, x: -0.286, y: -0.37 }, 'm-fogo': { escala: 1.729, x: -0.343, y: -0.393 },
+  'm-galaxia': { escala: 1.686, x: -0.327, y: -0.346 }, 'm-glitch': { escala: 1.754, x: -0.375, y: -0.381 },
+  'm-coroa': { escala: 1.659, x: -0.321, y: -0.405 }, 'm-raio': { escala: 1.602, x: -0.293, y: -0.295 },
+  'm-mais': { escala: 1.581, x: -0.279, y: -0.307 }, 'm-pro': { escala: 1.691, x: -0.333, y: -0.352 },
+  'm-cauda-estelar': { escala: 1.585, x: -0.276, y: -0.32 }, 'm-cristal-plasma': { escala: 1.668, x: -0.331, y: -0.329 },
+  'm-eclipse': { escala: 1.529, x: -0.252, y: -0.274 }, 'm-circuito': { escala: 1.602, x: -0.293, y: -0.3 },
+  'm-portal': { escala: 1.577, x: -0.287, y: -0.268 }, 'm-pulso': { escala: 1.594, x: -0.29, y: -0.312 },
+};
+
+// Placas com arte (public/itens/placas/<id>.webp, 120px de altura): o meio estica e as pontas ficam iguais
+export const PLACAS_ARTE = new Set(['p-arco-iris', 'p-brasa', 'p-brasil', 'p-carbono', 'p-chiclete', 'p-galaxia', 'p-natal', 'p-neon', 'p-oceano', 'p-ouro', 'p-violeta']);
+// Arte de temas, zoeiras, baús e alguns sons (o resto usa emoji/desenho)
+export const arteDoTema = (id: string) => `/itens/temas/${id}.webp`;
+export const arteDaZoeira = (id: string) => `/itens/zoeiras/${id}.webp`;
+export const arteDoBau = (id: string) => `/itens/baus/${id}.webp`;
+export const SONS_ARTE = new Set(['s-buzina', 's-dragao']);
+
+// Arte 3D de cada ícone (public/itens/icones/<id>.webp); o emoji acima fica de reserva
+export const arteDoIcone = (id: string) => (ICONES[id] ? `/itens/icones/${id}.webp` : null);
 
 // Placas: faixa atrás do nome (fundo translúcido para o nome continuar legível)
 export const PLACAS: Record<string, string> = {

@@ -2,6 +2,7 @@
 
 // Zoeiras na call: o servidor confere tudo (estoque, escudo, permissão do dono)
 // e manda o efeito para a sala pelo socket ('zoeira'). Aqui só desenhamos.
+import { arteDaZoeira } from '@/lib/itens';
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -100,14 +101,16 @@ export function ZoeirasDoQuadro({ identity }: { identity: string }) {
       {/* Escudo: brilho azul */}
       {tem('escudo') && <><div className="absolute inset-0 rounded-[19px] shadow-[inset_0_0_40px_rgba(80,170,255,0.45)]" /><span className="absolute left-3 top-12 text-xl drop-shadow">🛡️</span></>}
       {/* Coroa por cima da foto */}
-      {tem('coroa') && <span className="absolute left-1/2 -translate-x-1/2 top-[14%] text-[40px] drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]">👑</span>}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {tem('coroa') && <img src={arteDaZoeira('coroa')} alt="👑" className="absolute left-1/2 -translate-x-1/2 top-[10%] w-16 h-16 object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]" />}
       <AnimatePresence>
         {efs.filter(e => e.id === 'tomate' || e.id === 'torta').map(e => (
           <motion.div key={e.chave} className="absolute inset-0 grid place-items-center"
             initial={{ scale: 0.2, opacity: 0, y: -120 }} animate={{ scale: [0.2, 1.4, 1.1], opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 1.3 }}
             transition={{ duration: 0.45, ease: 'easeOut' }}>
-            <span className="relative text-[72px] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
-              {e.emoji}
+            <span className="relative drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={arteDaZoeira(e.id)} alt={e.emoji} className="w-24 h-24 object-contain" draggable={false} />
               <span className="absolute -inset-10 -z-10 rounded-full blur-md opacity-70"
                 style={{ background: e.id === 'tomate' ? 'radial-gradient(circle,#ff3b2f 0 30%,transparent 62%)' : 'radial-gradient(circle,#fff3d6 0 32%,transparent 62%)' }} />
             </span>
@@ -155,7 +158,8 @@ export function BotaoZoeira({ identity, nome }: { identity: string; nome: string
                 <button key={z.id} disabled={usando === z.id} title={`${z.nome}: ${z.desc}`}
                   onClick={async () => { setUsando(z.id); await usar(z.id, z.todos ? undefined : identity); setUsando(null); setAberto(false); }}
                   className="relative h-14 rounded-xl hover:bg-white/10 flex flex-col items-center justify-center disabled:opacity-50">
-                  <span className="text-[22px] leading-none">{z.emoji}</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={arteDaZoeira(z.id)} alt={z.emoji} className="w-7 h-7 object-contain" />
                   <span className="text-[9px] text-[#c9c2d2] mt-1 truncate max-w-full px-0.5">{z.nome}</span>
                   <span className="absolute top-0.5 right-1 text-[9px] font-black text-[#ffb070]">{z.qtd}</span>
                 </button>
