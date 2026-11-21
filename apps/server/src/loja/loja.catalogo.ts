@@ -57,6 +57,12 @@ export const CATALOGO: Item[] = [
   it('icone', 'i-raio', 'Raio', 'epica'),
   it('icone', 'i-coroa', 'Coroa', 'lendaria'),
   it('icone', 'i-diamante', 'Diamante', 'lendaria'),
+  it('icone', 'i-gamepad', 'Gamepad', 'comum'),
+  it('icone', 'i-chat', 'Papo', 'comum'),
+  it('icone', 'i-telefone', 'Telefone', 'comum'),
+  it('icone', 'i-monitor', 'Monitor', 'rara'),
+  it('icone', 'i-cadeado', 'Escudo', 'rara'),
+  it('icone', 'i-velocimetro', 'Turbo', 'epica'),
   // Placas: a faixa de cor atrás do nome
   it('placa', 'p-violeta', 'Violeta', 'comum'),
   it('placa', 'p-brasa', 'Brasa', 'comum'),

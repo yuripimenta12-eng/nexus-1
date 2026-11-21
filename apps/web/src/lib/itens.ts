@@ -70,6 +70,7 @@ export const ICONES: Record<string, string> = {
   // Só nos baús
   'i-camera': '📹', 'i-tv': '📺', 'i-coruja': '🦉', 'i-trofeu': '🏆', 'i-taca': '🏆',
   'i-nota': '🎵', 'i-cd': '💿', 'i-vinil': '💿', 'i-mic': '🎤', 'i-microfone': '🎙️',
+  'i-monitor': '🖥️', 'i-gamepad': '🎮', 'i-chat': '💬', 'i-telefone': '📞', 'i-cadeado': '🔒', 'i-velocimetro': '⏱️',
 };
 
 // Molduras com arte 3D (public/itens/molduras/<id>.webp). Medido pelo furo do meio:
@@ -82,6 +83,13 @@ export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number
   'm-cauda-estelar': { escala: 1.585, x: -0.276, y: -0.32 }, 'm-cristal-plasma': { escala: 1.668, x: -0.331, y: -0.329 },
   'm-eclipse': { escala: 1.529, x: -0.252, y: -0.274 }, 'm-circuito': { escala: 1.602, x: -0.293, y: -0.3 },
   'm-portal': { escala: 1.577, x: -0.287, y: -0.268 }, 'm-pulso': { escala: 1.594, x: -0.29, y: -0.312 },
+  'm-brasil': { escala: 1.668, x: -0.315, y: -0.322 }, 'm-cristal': { escala: 1.514, x: -0.246, y: -0.273 },
+  'm-gelo': { escala: 1.598, x: -0.303, y: -0.285 }, 'm-guirlanda': { escala: 1.92, x: -0.452, y: -0.388 },
+  'm-holografica': { escala: 1.677, x: -0.324, y: -0.333 }, 'm-limao': { escala: 1.602, x: -0.298, y: -0.284 },
+  'm-neon-laranja': { escala: 1.619, x: -0.298, y: -0.298 }, 'm-neon-roxo': { escala: 1.645, x: -0.309, y: -0.32 },
+  'm-oceano': { escala: 1.598, x: -0.247, y: -0.304 }, 'm-pisca-pisca': { escala: 1.545, x: -0.252, y: -0.299 },
+  'm-pixel': { escala: 1.589, x: -0.28, y: -0.283 }, 'm-por-do-sol': { escala: 1.585, x: -0.268, y: -0.297 },
+  'm-sakura': { escala: 1.896, x: -0.418, y: -0.343 },
 };
 
 // Placas com arte (public/itens/placas/<id>.webp, 120px de altura): o meio estica e as pontas ficam iguais
@@ -90,7 +98,7 @@ export const PLACAS_ARTE = new Set(['p-arco-iris', 'p-brasa', 'p-brasil', 'p-car
 export const arteDoTema = (id: string) => `/itens/temas/${id}.webp`;
 export const arteDaZoeira = (id: string) => `/itens/zoeiras/${id}.webp`;
 export const arteDoBau = (id: string) => `/itens/baus/${id}.webp`;
-export const SONS_ARTE = new Set(['s-buzina', 's-dragao']);
+export const SONS_ARTE = new Set(['s-buzina', 's-dragao', 's-fanfarra', 's-arcade', 's-laser', 's-moeda', 's-tambor', 's-sino', 's-raio']);
 
 // Arte 3D de cada ícone (public/itens/icones/<id>.webp); o emoji acima fica de reserva
 export const arteDoIcone = (id: string) => (ICONES[id] ? `/itens/icones/${id}.webp` : null);

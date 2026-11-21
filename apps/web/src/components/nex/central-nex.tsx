@@ -90,9 +90,13 @@ export function CentralNex() {
                 <motion.div key={ganho.em} aria-live="polite"
                   initial={{ opacity: 0, y: 20, scale: 0.8 }} animate={{ opacity: 1, y: -10, scale: 1 }} exit={{ opacity: 0, y: -40 }}
                   transition={{ duration: 0.5 }}
-                  className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-max flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-xl font-black shadow-[0_12px_40px_rgba(255,106,0,0.35)]"
-                  style={{ background: 'linear-gradient(90deg, #ff6a00, #7a2cff)' }}>
-                  <MoedaNex className="w-7 h-7" /> +{formatarNex(ganho.nex)} Nex
+                  className="pointer-events-none absolute z-20 inset-x-0 top-[22%] mx-auto w-max flex flex-col items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/itens/mascote-recompensa.webp" alt="" className="w-40 h-40 object-contain drop-shadow-[0_14px_30px_rgba(0,0,0,0.5)] -mb-4" />
+                  <span className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-xl font-black shadow-[0_12px_40px_rgba(255,106,0,0.35)]"
+                    style={{ background: 'linear-gradient(90deg, #ff6a00, #7a2cff)' }}>
+                    <MoedaNex className="w-7 h-7" /> +{formatarNex(ganho.nex)} Nex
+                  </span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -163,8 +167,9 @@ function Presenca({ onGanhou }: { onGanhou: (n: number) => void }) {
 
   return (
     <div className="px-4 sm:px-6 py-6">
-      <p className="text-center text-[11px] font-black uppercase tracking-[2px] text-[#ffb070]">Presença Nexus</p>
-      <h2 className="text-center text-3xl font-black text-white mt-1">Dia {p.dia} de 7</h2>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/itens/banner-presenca.webp" alt="Presença Nexus: sua presença vale Nex" className="w-full max-w-[520px] mx-auto aspect-[16/9] object-cover rounded-[18px] border border-white/10 shadow-[0_14px_34px_rgba(0,0,0,0.45)]" />
+      <h2 className="text-center text-3xl font-black text-white mt-4">Dia {p.dia} de 7</h2>
       <p className="text-center text-sm text-[#a99fc0] mt-1.5 max-w-[460px] mx-auto">
         Apareça todo dia: cada dia seguido vale mais e o sétimo é o grande. Faltou um dia, recomeça do 1.
       </p>
@@ -261,9 +266,9 @@ function Roleta({ onGanhou }: { onGanhou: (n: number) => void }) {
 
   return (
     <div className="px-4 sm:px-6 py-6">
-      <p className="text-center text-[11px] font-black uppercase tracking-[2px] text-[#ffb070]">Roleta do dia</p>
-      <h2 className="text-center text-3xl font-black text-white mt-1">Teste sua sorte</h2>
-      <p className="text-center text-sm text-[#a99fc0] mt-1.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/itens/banner-roleta.webp" alt="Roleta do dia: seu giro, sua recompensa" className="w-full max-w-[520px] mx-auto aspect-[16/9] object-cover rounded-[18px] border border-white/10 shadow-[0_14px_34px_rgba(0,0,0,0.45)]" />
+      <p className="text-center text-sm text-[#a99fc0] mt-3">
         {r.giros > 1 ? `${r.giros} giros grátis por dia (Pro).` : 'Um giro grátis por dia. Pro gira 2 vezes.'} A roleta nunca é vendida.
       </p>
 
@@ -283,8 +288,9 @@ function Roleta({ onGanhou }: { onGanhou: (n: number) => void }) {
               return (
                 <g key={i}>
                   <path d={`M100 100 L${x0} ${y0} A${R} ${R} 0 0 1 ${x1} ${y1} Z`} fill={raro ? (f.nex >= 300 ? '#ff6a00' : '#7a2cff') : CORES[i % 3]} stroke="#110c1a" strokeWidth="1.2" />
-                  <text x={100 + 66 * Math.cos(am)} y={100 + 66 * Math.sin(am)} fill="#fff" fontSize={raro ? 12 : 11} fontWeight={900}
-                    textAnchor="middle" dominantBaseline="central" transform={`rotate(${(am * 180) / Math.PI + 90} ${100 + 66 * Math.cos(am)} ${100 + 66 * Math.sin(am)})`}>
+                  <image href="/itens/moeda-nex.webp" x={100 + 84 * Math.cos(am) - 4.5} y={100 + 84 * Math.sin(am) - 4.5} width="9" height="9" />
+                  <text x={100 + 62 * Math.cos(am)} y={100 + 62 * Math.sin(am)} fill="#fff" fontSize={raro ? 12 : 11} fontWeight={900}
+                    textAnchor="middle" dominantBaseline="central" transform={`rotate(${(am * 180) / Math.PI + 90} ${100 + 62 * Math.cos(am)} ${100 + 62 * Math.sin(am)})`}>
                     {f.nex}
                   </text>
                 </g>
@@ -294,7 +300,7 @@ function Roleta({ onGanhou }: { onGanhou: (n: number) => void }) {
           </g>
           <circle cx="100" cy="100" r="17" fill="#110c1a" stroke="url(#nx-roleta-aro)" strokeWidth="3" />
         </svg>
-        <MoedaNex className="w-7 h-7 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <MoedaNex className="w-9 h-9 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
       </div>
 
       <div className="flex flex-col items-center gap-2 mt-5">
@@ -311,6 +317,12 @@ function Roleta({ onGanhou }: { onGanhou: (n: number) => void }) {
     </div>
   );
 }
+
+// Ícone 3D de cada missão (public/itens/icones); missão nova sem arte usa o emoji do servidor
+const ARTE_MISSAO: Record<string, string> = {
+  'call-1h': 'i-microfone', 'chat-10': 'i-chat', 'unidos-dia': 'i-gamepad', foto: 'i-camera', amigo: 'i-telefone',
+  servidor: 'i-monitor', 'primeira-call': 'i-mic', 'presenca-7': 'i-fogo', 'unidos-10': 'i-taca', maratona: 'i-velocimetro',
+};
 
 function Missoes({ onGanhou }: { onGanhou: (n: number) => void }) {
   const { dados, resgatar } = useNex();
@@ -329,7 +341,12 @@ function Missoes({ onGanhou }: { onGanhou: (n: number) => void }) {
         return (
           <div key={m.id} className={cn('flex items-center gap-3 rounded-[16px] border p-3',
             pronta && !m.resgatada ? 'border-[#ff8a3d]/60 bg-gradient-to-r from-[#2a1638] to-[#1a1326]' : 'border-[#2e2340] bg-[#1a1326]')}>
-            <span className="w-10 h-10 rounded-[12px] grid place-items-center text-lg bg-[#2a1c45] shrink-0" aria-hidden>{m.icone}</span>
+            <span className="w-11 h-11 rounded-[12px] grid place-items-center text-lg bg-[#2a1c45] shrink-0" aria-hidden>
+              {ARTE_MISSAO[m.id]
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={`/itens/icones/${ARTE_MISSAO[m.id]}.webp`} alt="" className="w-8 h-8 object-contain drop-shadow-[0_3px_5px_rgba(0,0,0,0.5)]" />
+                : m.icone}
+            </span>
             <div className="flex-1 min-w-0">
               <b className={cn('block text-sm', m.resgatada ? 'text-[#8d82a0]' : 'text-white')}>{m.titulo}</b>
               <small className="block text-[11px] text-[#8d82a0]">{m.desc}</small>
