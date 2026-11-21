@@ -5,6 +5,7 @@ export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som';
 // Sons de entrada: emoji do cartão (o som em si é sintetizado em lib/sounds.ts)
 export const SONS: Record<string, string> = {
   's-moeda': '🪙', 's-sino': '🔔', 's-laser': '🔫', 's-arcade': '🕹️', 's-tambor': '🥁', 's-raio': '🌩️', 's-fanfarra': '🎺',
+  's-buzina': '📯', 's-dragao': '🐉',
 };
 
 export const RARIDADE: Record<Raridade, { nome: string; cor: string; fundo: string }> = {
@@ -31,12 +32,20 @@ export const MOLDURAS: Record<string, { anel: string; brilho?: string; anim?: 'g
   'm-galaxia': { anel: 'conic-gradient(#1a0b3d,#7a2cff,#ff4dd8,#1d4bff,#1a0b3d)', brilho: '#7a2cff', anim: 'gira', grossura: 1.8, selo: '✨' },
   'm-aurora': { anel: 'conic-gradient(#3dffb0,#7a2cff,#00d4ff,#ff6a00,#3dffb0)', brilho: '#3dffb0', anim: 'gira', grossura: 2.2, enfeite: '✦', selo: '🌌' },
   'm-coroa': { anel: 'linear-gradient(135deg,#fff1a8,#ffc23d,#b8860b,#ffc23d)', brilho: '#ffc23d', anim: 'pulsa', grossura: 2.2, enfeite: '👑', selo: '💎' },
+  // Só em baú
+  'm-sakura': { anel: 'conic-gradient(#ffd1e8,#ff8cc6,#ffd1e8,#ff8cc6,#ffd1e8)', brilho: '#ff8cc6', grossura: 1.4, selo: '🌸' },
+  'm-pixel': { anel: 'conic-gradient(#ff3b6b 0 12.5%,#ffd23b 0 25%,#3bff8a 0 37.5%,#3bc4ff 0 50%,#a23bff 0 62.5%,#ff3b6b 0 75%,#ffd23b 0 87.5%,#3bff8a 0)', brilho: '#3bc4ff', anim: 'glitch', grossura: 1.8, selo: '👾' },
+  'm-cristal': { anel: 'conic-gradient(#e9ffd6,#9cff5a,#3ddc84,#e9ffd6,#9cff5a,#e9ffd6)', brilho: '#9cff5a', anim: 'pulsa', grossura: 2.2, enfeite: '💠', selo: '✨' },
+  // Natal
+  'm-guirlanda': { anel: 'repeating-conic-gradient(#1f8a3b 0 7%,#2db34f 7% 12%,#ff2e3b 12% 14%)', brilho: '#2db34f', grossura: 1.8, selo: '🎀' },
+  'm-pisca-pisca': { anel: 'repeating-conic-gradient(#ff2e3b 0 5%,#ffd000 5% 10%,#2d8cff 10% 15%,#3ddc84 15% 20%)', brilho: '#ffd000', anim: 'pisca', grossura: 2.2, enfeite: '⭐', selo: '🎄' },
 };
 
 export const ICONES: Record<string, string> = {
   'i-controle': '🎮', 'i-fantasma': '👻', 'i-gato': '🐱', 'i-pizza': '🍕',
   'i-caveira': '💀', 'i-foguete': '🚀', 'i-arara': '🦜', 'i-bola': '⚽',
   'i-fogo': '🔥', 'i-raio': '⚡', 'i-coroa': '👑', 'i-diamante': '💎',
+  'i-alien': '👽', 'i-gorro': '🎅', 'i-boneco': '⛄',
 };
 
 // Placas: faixa atrás do nome (fundo translúcido para o nome continuar legível)
@@ -50,4 +59,6 @@ export const PLACAS: Record<string, string> = {
   'p-ouro': 'linear-gradient(90deg,rgba(255,194,61,.6),rgba(184,134,11,.18))',
   'p-neon': 'linear-gradient(90deg,rgba(0,255,240,.45),rgba(255,0,229,.35))',
   'p-galaxia': 'radial-gradient(circle at 20% 50%,rgba(255,255,255,.35) 0 1px,transparent 2px),linear-gradient(90deg,rgba(29,75,255,.6),rgba(122,44,255,.45),rgba(255,77,216,.3))',
+  'p-arco-iris': 'linear-gradient(90deg,rgba(255,59,107,.5),rgba(255,210,59,.45),rgba(59,255,138,.4),rgba(59,196,255,.4),rgba(162,59,255,.45))',
+  'p-natal': 'repeating-linear-gradient(135deg,rgba(255,46,59,.55) 0 8px,rgba(255,255,255,.25) 8px 12px,rgba(31,138,59,.5) 12px 20px)',
 };

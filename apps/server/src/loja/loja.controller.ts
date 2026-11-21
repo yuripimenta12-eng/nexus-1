@@ -20,6 +20,17 @@ export class LojaController {
     return this.loja.comprar(userId, itemId);
   }
 
+  @Get('baus')
+  baus() {
+    return this.loja.listarBaus();
+  }
+
+  @Post('baus/:id/abrir')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  abrirBau(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.loja.abrirBau(userId, id);
+  }
+
   @Put('equipar')
   @Throttle({ default: { ttl: 60000, limit: 40 } })
   equipar(@CurrentUser('id') userId: string, @Body() body: { tipo?: string; itemId?: string | null }) {

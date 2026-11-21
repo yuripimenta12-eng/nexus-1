@@ -62,6 +62,24 @@ export const CATALOGO: Item[] = [
   it('som', 's-tambor', 'Rufar', 'epica'),
   it('som', 's-raio', 'Trovão', 'epica'),
   it('som', 's-fanfarra', 'Fanfarra', 'lendaria'),
+  // Só em baú (não vendem direto)
+  it('moldura', 'm-sakura', 'Sakura', 'rara', { preco: null }),
+  it('moldura', 'm-pixel', 'Pixel', 'epica', { preco: null }),
+  it('moldura', 'm-cristal', 'Cristal', 'lendaria', { preco: null }),
+  it('placa', 'p-arco-iris', 'Arco-íris', 'epica', { preco: null }),
+  it('icone', 'i-alien', 'Alien', 'rara', { preco: null }),
+  it('som', 's-buzina', 'Buzina', 'rara', { preco: null }),
+  it('som', 's-dragao', 'Rugido do Dragão', 'lendaria', { preco: null }),
+  // Natal 2026 (só no Baú de Natal, até 6 de janeiro)
+  it('moldura', 'm-guirlanda', 'Guirlanda', 'epica', { preco: null }),
+  it('moldura', 'm-pisca-pisca', 'Pisca-pisca', 'lendaria', { preco: null }),
+  it('icone', 'i-gorro', 'Papai Noel', 'rara', { preco: null }),
+  it('icone', 'i-boneco', 'Boneco de Neve', 'rara', { preco: null }),
+  it('placa', 'p-natal', 'Natal', 'epica', { preco: null }),
 ];
+
+/** Valor de referência (para devolver metade quando sai item repetido no baú). */
+export const VALOR_RARIDADE: Record<Raridade, number> = { comum: 800, rara: 1600, epica: 3200, lendaria: 6400 };
+export const valorDoItem = (i: Item) => i.preco ?? VALOR_RARIDADE[i.raridade];
 
 export const itemPorId = (id: string) => CATALOGO.find(i => i.id === id);

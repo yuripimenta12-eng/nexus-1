@@ -166,6 +166,10 @@ export function playSomEntrada(id: string | null | undefined): boolean {
       tone(98, 0.62, 0.4, 'triangle', 0.18); swoosh(0.62, 0.5, 6000, 3000, 0.18); return true;
     case 's-raio':
       swoosh(0, 0.12, 8000, 2000, 0.35); swoosh(0.1, 0.9, 400, 60, 0.4); tone(55, 0.12, 0.8, 'sawtooth', 0.06); return true;
+    case 's-buzina': // fom-fom
+      tone(392, 0, 0.18, 'sawtooth', 0.09); tone(392, 0.24, 0.32, 'sawtooth', 0.09); tone(311, 0.24, 0.32, 'sawtooth', 0.05); return true;
+    case 's-dragao': // rugido grave subindo e descendo
+      swoosh(0, 1.1, 300, 90, 0.5); tone(70, 0, 1.0, 'sawtooth', 0.09); tone(105, 0.1, 0.8, 'square', 0.04); return true;
     case 's-fanfarra':
       [[523.25, 0], [523.25, 0.12], [523.25, 0.24], [659.25, 0.36], [783.99, 0.56]].forEach(([f, t], i) =>
         softTone(f, t, i === 4 ? 0.7 : 0.14, 'sawtooth', 0.07, 4, 2600)); return true;

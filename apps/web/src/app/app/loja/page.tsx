@@ -4,7 +4,8 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play } from 'lucide-react';
+import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package } from 'lucide-react';
+import { SecaoBaus, BannerEvento } from '@/components/nex/baus';
 import { playSomEntrada } from '@/lib/sounds';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<Ti
 
 const SECOES = [
   { id: 'destaques', nome: 'Destaques', icone: Sparkles },
+  { id: 'baus', nome: 'Baús', icone: Package },
   { id: 'moldura', nome: 'Molduras', icone: Frame },
   { id: 'icone', nome: 'Ícones', icone: Smile },
   { id: 'placa', nome: 'Placas do nome', icone: Tag },
@@ -119,8 +121,11 @@ export default function LojaPage() {
 
           {/* Vitrine */}
           <section>
+            {secao === 'destaques' && <BannerEvento onAbrir={() => setSecao('baus')} />}
             {secao === 'zoeiras' ? (
               <SecaoZoeiras onMudou={() => { carregar(); useNex.getState().carregar(); }} />
+            ) : secao === 'baus' ? (
+              <SecaoBaus onMudou={() => { carregar(); useNex.getState().carregar(); }} />
             ) : !dados ? (
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="h-[230px] rounded-2xl nx-skeleton" />)}</div>
             ) : lista.length === 0 ? (

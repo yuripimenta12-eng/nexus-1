@@ -1,7 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { planoAtivo } from '../planos/planos.regras';
-import { CATALOGO, CAMPO_PERFIL, itemPorId, type TipoItem } from './loja.catalogo';
+import { randomInt } from 'crypto';
+import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoItem } from './loja.catalogo';
+import { BAUS, bauPorId, bauAtivo, sortearPremio, somaPesos } from './loja.baus';
 
 const TIPOS: TipoItem[] = ['moldura', 'icone', 'placa', 'som'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
@@ -51,6 +53,60 @@ export class LojaService {
       return tx.carteira.findUnique({ where: { userId }, select: { saldo: true } });
     });
     return { itemId, saldo: r!.saldo };
+  }
+
+  /** Baús à venda agora, com a chance de cada prêmio em %. */
+  listarBaus() {
+    return BAUS.filter(b => bauAtivo(b)).map(b => {
+      const total = somaPesos(b);
+      return {
+        id: b.id, nome: b.nome, preco: b.preco, cor: b.cor, desc: b.desc, ate: b.ate ?? null,
+        premios: b.premios.map(p => {
+          const item = p.item ? itemPorId(p.item) : undefined;
+          return { item: item ? { id: item.id, nome: item.nome, tipo: item.tipo, raridade: item.raridade } : null, nex: p.nex ?? null, chance: Math.round((p.peso / total) * 1000) / 10 };
+        }),
+      };
+    });
+  }
+
+  /** Abre um baú: cobra, sorteia no servidor e entrega (repetido vira metade em Nex). */
+  async abrirBau(userId: string, id: string) {
+    const bau = bauPorId(id);
+    if (!bau || !bauAtivo(bau)) throw new NotFoundException('Baú não encontrado');
+    const indice = sortearPremio(bau, randomInt(0, somaPesos(bau)));
+    const premio = bau.premios[indice];
+    const item = premio.item ? itemPorId(premio.item) : undefined;
+    const r = await this.prisma.$transaction(async (tx) => {
+      const ok = await tx.carteira.updateMany({ where: { userId, saldo: { gte: bau.preco } }, data: { saldo: { decrement: bau.preco } } });
+      if (ok.count !== 1) throw new BadRequestException('Nex insuficiente para esse baú');
+      await tx.nexMovimento.create({ data: { userId, valor: -bau.preco, motivo: `Abriu ${bau.nome}`.slice(0, 48) } });
+      let repetido = false, reembolso = 0, nex = premio.nex ?? 0;
+      if (item) {
+        const ja = await tx.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId: item.id } } });
+        if (ja && valido(ja)) {
+          repetido = true;
+          reembolso = Math.floor(valorDoItem(item) / 2);
+        } else {
+          await tx.itemPosse.upsert({
+            where: { userId_itemId: { userId, itemId: item.id } },
+            create: { userId, itemId: item.id, origem: 'bau' },
+            update: { origem: 'bau', expiraEm: null },
+          });
+        }
+      }
+      const ganho = nex + reembolso;
+      if (ganho > 0) {
+        await tx.carteira.update({ where: { userId }, data: { saldo: { increment: ganho }, totalGanho: { increment: ganho } } });
+        await tx.nexMovimento.create({ data: { userId, valor: ganho, motivo: (repetido ? `Repetido no baú: ${item!.nome}` : `Prêmio do ${bau.nome}`).slice(0, 48) } });
+      }
+      const c = await tx.carteira.findUnique({ where: { userId }, select: { saldo: true } });
+      return { repetido, reembolso, nex, saldo: c!.saldo };
+    });
+    return {
+      indice,
+      premio: item ? { tipo: 'item', item: { id: item.id, nome: item.nome, tipo: item.tipo, raridade: item.raridade } } : { tipo: 'nex', nex: r.nex },
+      repetido: r.repetido, reembolso: r.reembolso, saldo: r.saldo,
+    };
   }
 
   /** Equipa (ou tira, com itemId null) um item que a pessoa tem. */
