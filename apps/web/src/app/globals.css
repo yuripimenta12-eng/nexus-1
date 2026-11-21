@@ -1168,3 +1168,31 @@ html.nx-leve .nx-desfoque {
   .nx-aurora-pulso, .nx-figurinha, .nx-flutuar, .nx-fileira, .nx-fileira-volta { animation: none !important; }
   .nx-reacao { display: none; }
 }
+
+/* ── Temas de servidor da loja Nex ─────────────────────────────────────── */
+/* Aplicados no <html> enquanto a pessoa está no servidor (data-tema).
+   Ficam no fim do arquivo para valer por cima do tema de Aparência. */
+html[data-tema='t-neblina'] {
+  --th-bg: #0a0d12; --th-glow: #23324a; --th-glow-2: #1a2230; --th-panel: #121821; --th-panel-2: #171f2b;
+  --th-side: #0d1219; --th-rail: #0b0f15; --th-line: #26324a; --th-line-2: #2e3b55;
+}
+html[data-tema='t-arcade'] {
+  --th-bg: #07041a; --th-glow: #3a0d6e; --th-glow-2: #0d4a6e; --th-panel: #110a2a; --th-panel-2: #170f36;
+  --th-side: #0b0620; --th-rail: #08041a; --th-line: #33206a; --th-line-2: #3e2a80;
+}
+html[data-tema='t-sakura'] {
+  --th-bg: #120810; --th-glow: #5a1a40; --th-glow-2: #3d1030; --th-panel: #1c0e19; --th-panel-2: #241220;
+  --th-side: #150a13; --th-rail: #11080f; --th-line: #4a2340; --th-line-2: #5a2a4d;
+}
+html[data-tema='t-mar'] {
+  --th-bg: #03100f; --th-glow: #0b4a4a; --th-glow-2: #0a2f4a; --th-panel: #08191a; --th-panel-2: #0b2224;
+  --th-side: #051313; --th-rail: #040f0f; --th-line: #134040; --th-line-2: #185050;
+}
+html[data-tema='t-aurora'] {
+  --th-bg: #050d0c; --th-glow: #0f5a40; --th-glow-2: #3a1a6e; --th-panel: #0b1716; --th-panel-2: #0f1f1e;
+  --th-side: #071211; --th-rail: #060e0d; --th-line: #1a4a3f; --th-line-2: #22594c;
+}
+html[data-tema='t-84'] {
+  --th-bg: #12060f; --th-glow: #6e1a4a; --th-glow-2: #6e3a0d; --th-panel: #1c0a17; --th-panel-2: #260e1f;
+  --th-side: #160811; --th-rail: #12060e; --th-line: #4a1f3d; --th-line-2: #5c2649;
+}

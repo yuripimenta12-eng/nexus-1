@@ -1,6 +1,16 @@
 // Visual dos itens da loja Nex (mesmos ids do catálogo do servidor: src/loja/loja.catalogo.ts).
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
-export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som';
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema';
+
+// Temas de servidor: cores da miniatura na loja (as de verdade ficam em globals.css)
+export const TEMAS: Record<string, { fundo: string; lado: string; painel: string; brilho: string }> = {
+  't-neblina': { fundo: '#0a0d12', lado: '#0d1219', painel: '#171f2b', brilho: '#23324a' },
+  't-arcade': { fundo: '#07041a', lado: '#0b0620', painel: '#170f36', brilho: '#7a2cff' },
+  't-sakura': { fundo: '#120810', lado: '#150a13', painel: '#241220', brilho: '#ff8cc6' },
+  't-mar': { fundo: '#03100f', lado: '#051313', painel: '#0b2224', brilho: '#19c2c2' },
+  't-aurora': { fundo: '#050d0c', lado: '#071211', painel: '#0f1f1e', brilho: '#3dffb0' },
+  't-84': { fundo: '#12060f', lado: '#160811', painel: '#260e1f', brilho: '#ff6a3d' },
+};
 
 // Sons de entrada: emoji do cartão (o som em si é sintetizado em lib/sounds.ts)
 export const SONS: Record<string, string> = {

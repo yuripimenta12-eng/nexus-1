@@ -51,6 +51,13 @@ export function AppSidebar() {
   const activeChannelId = params?.channelId as string;
   const activeRoomId = params?.roomId as string;
   const [server, setServer] = useState<Server | null>(null);
+  // Tema da loja Nex do servidor: veste o app enquanto a pessoa está nele
+  const temaServidor = (server as any)?.tema as string | null | undefined;
+  useEffect(() => {
+    const html = document.documentElement;
+    if (temaServidor) html.dataset.tema = temaServidor; else delete html.dataset.tema;
+    return () => { delete html.dataset.tema; };
+  }, [temaServidor]);
   const [textOpen, setTextOpen] = useState(true);
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [showCreateChannel, setShowCreateChannel] = useState(false);

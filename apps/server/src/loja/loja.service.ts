@@ -2,10 +2,10 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { PrismaService } from '../prisma/prisma.service';
 import { planoAtivo } from '../planos/planos.regras';
 import { randomInt } from 'crypto';
-import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoItem } from './loja.catalogo';
+import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoPerfil } from './loja.catalogo';
 import { BAUS, bauPorId, bauAtivo, sortearPremio, somaPesos } from './loja.baus';
 
-const TIPOS: TipoItem[] = ['moldura', 'icone', 'placa', 'som'];
+const TIPOS: TipoPerfil[] = ['moldura', 'icone', 'placa', 'som'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
 
 @Injectable()
@@ -109,10 +109,30 @@ export class LojaService {
     };
   }
 
+  /** Veste um servidor com um tema que a pessoa tem (só dono ou admin do servidor). */
+  async aplicarTema(userId: string, serverId: unknown, itemId: unknown) {
+    if (typeof serverId !== 'string') throw new BadRequestException('Servidor inválido');
+    const server = await this.prisma.server.findUnique({ where: { id: serverId }, select: { ownerId: true } });
+    if (!server) throw new NotFoundException('Servidor não encontrado');
+    const m = await this.prisma.serverMember.findUnique({ where: { serverId_userId: { serverId, userId } }, select: { role: true, banned: true } });
+    const pode = server.ownerId === userId || (m && !m.banned && (m.role === 'OWNER' || m.role === 'ADMIN'));
+    if (!pode) throw new ForbiddenException('Só o dono ou um admin do servidor muda o tema');
+    if (itemId === null) {
+      await this.prisma.server.update({ where: { id: serverId }, data: { tema: null } });
+      return { serverId, tema: null };
+    }
+    const item = typeof itemId === 'string' ? itemPorId(itemId) : undefined;
+    if (!item || item.tipo !== 'tema') throw new BadRequestException('Tema inválido');
+    const posse = await this.prisma.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId: item.id } } });
+    if (!posse || !valido(posse)) throw new ForbiddenException('Você não tem esse tema');
+    await this.prisma.server.update({ where: { id: serverId }, data: { tema: item.id } });
+    return { serverId, tema: item.id };
+  }
+
   /** Equipa (ou tira, com itemId null) um item que a pessoa tem. */
   async equipar(userId: string, tipo: unknown, itemId: unknown) {
-    if (!TIPOS.includes(tipo as TipoItem)) throw new BadRequestException('Tipo inválido');
-    const t = tipo as TipoItem;
+    if (!TIPOS.includes(tipo as TipoPerfil)) throw new BadRequestException('Tipo inválido');
+    const t = tipo as TipoPerfil;
     const campo = CAMPO_PERFIL[t];
     if (itemId === null) {
       await this.prisma.profile.update({ where: { userId }, data: { [campo]: null } });

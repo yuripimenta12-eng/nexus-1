@@ -95,6 +95,22 @@ function socket(token, ua) {
     check('dois baús juntos com saldo para um: só um abre', dois.filter(x => x.status === 200 || x.status === 201).length === 1);
     const mov = await prisma.nexMovimento.count({ where: { userId: U.id, motivo: { startsWith: 'Abriu' } } });
     check('extrato registra cada abertura', mov === 2, `aberturas ${mov}`);
+
+    console.log('● Tema de servidor');
+    let srv = await call('POST', '/servers', { name: `Tema ${rnd}` }, t);
+    const sid = srv.data?.id;
+    await prisma.carteira.update({ where: { userId: U.id }, data: { saldo: 5000 } });
+    r = await call('PUT', '/loja/tema', { serverId: sid, itemId: 't-neblina' }, t);
+    check('sem ter o tema não aplica', r.status === 403, `status ${r.status}`);
+    r = await call('POST', '/loja/comprar/t-neblina', null, t);
+    check('compra o tema (5.000)', (r.status === 200 || r.status === 201) && r.data?.saldo === 0, JSON.stringify(r.data));
+    r = await call('PUT', '/loja/tema', { serverId: sid, itemId: 't-neblina' }, t);
+    check('dono aplica no servidor', r.status === 200 && r.data?.tema === 't-neblina');
+    r = await call('GET', `/servers/${sid}`, null, t);
+    check('o servidor mostra o tema para quem entra', r.data?.tema === 't-neblina');
+    r = await call('PUT', '/loja/equipar', { tipo: 'tema', itemId: 't-neblina' }, t);
+    check('tema não vai no perfil', r.status === 400, `status ${r.status}`);
+    await prisma.server.delete({ where: { id: sid } }).catch(() => {});
   } catch (e) {
     falhas++; console.log('ERRO no teste:', e.message);
   } finally {

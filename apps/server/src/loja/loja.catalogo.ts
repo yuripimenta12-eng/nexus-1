@@ -1,8 +1,9 @@
 // Catálogo da loja Nex. O visual de cada item fica no site (apps/web/src/lib/itens.ts),
 // com o mesmo id. Preço null = não vende direto (só baú, evento ou roleta).
-export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som';
-/** Onde cada tipo fica guardado no perfil quando equipado. */
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema';
+/** Onde cada tipo fica guardado no perfil quando equipado (tema vai no servidor). */
 export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa', som: 'somEntrada' } as const;
+export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean }
 
@@ -11,6 +12,7 @@ const PRECO = {
   icone: { comum: 500, rara: 1000, epica: 2000, lendaria: 3000 },
   placa: { comum: 800, rara: 1500, epica: 2500, lendaria: 4000 },
   som: { comum: 2000, rara: 3000, epica: 4000, lendaria: 5000 },
+  tema: { comum: 4000, rara: 5000, epica: 8000, lendaria: 12000 },
 } as const;
 const it = (tipo: TipoItem, id: string, nome: string, raridade: Raridade, extra: Partial<Item> = {}): Item =>
   ({ id, tipo, nome, raridade, preco: PRECO[tipo][raridade], ...extra });
@@ -62,6 +64,13 @@ export const CATALOGO: Item[] = [
   it('som', 's-tambor', 'Rufar', 'epica'),
   it('som', 's-raio', 'Trovão', 'epica'),
   it('som', 's-fanfarra', 'Fanfarra', 'lendaria'),
+  // Temas de servidor: o dono (ou admin) veste o servidor inteiro
+  it('tema', 't-neblina', 'Neblina', 'rara'),
+  it('tema', 't-arcade', 'Neon Arcade', 'rara'),
+  it('tema', 't-sakura', 'Sakura', 'epica'),
+  it('tema', 't-mar', 'Fundo do Mar', 'epica'),
+  it('tema', 't-aurora', 'Aurora Boreal', 'lendaria'),
+  it('tema', 't-84', 'Pôr do Sol 84', 'lendaria'),
   // Só em baú (não vendem direto)
   it('moldura', 'm-sakura', 'Sakura', 'rara', { preco: null }),
   it('moldura', 'm-pixel', 'Pixel', 'epica', { preco: null }),

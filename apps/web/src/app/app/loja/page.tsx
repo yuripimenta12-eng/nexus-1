@@ -4,7 +4,7 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package } from 'lucide-react';
+import { Store, Sparkles, Frame, Smile, Tag, Backpack, Check, Lock, Loader2, X, Crown, Volume2, Laugh, Play, Package, Palette } from 'lucide-react';
 import { SecaoBaus, BannerEvento } from '@/components/nex/baus';
 import { playSomEntrada } from '@/lib/sounds';
 import api from '@/lib/api';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNex } from '@/lib/nex';
-import { RARIDADE, ICONES, SONS, type Raridade, type TipoItem } from '@/lib/itens';
+import { RARIDADE, ICONES, SONS, TEMAS, type Raridade, type TipoItem } from '@/lib/itens';
 import { Avatar } from '@/components/ui/avatar';
 import { NomeComItens } from '@/components/nex/itens-visuais';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
@@ -28,6 +28,7 @@ const SECOES = [
   { id: 'icone', nome: 'Ícones', icone: Smile },
   { id: 'placa', nome: 'Placas do nome', icone: Tag },
   { id: 'som', nome: 'Sons de entrada', icone: Volume2 },
+  { id: 'tema', nome: 'Temas de servidor', icone: Palette },
   { id: 'zoeiras', nome: 'Zoeiras', icone: Laugh },
   { id: 'meus', nome: 'Meus itens', icone: Backpack },
 ] as const;
@@ -40,6 +41,7 @@ export default function LojaPage() {
   const [secao, setSecao] = useState<Secao>('destaques');
   const [provando, setProvando] = useState<ItemLoja | null>(null);
   const [comprando, setComprando] = useState<ItemLoja | null>(null);
+  const [aplicando, setAplicando] = useState<ItemLoja | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   const carregar = () => api.get('/loja').then(({ data }) => setDados(data)).catch(() => setDados(d => d ?? { saldo: 0, plano: 'gratis', equipados: { moldura: null, icone: null, placa: null }, itens: [] }));
@@ -153,7 +155,12 @@ export default function LojaPage() {
                         <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: r.cor }}>◆ {r.nome}</span>
                         <b className="text-white text-sm leading-tight mt-0.5">{i.nome}</b>
                         <div className="mt-auto pt-2.5">
-                          {i.possui ? (
+                          {i.possui && i.tipo === 'tema' ? (
+                            <button onClick={() => setAplicando(i)}
+                              className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-[#3ddc84]/15 text-[#3ddc84] hover:bg-[#3ddc84]/25">
+                              <Palette className="w-3.5 h-3.5" /> Aplicar num servidor
+                            </button>
+                          ) : i.possui ? (
                             <button disabled={ocupado} onClick={() => equipar(i, !usando)}
                               className={cn('w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 transition-colors',
                                 usando ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-[#3ddc84]/15 text-[#3ddc84] hover:bg-[#3ddc84]/25')}>
@@ -200,6 +207,8 @@ export default function LojaPage() {
         </div>
       </div>
 
+      {aplicando && <AplicarTema tema={aplicando} onFechar={() => setAplicando(null)} />}
+
       {/* Confirmar compra */}
       <AnimatePresence>
         {comprando && dados && (
@@ -234,6 +243,54 @@ export default function LojaPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Escolhe em qual servidor (seu ou onde é admin) o tema vai valer. */
+function AplicarTema({ tema, onFechar }: { tema: ItemLoja; onFechar: () => void }) {
+  const { user } = useAuthStore();
+  const [servidores, setServidores] = useState<{ id: string; name: string; tema: string | null }[] | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  useEffect(() => {
+    api.get('/users/@me/servers').then(({ data }) => setServidores(
+      data.filter((m: any) => m.server?.ownerId === user?.id || m.role === 'OWNER' || m.role === 'ADMIN')
+        .map((m: any) => ({ id: m.server.id, name: m.server.name, tema: m.server.tema ?? null })),
+    )).catch(() => setServidores([]));
+  }, [user?.id]);
+  const aplicar = async (id: string, usar: boolean) => {
+    setOcupado(id);
+    try {
+      await api.put('/loja/tema', { serverId: id, itemId: usar ? tema.id : null });
+      setServidores(s => s?.map(x => (x.id === id ? { ...x, tema: usar ? tema.id : null } : x)) ?? null);
+      toast(usar ? `${tema.nome} aplicado! Quem entrar no servidor vê o tema.` : 'Tema tirado', 'success');
+    } catch (e: any) { toast(e?.response?.data?.message || 'Não deu agora', 'error'); }
+    setOcupado(null);
+  };
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4" onClick={onFechar}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Aplicar tema"
+        className="w-full max-w-[400px] rounded-[22px] border border-[#3a2a4d] bg-[#120d1c] p-5 relative">
+        <button onClick={onFechar} aria-label="Fechar" className="absolute right-3 top-3 text-[#a99fc0] hover:text-white"><X className="w-4 h-4" /></button>
+        <h3 className="text-white text-lg font-black">Aplicar {tema.nome}</h3>
+        <p className="text-sm text-[#a99fc0] mt-1">Escolha o servidor. Todo mundo que entrar nele vê o tema.</p>
+        <div className="mt-4 space-y-2 max-h-[320px] overflow-y-auto">
+          {servidores === null ? <div className="h-16 grid place-items-center"><Loader2 className="w-5 h-5 animate-spin text-[#8b48ff]" /></div>
+            : servidores.length === 0 ? <p className="text-sm text-[#a99fc0]">Você não é dono nem admin de nenhum servidor.</p>
+            : servidores.map(s => {
+              const ativo = s.tema === tema.id;
+              return (
+                <div key={s.id} className="flex items-center gap-3 rounded-xl border border-[#2e2340] bg-[#1a1326] p-3">
+                  <span className="flex-1 min-w-0 truncate text-sm font-bold text-white">{s.name}</span>
+                  <button disabled={ocupado === s.id} onClick={() => aplicar(s.id, !ativo)}
+                    className={cn('h-8 px-3 rounded-[10px] text-xs font-black', ativo ? 'bg-white/10 text-white' : 'bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] text-white')}>
+                    {ocupado === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : ativo ? 'Tirar' : 'Aplicar'}
+                  </button>
+                </div>
+              );
+            })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -307,6 +364,24 @@ function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
 function PreviaItem({ item, nome, avatar }: { item: ItemLoja; nome: string; avatar?: string | null }) {
   if (item.tipo === 'moldura') return <Avatar src={avatar} name={nome} size="xl" moldura={item.id} />;
   if (item.tipo === 'icone') return <span className="text-[52px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{ICONES[item.id]}</span>;
+  if (item.tipo === 'tema') {
+    const t = TEMAS[item.id];
+    if (!t) return null;
+    return (
+      <div className="w-[150px] h-[90px] rounded-xl overflow-hidden border border-white/10 flex shadow-[0_10px_24px_rgba(0,0,0,0.45)]"
+        style={{ background: `radial-gradient(circle at 80% 20%, ${t.brilho}55, transparent 60%), ${t.fundo}` }}>
+        <div className="w-5" style={{ background: t.lado }} />
+        <div className="w-10 p-1.5 space-y-1" style={{ background: t.lado, borderLeft: '1px solid rgba(255,255,255,.06)' }}>
+          {[0, 1, 2, 3].map(k => <div key={k} className="h-1.5 rounded-full" style={{ background: k === 0 ? t.brilho : 'rgba(255,255,255,.15)' }} />)}
+        </div>
+        <div className="flex-1 p-2 space-y-1.5">
+          <div className="h-2 w-3/4 rounded-full" style={{ background: 'rgba(255,255,255,.25)' }} />
+          <div className="h-6 rounded-md" style={{ background: t.painel }} />
+          <div className="h-1.5 w-1/2 rounded-full" style={{ background: t.brilho }} />
+        </div>
+      </div>
+    );
+  }
   if (item.tipo === 'som') return (
     <span className="flex items-center gap-3">
       <span className="text-[46px] leading-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">{SONS[item.id]}</span>

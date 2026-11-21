@@ -31,6 +31,12 @@ export class LojaController {
     return this.loja.abrirBau(userId, id);
   }
 
+  @Put('tema')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  tema(@CurrentUser('id') userId: string, @Body() body: { serverId?: string; itemId?: string | null }) {
+    return this.loja.aplicarTema(userId, body?.serverId, body?.itemId ?? null);
+  }
+
   @Put('equipar')
   @Throttle({ default: { ttl: 60000, limit: 40 } })
   equipar(@CurrentUser('id') userId: string, @Body() body: { tipo?: string; itemId?: string | null }) {
