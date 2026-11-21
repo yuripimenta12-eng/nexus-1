@@ -77,7 +77,11 @@ export function ServersSidebar() {
     setCreating(true);
     setCreateError('');
     try {
-      const { data } = await api.post('/servers', { name: newServerName.trim(), modelo });
+      // shortcut: servidor ainda sem o campo "modelo" recusa com 400; repete sem ele. Pode sair depois do deploy.
+      const { data } = await api.post('/servers', { name: newServerName.trim(), modelo })
+        .catch((e) => (e?.response?.status === 400 && /modelo/.test(JSON.stringify(e.response.data))
+          ? api.post('/servers', { name: newServerName.trim() })
+          : Promise.reject(e)));
       setServers(prev => [...prev, data]);
       setNewServerName('');
       // Chega no servidor com as boas-vindas abertas (convite, ícone, descrição, sala de voz)
