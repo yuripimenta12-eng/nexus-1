@@ -673,6 +673,7 @@ export function AppSidebar() {
               src={user?.profile?.avatarUrl}
               name={user?.profile?.displayName || user?.username || '?'}
               size="sm"
+              moldura={(user?.profile as any)?.moldura}
             />
             <span className={cn('status-dot absolute -bottom-0.5 -right-0.5', STATUS_COLORS[user?.profile?.status || 'OFFLINE'])} />
           </div>

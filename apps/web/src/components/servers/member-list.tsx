@@ -12,6 +12,7 @@ import { FaixaConquistas } from '@/components/voice/placar';
 import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
 import { corSegura } from '@/lib/seguro';
+import { NomeComItens } from '@/components/nex/itens-visuais';
 
 type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
 type Status = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
@@ -221,7 +222,7 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
               )}
             >
               <div className="relative shrink-0">
-                <Avatar src={m.user.profile?.avatarUrl} name={name} size="sm" />
+                <Avatar src={m.user.profile?.avatarUrl} name={name} size="sm" moldura={(m.user.profile as any)?.moldura} />
                 <span
                   className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[var(--th-side)]"
                   style={{ background: STATUS_COLOR[m.status] }}
@@ -229,12 +230,13 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="text-[14px] truncate"
+                  <NomeComItens
+                    nome={name}
+                    icone={(m.user.profile as any)?.icone}
+                    placa={(m.user.profile as any)?.placa}
+                    className="text-[14px]"
                     style={{ color: nameColorOf(m) || '#d7cfe0' }}
-                  >
-                    {name}
-                  </span>
+                  />
                   <RoleIcon role={m.role} />
                   {m.user.isBetaTester && <EmblemaBeta size={14} />}
                   <EmblemaPlano usuario={m.user as any} />
@@ -325,7 +327,8 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
         <div className="px-4 pb-4 -mt-11">
           <div className="relative inline-block">
             <Avatar src={member.user.profile?.avatarUrl} name={name} size="xl"
-                    className="!w-[84px] !h-[84px] ring-[5px] ring-[var(--th-panel)]" />
+                    moldura={(pub?.profile as any)?.moldura ?? (member.user.profile as any)?.moldura}
+                    className="!w-[84px] !h-[84px] ring-[5px] ring-[var(--th-panel)] rounded-full" />
             <span
               className="absolute bottom-0.5 right-0.5 w-[18px] h-[18px] rounded-full border-[3px] border-[var(--th-panel)]"
               style={{ background: STATUS_COLOR[member.status] }}
@@ -333,7 +336,10 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           </div>
 
           <div className="mt-2 flex items-center gap-1.5">
-            <b className="text-lg font-extrabold truncate" style={{ color: nameColorOf(member) || '#fff' }}>{name}</b>
+            <NomeComItens nome={name}
+              icone={(pub?.profile as any)?.icone ?? (member.user.profile as any)?.icone}
+              placa={(pub?.profile as any)?.placa ?? (member.user.profile as any)?.placa}
+              className="text-lg font-extrabold" style={{ color: nameColorOf(member) || '#fff' }} />
             <RoleIcon role={member.role} />
           </div>
           <p className="text-[#8a8095] text-[12.5px]">

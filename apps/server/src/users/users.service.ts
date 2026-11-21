@@ -31,7 +31,7 @@ export class UsersService {
         profile: {
           select: {
             displayName: true, avatarUrl: true, bannerUrl: true, bannerColor: true,
-            bio: true, status: true, customStatus: true,
+            bio: true, status: true, customStatus: true, moldura: true, icone: true, placa: true,
           },
         },
       },

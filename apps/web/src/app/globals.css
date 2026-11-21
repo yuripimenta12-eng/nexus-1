@@ -331,6 +331,20 @@
   .nx-chacoalha { animation: none; }
 }
 
+/* Molduras da loja Nex */
+@keyframes nx-mold-gira { to { transform: rotate(360deg); } }
+@keyframes nx-mold-pulsa { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+@keyframes nx-mold-pisca { 0%,100% { opacity: 1; } 8% { opacity: .35; } 12% { opacity: 1; } 55% { opacity: .9; } 58% { opacity: .4; } 62% { opacity: 1; } }
+@keyframes nx-mold-glitch { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-1px,1px); } 40% { transform: translate(1px,-1px); } 60% { transform: translate(-1px,0); } 80% { transform: translate(1px,1px); } }
+.nx-mold-gira { animation: nx-mold-gira 6s linear infinite; }
+.nx-mold-pulsa { animation: nx-mold-pulsa 2.4s ease-in-out infinite; }
+.nx-mold-pisca { animation: nx-mold-pisca 3s steps(1) infinite; }
+.nx-mold-glitch { animation: nx-mold-glitch .9s steps(2) infinite; }
+.nx-mold-glitch2 { animation: nx-mold-glitch .7s steps(2) infinite reverse; mix-blend-mode: screen; }
+@media (prefers-reduced-motion: reduce) {
+  .nx-mold-gira, .nx-mold-pulsa, .nx-mold-pisca, .nx-mold-glitch, .nx-mold-glitch2 { animation: none; }
+}
+
 /* Silhuetas de carregamento (skeleton) */
 @keyframes nx-shimmer {
   to { background-position: -200% 0; }

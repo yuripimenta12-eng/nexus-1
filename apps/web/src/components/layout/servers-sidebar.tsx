@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Sparkles, Gamepad2, Lightbulb } from 'lucide-react';
+import { Plus, Settings, X, Loader2, ShieldCheck, BellOff, Sparkles, Gamepad2, Lightbulb, Store } from 'lucide-react';
 import { pedirBoasVindas } from '@/components/servers/primeiros-passos';
 import { useNex } from '@/lib/nex';
 import { MoedaNex, nexCurto } from '@/components/nex/moeda-nex';
@@ -183,6 +183,18 @@ export function ServersSidebar() {
         <MoedaNex className="w-6 h-6" />
         <span className="text-[9px] font-black text-[#ffd08a] leading-none tabular-nums">{nex ? nexCurto(nex.saldo) : '…'}</span>
         {temPremio && <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#ff6a00] border-2 border-[var(--th-rail)] animate-pulse" />}
+      </button>
+
+      {/* Loja Nexus: molduras, ícones e placas com Nex */}
+      <button
+        onClick={() => router.push('/app/loja')}
+        className="w-[46px] h-[46px] rounded-2xl border border-[var(--th-line-2)] bg-[#171121]
+                   transition-all duration-200 flex items-center justify-center
+                   text-[#c9a6ff] hover:border-[#c9a6ff] hover:-translate-y-0.5"
+        title="Loja Nexus"
+        aria-label="Loja Nexus"
+      >
+        <Store className="w-5 h-5" />
       </button>
 
       {/* Em breve: votar no que vem por aí */}

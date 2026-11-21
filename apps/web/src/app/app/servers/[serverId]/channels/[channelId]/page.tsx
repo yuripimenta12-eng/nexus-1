@@ -23,6 +23,7 @@ import { MemberList } from '@/components/servers/member-list';
 import { MessageSkeleton } from '@/components/ui/message-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EmblemaBeta } from '@/components/ui/emblema-beta';
+import { NomeComItens } from '@/components/nex/itens-visuais';
 
 /** Gera um ID único de cliente para deduplicação de mensagens */
 function genClientMsgId(): string {
@@ -1062,7 +1063,7 @@ function MessageRow({
       {/* Avatar */}
       <div className="w-10 shrink-0 mt-0.5">
         {!isConsecutive ? (
-          <Avatar src={msg.author.profile.avatarUrl} name={msg.author.profile.displayName} size="md" />
+          <Avatar src={msg.author.profile.avatarUrl} name={msg.author.profile.displayName} size="md" moldura={(msg.author.profile as any).moldura} />
         ) : (
           <span className="text-muted text-[10px] leading-none mt-1.5 block text-right opacity-0 group-hover:opacity-100">
             {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -1075,9 +1076,13 @@ function MessageRow({
         {/* Autor + data */}
         {!isConsecutive && (
           <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="font-semibold text-[15px] hover:underline cursor-default" style={{ color: nameColor || '#f3eefa' }}>
-              {msg.author.profile.displayName}
-            </span>
+            <NomeComItens
+              nome={msg.author.profile.displayName}
+              icone={(msg.author.profile as any).icone}
+              placa={(msg.author.profile as any).placa}
+              className="font-semibold text-[15px] hover:underline cursor-default self-center"
+              style={{ color: nameColor || '#f3eefa' }}
+            />
             {msg.author.isBetaTester && <EmblemaBeta size={15} className="self-center" />}
             <span className="text-[#7e7390] text-[11px]">{formatMessageDate(msg.createdAt)}</span>
             {msg.pinned && !msg.deleted && <PinnedBadge />}

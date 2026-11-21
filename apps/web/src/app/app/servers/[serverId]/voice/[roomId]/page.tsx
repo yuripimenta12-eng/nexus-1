@@ -38,6 +38,7 @@ import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
 import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
 import { Smile } from 'lucide-react';
 import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
+import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
 
 // Gradientes por participante (paleta da referência nexus-call)
 const AVATAR_GRADIENTS: [string, string][] = [
@@ -63,6 +64,11 @@ function gradientFor(identity: string): [string, string] {
 
 function glowFor(identity: string): string {
   return CARD_GLOWS[hashIdentity(identity) % CARD_GLOWS.length];
+}
+
+interface MetaMembro {
+  role: string; mutedBy: boolean; roles: { id: string; name: string; color: string; hoist: boolean; position: number }[]; avatarUrl?: string | null;
+  moldura?: string | null; icone?: string | null; placa?: string | null;
 }
 
 export default function VoicePage() {
@@ -329,15 +335,19 @@ export default function VoicePage() {
 
   // Cargos dos membros (moderação + agrupamento por cargo no painel Pessoas)
   interface CustomRole { id: string; name: string; color: string; hoist: boolean; position: number; }
-  const [membersMeta, setMembersMeta] = useState<Record<string, { role: string; mutedBy: boolean; roles: CustomRole[]; avatarUrl?: string | null }>>({});
+  const [membersMeta, setMembersMeta] = useState<Record<string, MetaMembro>>({});
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
 
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}/members`)
       .then(({ data }) => {
-        const map: Record<string, { role: string; mutedBy: boolean; roles: CustomRole[]; avatarUrl?: string | null }> = {};
-        data.forEach((m: any) => { map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [], avatarUrl: m.user?.profile?.avatarUrl || null }; });
+        const map: Record<string, MetaMembro> = {};
+        data.forEach((m: any) => {
+          const pf = m.user?.profile;
+          map[m.userId] = { role: m.role, mutedBy: m.mutedBy, roles: m.roles || [], avatarUrl: pf?.avatarUrl || null,
+            moldura: pf?.moldura || null, icone: pf?.icone || null, placa: pf?.placa || null };
+        });
         setMembersMeta(map);
       })
       .catch(() => {});
@@ -1195,6 +1205,9 @@ export default function VoicePage() {
                         <ParticipantTile
                           voiceParticipant={p}
                           avatarUrl={membersMeta[p.identity]?.avatarUrl}
+                          moldura={membersMeta[p.identity]?.moldura}
+                          icone={membersMeta[p.identity]?.icone}
+                          placa={membersMeta[p.identity]?.placa}
                           inFocusMode={focusModeUsers.has(p.identity)}
                           isDeafenedUser={deafenedUsers.has(p.identity)}
                         />
@@ -2119,7 +2132,10 @@ function tileAspect(count: number): string {
 // ── Tile de participante ──────────────────────────────────────────
 // memo: com a lista de participantes reaproveitando quem não mudou, só o
 // quadro de quem começou/parou de falar é redesenhado
-const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser }: { voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean }) {
+const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatarUrl, inFocusMode, isDeafenedUser, moldura, icone, placa }: {
+  voiceParticipant: any; avatarUrl?: string | null; inFocusMode?: boolean; isDeafenedUser?: boolean;
+  moldura?: string | null; icone?: string | null; placa?: string | null;
+}) {
   const hasCam = voiceParticipant.camEnabled;
   const identity = voiceParticipant.identity;
   const name = voiceParticipant.participant.name || identity;
@@ -2224,11 +2240,12 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
             {/* Anel: gradiente laranja→roxo pulsando quando fala */}
             <div
               className={cn(
-                'rounded-full p-[4px] transition-all duration-300',
+                'relative rounded-full p-[4px] transition-all duration-300',
                 speaking ? 'bg-gradient-to-br from-[#ff6a00] to-[#7a2cff]' : 'bg-white/10',
               )}
               style={speaking ? { animation: 'nx-fala 1.1s ease-out infinite' } : undefined}
             >
+              <Moldura id={moldura} espessura={5} />
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -2272,7 +2289,7 @@ const ParticipantTile = memo(function ParticipantTile({ voiceParticipant, avatar
       {/* Nameplate */}
       <div className="absolute left-3 bottom-3 flex items-center gap-2 px-2.5 py-1.5 rounded-[10px]
                       bg-[#09070d]/70 backdrop-blur font-bold text-white text-sm max-w-[calc(100%-56px)]">
-        <span className="truncate max-w-[160px]">{name}</span>
+        <NomeComItens nome={name} icone={icone} placa={placa} className="max-w-[180px]" />
         {speaking && <span className="text-[11px] font-semibold text-[#ffb070] shrink-0">falando</span>}
         {playingMusic && (
           <span className="flex items-center gap-1 text-[11px] font-semibold text-[#c9a6ff] shrink-0">

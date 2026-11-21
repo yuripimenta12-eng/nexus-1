@@ -74,6 +74,7 @@ model User {
   carteira               Carteira?
   nexMovimentos          NexMovimento[]
   missaoResgates         MissaoResgate[]
+  itens                  ItemPosse[]
   indicadoPor            User?                   @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados              User[]                  @relation("Indicacoes")
 
@@ -111,6 +112,10 @@ model Profile {
   bio          String?    @db.VarChar(300)
   status       UserStatus @default(ONLINE)
   customStatus String?    @db.VarChar(128)
+  // Itens da loja Nex equipados (ids do catálogo em src/loja/loja.catalogo.ts)
+  moldura      String?    @db.VarChar(40)
+  icone        String?    @db.VarChar(40)
+  placa        String?    @db.VarChar(40)
   updatedAt    DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -777,6 +782,21 @@ model MissaoResgate {
 
   @@id([userId, missao, periodo])
   @@map("missao_resgates")
+}
+
+// Itens que a pessoa tem (comprou na loja, ganhou em baú, evento ou presente).
+// expiraEm: itens temporários (ex.: moldura de 7 dias da roleta).
+model ItemPosse {
+  userId   String
+  itemId   String    @db.VarChar(40)
+  origem   String    @db.VarChar(16)
+  expiraEm DateTime?
+  criadoEm DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, itemId])
+  @@map("itens_posse")
 }
 
 // Página "Em breve": cada pessoa vota uma vez em cada ideia (quero / não preciso).
