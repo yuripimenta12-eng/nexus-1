@@ -328,7 +328,7 @@ export class VoiceService {
     // Fones mutados (ensurdecidos) — estado guardado no Redis via gateway
     const deafenedSet = await this.redis.getVoiceDeafened(allIds).catch(() => new Set<string>());
 
-    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null; live: boolean; micMuted: boolean; deafened: boolean }[]> = {};
+    const presence: Record<string, { id: string; username: string; displayName: string; avatarUrl: string | null; moldura: string | null; live: boolean; micMuted: boolean; deafened: boolean }[]> = {};
     for (const { roomId, identities, sharing, muted } of roomParticipants) {
       presence[roomId] = identities
         .map(id => userMap.get(id))
@@ -338,6 +338,7 @@ export class VoiceService {
           username: u.username,
           displayName: u.profile?.displayName || u.username,
           avatarUrl: u.profile?.avatarUrl ?? null,
+          moldura: u.profile?.moldura ?? null,
           live: sharing.has(u.id),
           micMuted: muted.has(u.id) || deafenedSet.has(u.id),
           deafened: deafenedSet.has(u.id),

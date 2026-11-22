@@ -131,7 +131,7 @@ export class PlacarService {
       where: ondeMembro,
       orderBy: { [campo]: 'desc' },
       take: 10,
-      select: { [campo]: true, user: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } } } },
+      select: { [campo]: true, user: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, moldura: true } } } } },
     }) as any[];
     const meu = await this.prisma.callStat.findUnique({ where: { serverId_userId: { serverId, userId } }, select: { [campo]: true } }) as any;
     const meuValor: number = meu?.[campo] || 0;
@@ -143,6 +143,7 @@ export class PlacarService {
         userId: l.user.id,
         nome: l.user.profile?.displayName || l.user.username,
         avatarUrl: l.user.profile?.avatarUrl || null,
+        moldura: l.user.profile?.moldura || null,
         valor: l[campo],
       })),
       eu: { posicao, valor: meuValor },

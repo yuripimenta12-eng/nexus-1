@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ParticipantEvent } from 'livekit-client';
 import api from '@/lib/api';
 import { cn, getInitials } from '@/lib/utils';
+import { Moldura } from '@/components/nex/itens-visuais';
 import { useVoiceStore } from '@/stores/voice.store';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -159,7 +160,7 @@ const ABAS: { tipo: Tipo; nome: string }[] = [
   { tipo: 'fala', nome: 'Quem mais fala' },
   { tipo: 'dj', nome: 'DJ da mesa' },
 ];
-interface Linha { userId: string; nome: string; avatarUrl: string | null; valor: number }
+interface Linha { userId: string; nome: string; avatarUrl: string | null; moldura?: string | null; valor: number }
 
 function formatar(tipo: Tipo, v: number) {
   if (tipo === 'dj') return `${v} ${v === 1 ? 'música' : 'músicas'}`;
@@ -256,6 +257,7 @@ function LinhaPlacar({ pos, linha, tipo, max, souEu, indice }: { pos: number; li
       <span className={cn('w-4 text-center text-[13px] font-black tabular-nums', primeiro ? '' : 'text-[#5c5468]')}
         style={primeiro ? { color: LIMA } : undefined}>{pos}</span>
       <div className="relative shrink-0">
+        <Moldura id={linha.moldura} espessura={2} />
         {linha.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={linha.avatarUrl} alt="" draggable={false} className="w-8 h-8 rounded-full object-cover" />

@@ -118,8 +118,8 @@ export class DmsService {
       orderBy: { createdAt: 'desc' },
       take: 2000,
       include: {
-        sender:   { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, status: true } } } },
-        receiver: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, status: true } } } },
+        sender:   { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, status: true, moldura: true } } } },
+        receiver: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true, status: true, moldura: true } } } },
         attachments: { select: { mimeType: true, fileName: true }, take: 1 },
       },
     });

@@ -24,7 +24,7 @@ import { Avatar } from '@/components/ui/avatar';
 
 interface Channel { id: string; name: string; type: string; }
 interface VoiceRoom { id: string; name: string; allowedRoleIds?: string[]; }
-interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; live?: boolean; }
+interface PresenceUser { id: string; username: string; displayName: string; avatarUrl: string | null; moldura?: string | null; live?: boolean; }
 interface Server { id: string; name: string; iconUrl: string | null; channels: Channel[]; voiceRooms: VoiceRoom[]; members?: { userId: string; role: string }[]; }
 
 export function AppSidebar() {
@@ -572,7 +572,7 @@ export function AppSidebar() {
                           'shrink-0 rounded-full transition-shadow duration-200',
                           falando ? 'shadow-[0_0_0_2px_#ff6a00,0_0_10px_rgba(255,106,0,0.55)]' : 'shadow-[0_0_0_1.5px_rgba(66,230,164,0.55)]',
                         )}>
-                          <Avatar src={u.avatarUrl} name={u.displayName} size="xs" />
+                          <Avatar src={u.avatarUrl} name={u.displayName} size="xs" moldura={u.moldura} />
                         </span>
                         <span className={cn(
                           'text-[13px] truncate',
@@ -827,7 +827,7 @@ function DMSidebar() {
               )}
             >
               <div className="relative shrink-0">
-                <Avatar src={p?.profile?.avatarUrl} name={name} size="sm" />
+                <Avatar src={p?.profile?.avatarUrl} name={name} size="sm" moldura={p?.profile?.moldura} />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--th-side)]"
                   style={{ background: STATUS_COLORS[p?.profile?.status || 'OFFLINE'] || '#4a4560' }} />
               </div>
@@ -847,7 +847,7 @@ function DMSidebar() {
         })}
       </div>
       <div className="border-t border-border p-2 flex items-center gap-2">
-        <Avatar src={user?.profile?.avatarUrl} name={user?.profile?.displayName || '?'} size="sm" />
+        <Avatar src={user?.profile?.avatarUrl} name={user?.profile?.displayName || '?'} size="sm" moldura={(user?.profile as any)?.moldura} />
         <div className="flex-1 min-w-0">
           <p className="text-white text-sm font-medium truncate">{user?.profile?.displayName}</p>
           <p className="text-muted text-xs truncate">@{user?.username}</p>

@@ -28,6 +28,8 @@ interface SearchUser {
   profile?: { displayName?: string; avatarUrl?: string; status?: string } | null;
 }
 
+import { Moldura } from '@/components/nex/itens-visuais';
+
 /* ── Helpers ─────────────────────────────────── */
 function statusColor(s?: string) {
   return s === 'ONLINE' ? '#43e3a3' : s === 'AWAY' ? '#f0b429' : s === 'BUSY' ? '#ff4d6d' : '#4a4560';
@@ -43,8 +45,8 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d`;
 }
 
-function UserAvatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: string | null; size?: number }) {
-  return avatarUrl ? (
+function UserAvatar({ name, avatarUrl, size = 44, moldura }: { name: string; avatarUrl?: string | null; size?: number; moldura?: string | null }) {
+  const foto = avatarUrl ? (
     <img src={avatarUrl} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
   ) : (
     <div style={{
@@ -55,6 +57,13 @@ function UserAvatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: 
     }}>
       {name.slice(0, 2).toUpperCase()}
     </div>
+  );
+  if (!moldura) return foto;
+  return (
+    <span className="relative shrink-0" style={{ width: size, height: size }}>
+      {foto}
+      <Moldura id={moldura} espessura={3} />
+    </span>
   );
 }
 
@@ -320,7 +329,7 @@ export default function MePage() {
                       <div key={f.id}
                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 8px', borderRadius: 10, opacity: grupo === 'OFFLINE' ? 0.55 : 1 }}>
                         <div style={{ position: 'relative', flexShrink: 0 }}>
-                          <UserAvatar name={name} avatarUrl={f.profile?.avatarUrl} size={40} />
+                          <UserAvatar name={name} avatarUrl={f.profile?.avatarUrl} size={40} moldura={(f.profile as any)?.moldura} />
                           <span style={{
                             position: 'absolute', bottom: -1, right: -1, width: 11, height: 11,
                             borderRadius: '50%', background: statusColor(grupo === 'ONLINE' ? 'ONLINE' : undefined),
@@ -366,7 +375,7 @@ export default function MePage() {
                   const name = r.user?.profile?.displayName || r.user?.username;
                   return (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 8px', borderRadius: 10 }}>
-                      <UserAvatar name={name} avatarUrl={r.user?.profile?.avatarUrl} size={40} />
+                      <UserAvatar name={name} avatarUrl={r.user?.profile?.avatarUrl} size={40} moldura={(r.user?.profile as any)?.moldura} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#ede8f8' }}>{name}</p>
                         <p style={{ margin: 0, fontSize: 12, color: '#4a4560' }}>@{r.user?.username} quer ser seu amigo</p>
@@ -393,7 +402,7 @@ export default function MePage() {
                   const name = r.user?.profile?.displayName || r.user?.username;
                   return (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 8px', borderRadius: 10, opacity: 0.75 }}>
-                      <UserAvatar name={name} avatarUrl={r.user?.profile?.avatarUrl} size={40} />
+                      <UserAvatar name={name} avatarUrl={r.user?.profile?.avatarUrl} size={40} moldura={(r.user?.profile as any)?.moldura} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#ede8f8' }}>{name}</p>
                         <p style={{ margin: 0, fontSize: 12, color: '#4a4560' }}>Aguardando resposta…</p>
@@ -439,7 +448,7 @@ export default function MePage() {
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                   >
                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <UserAvatar name={name} avatarUrl={u.profile?.avatarUrl} size={40} />
+                      <UserAvatar name={name} avatarUrl={u.profile?.avatarUrl} size={40} moldura={(u.profile as any)?.moldura} />
                       <span style={{
                         position: 'absolute', bottom: -1, right: -1,
                         width: 11, height: 11, borderRadius: '50%',
@@ -504,7 +513,7 @@ export default function MePage() {
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                   >
                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <UserAvatar name={name} avatarUrl={conv.partner.profile?.avatarUrl} size={44} />
+                      <UserAvatar name={name} avatarUrl={conv.partner.profile?.avatarUrl} size={44} moldura={(conv.partner.profile as any)?.moldura} />
                       <span style={{
                         position: 'absolute', bottom: -1, right: -1,
                         width: 12, height: 12, borderRadius: '50%',

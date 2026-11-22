@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { imagemOtimizavel } from '@/lib/imagem';
 import { cn, getInitials } from '@/lib/utils';
+import { Moldura } from '@/components/nex/itens-visuais';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
 import { avisarServidoresMudaram, lerCodigoColado } from '@/lib/convite';
@@ -351,10 +352,19 @@ export function ServersSidebar() {
       <button
         onClick={() => router.push('/app/me/settings')}
         title={user?.profile?.displayName || user?.username || ''}
-        className="relative w-[43px] h-[43px] rounded-2xl grid place-items-center font-extrabold text-white text-xs
-                   bg-gradient-to-br from-[#ff7d20] to-[#6424cc] transition-transform hover:scale-105 active:scale-95"
+        className={cn('relative w-[43px] h-[43px] rounded-2xl grid place-items-center font-extrabold text-white text-xs transition-transform hover:scale-105 active:scale-95',
+          !(user?.profile as any)?.moldura && 'bg-gradient-to-br from-[#ff7d20] to-[#6424cc]')}
       >
-        {user?.profile?.avatarUrl ? (
+        {(user?.profile as any)?.moldura ? (
+          // Com moldura: foto redonda e a moldura em volta
+          <span className="relative w-[34px] h-[34px]">
+            {user?.profile?.avatarUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={user.profile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+              : <span className="w-full h-full rounded-full grid place-items-center">{getInitials(user?.profile?.displayName || user?.username || '?')}</span>}
+            <Moldura id={(user?.profile as any)?.moldura} espessura={3} />
+          </span>
+        ) : user?.profile?.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={user.profile.avatarUrl} alt="" className="w-full h-full rounded-2xl object-cover" />
         ) : getInitials(user?.profile?.displayName || user?.username || '?')}

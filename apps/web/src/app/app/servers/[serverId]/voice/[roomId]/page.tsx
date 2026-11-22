@@ -1879,7 +1879,7 @@ export default function VoicePage() {
           ) : sideTab === 'placar' ? (
             <PainelPlacar serverId={serverId} />
           ) : (
-            <VoiceAudioPanel />
+            <VoiceAudioPanel membersMeta={membersMeta} />
           )}
         </aside>
         )}
@@ -2049,7 +2049,7 @@ function CallTimer({ connected }: { connected: boolean }) {
 }
 
 // ── Painel de áudio: volume e mute local por participante ────────
-function VoiceAudioPanel() {
+function VoiceAudioPanel({ membersMeta }: { membersMeta: Record<string, MetaMembro> }) {
   const { participants, room, setParticipantVolume, toggleMuteLocally } = useVoiceStore();
   const localIdentity = room?.localParticipant.identity;
   const remotes = Array.from(participants.values()).filter(p => p.identity !== localIdentity);
@@ -2071,12 +2071,18 @@ function VoiceAudioPanel() {
         return (
           <div key={p.identity} className="bg-[var(--th-panel)] border border-[var(--th-line)] rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div
-                className="w-8 h-8 rounded-lg grid place-items-center font-black text-[10px] text-white shrink-0"
-                style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
-              >
-                {getInitials(p.participant.name || p.identity)}
-              </div>
+              <span className="relative w-8 h-8 shrink-0">
+                <Moldura id={membersMeta[p.identity]?.moldura} espessura={2} />
+                {membersMeta[p.identity]?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={membersMeta[p.identity]!.avatarUrl!} alt="" draggable={false} className="w-8 h-8 rounded-full object-cover select-none" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full grid place-items-center font-black text-[10px] text-white"
+                    style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}>
+                    {getInitials(p.participant.name || p.identity)}
+                  </div>
+                )}
+              </span>
               <span className="text-white text-sm font-medium truncate flex-1">
                 {p.participant.name || p.identity}
               </span>
