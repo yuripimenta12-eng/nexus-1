@@ -57,7 +57,6 @@ export const PARA_VOCE: Cartao[] = [
     beneficios: [
       { texto: 'Tudo do Nexus+' },
       { texto: `Live de tela em ${rotuloLivePlano('pro')} (você escolhe)` },
-      { texto: 'Versão mais leve da live para quem tem internet fraca' },
       { texto: 'Molduras animadas exclusivas do Pro (e a Realeza na loja)' },
       { texto: `Arquivos de até ${BENEFICIOS.pro.arquivoMB} MB` },
       { texto: `Fila do DJ maior: até ${BENEFICIOS.pro.filaDj} músicas suas` },

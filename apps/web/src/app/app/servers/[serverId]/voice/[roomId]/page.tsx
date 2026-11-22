@@ -33,7 +33,6 @@ import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
-import { SeloQualidade } from '@/components/voice/live-qualidade';
 import { corSegura, capaSegura } from '@/lib/seguro';
 import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
 import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
@@ -823,7 +822,6 @@ export default function VoicePage() {
                     <LiveBadge />
                     <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                     {primaryScreenSharer.participant.name || primaryScreenSharer.identity}
-                    <SeloQualidade participante={primaryScreenSharer.participant} />
                     {streamSemAudio(primaryScreenSharer) && (
                       <span className="text-[#ffce73] font-normal" title="O transmissor compartilhou uma janela (sem som) ou não marcou 'Compartilhar áudio'">
                         · 🔇 sem áudio
@@ -1107,7 +1105,6 @@ export default function VoicePage() {
                                         bg-[#09070d]/75 backdrop-blur px-2 py-1 rounded-lg font-semibold">
                           <Monitor className="w-3.5 h-3.5 text-[#c887ff]" />
                           {isLocal ? 'Sua tela (prévia)' : (p.participant.name || p.identity)}
-                          <SeloQualidade participante={p.participant} pequeno />
                         </div>
                         <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           <span className="flex items-center gap-1.5 text-white text-xs font-bold bg-black/60 backdrop-blur px-3 py-2 rounded-xl">

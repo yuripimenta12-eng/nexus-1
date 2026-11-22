@@ -13,7 +13,6 @@ import {
   Track,
   TrackPublication,
   VideoQuality,
-  VideoPreset,
   ConnectionQuality,
   DisconnectReason,
   LocalAudioTrack,
@@ -712,9 +711,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     const pedida = LIVE_OPCOES.find(o => o.id === opcaoId);
     // Opção acima do plano (ou plano que venceu) cai para a melhor do plano
     const opts = pedida && podeUsarLive(plano, pedida) ? pedida : melhorLive(plano);
-    // Só a live em 1080p manda também uma versão 720p30, para quem assiste com
-    // internet fraca. Nas outras, uma camada só (uma segunda faria o PC comprimir duas vezes).
-    const simulcast = opts.height >= 1080;
+    // Uma camada só, sempre: com uma cópia menor junto, quem assiste ficava
+    // trocando entre 1080 e 720 conforme a internet (a live "oscilava").
 
     await room.localParticipant.setScreenShareEnabled(
       true,
@@ -734,17 +732,28 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         // padrão codifica no processador e engasgava em 1080p60.
         videoCodec: 'h264',
         backupCodec: false,
-        // O padrão da tela é "manter a resolução": sem folga de CPU/rede, o
-        // navegador derrubava os quadros e a live travava. Mantém a fluidez
-        // (baixa um pouco a nitidez se precisar).
-        degradationPreference: 'maintain-framerate',
-        simulcast,
-        ...(simulcast ? { screenShareSimulcastLayers: [new VideoPreset(1280, 720, 1_500_000, 30)] } : {}),
+        // Resolução travada: com "manter o FPS" o navegador cortava a imagem pela
+        // metade quando o PC/internet apertava (1080 virava 540 e ficava oscilando).
+        degradationPreference: 'maintain-resolution',
+        simulcast: false,
       },
     );
-    // FPS cravado: a captura fica presa no valor escolhido (nem acima, nem tentando outro)
-    const tela = room.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track?.mediaStreamTrack;
-    await tela?.applyConstraints({ frameRate: { ideal: opts.frameRate, max: opts.frameRate } }).catch(() => {});
+    // Trava a captura no tamanho e no FPS escolhidos (nem acima, nem tentando outro)
+    const pubTela = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    const tela = pubTela?.track?.mediaStreamTrack;
+    await tela?.applyConstraints({ width: { max: opts.width }, height: { max: opts.height }, frameRate: { ideal: opts.frameRate, max: opts.frameRate } }).catch(() => {});
+    // E o envio: sem reduzir a imagem e, onde o navegador permite, sem adaptar nada
+    // (nem resolução nem FPS). Navegador sem esse modo fica no "manter a resolução".
+    const sender: RTCRtpSender | undefined = (pubTela?.track as any)?.sender;
+    if (sender) {
+      const travar = async (modo: string) => {
+        const pr = sender.getParameters();
+        (pr as any).degradationPreference = modo;
+        pr.encodings?.forEach(e => { e.scaleResolutionDownBy = 1; e.maxFramerate = opts.frameRate; e.maxBitrate = opts.maxBitrate; });
+        await sender.setParameters(pr);
+      };
+      await travar('maintain-framerate-and-resolution').catch(() => travar('maintain-resolution')).catch(() => {});
+    }
 
     set({ localScreenSharing: true, liveEndedNotice: null });
   },
