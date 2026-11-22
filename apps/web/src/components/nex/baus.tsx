@@ -112,10 +112,10 @@ export function SecaoBaus({ onMudou }: { onMudou: () => void }) {
     }
   };
 
-  if (!baus) return <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2].map(i => <div key={i} className="h-[260px] rounded-2xl nx-skeleton" />)}</div>;
+  if (!baus) return <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">{[0, 1, 2].map(i => <div key={i} className="h-[260px] rounded-2xl nx-skeleton" />)}</div>;
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
         {baus.map(b => (
           <div key={b.id} className="nx-bau-card relative rounded-2xl border border-white/10 overflow-hidden flex flex-col"
             style={{ background: `radial-gradient(circle at 50% 30%, ${b.cor}33, transparent 60%), linear-gradient(180deg,#1b1428,#130e1c)` }}>

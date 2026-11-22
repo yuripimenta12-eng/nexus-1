@@ -94,7 +94,7 @@ export default function LojaPage() {
 
   return (
     <div className="h-full overflow-y-auto nx-page-bg">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8">
+      <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-8">
         {/* Topo */}
         <div className="flex flex-wrap items-center gap-3">
           <MobileMenuButton />
@@ -117,7 +117,7 @@ export default function LojaPage() {
           Gaste os Nex que você ganha na presença, na roleta e nas missões. Comprou, é seu para sempre. Os Nex nunca são vendidos por dinheiro.
         </p>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[200px_1fr_280px]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[200px_1fr_280px] 2xl:grid-cols-[220px_1fr_340px]">
           {/* Seções */}
           <nav className="flex lg:flex-col gap-1 overflow-x-auto nx-no-scrollbar -mx-1 px-1" aria-label="Seções da loja">
             {SECOES.map(s => (
@@ -140,13 +140,13 @@ export default function LojaPage() {
             ) : secao === 'baus' ? (
               <SecaoBaus onMudou={() => { carregar(); useNex.getState().carregar(); }} />
             ) : !dados ? (
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="h-[230px] rounded-2xl nx-skeleton" />)}</div>
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="h-[230px] rounded-2xl nx-skeleton" />)}</div>
             ) : lista.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#3a2a4d] p-8 text-center text-sm text-[#a99fc0]">
                 {secao === 'meus' ? 'Você ainda não tem itens. Junte Nex e escolha o primeiro!' : 'Nada por aqui ainda.'}
               </div>
             ) : (
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">
                 {lista.map(i => {
                   const r = RARIDADE[i.raridade];
                   const usando = dados.equipados[i.tipo] === i.id;
@@ -160,7 +160,7 @@ export default function LojaPage() {
                       style={{ background: r.fundo }}>
                       <div className="h-[118px] grid place-items-center relative">
                         <PreviaItem item={i} nome={nome} avatar={user?.profile?.avatarUrl} />
-                        {TEM_PREVIA.has(i.tipo) && <span className="absolute bottom-1.5 right-2 flex items-center gap-1 text-[10px] font-bold text-white/70 opacity-0 group-hover:opacity-100 transition-opacity"><Eye className="w-3 h-3" /> Ver</span>}
+                        {TEM_PREVIA.has(i.tipo) && <span className="absolute bottom-1.5 right-2 flex items-center gap-1 text-[10px] font-bold text-white/70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"><Eye className="w-3 h-3" /> Ver</span>}
                         {usando && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#3ddc84]/15 text-[#3ddc84]">Usando</span>}
                         {i.soPro && <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ffc23d]/15 text-[#ffc23d]"><Crown className="w-3 h-3" /> Pro</span>}
                         {i.incluiPlano && <span className={cn('absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full', i.incluiPlano === 'pro' ? 'bg-[#ffc23d]/15 text-[#ffc23d]' : 'bg-[#3ee0ff]/15 text-[#8ff0ff]')}>{i.incluiPlano === 'pro' ? <Crown className="w-3 h-3" /> : <Gem className="w-3 h-3" />} Grátis no {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</span>}
@@ -207,7 +207,7 @@ export default function LojaPage() {
           </section>
 
           {/* Prévia: como fica em você */}
-          <aside className="lg:sticky lg:top-6 self-start rounded-2xl border border-[#2e2340] bg-[#140f1e] p-4">
+          <aside className="hidden lg:block lg:sticky lg:top-6 self-start rounded-2xl border border-[#2e2340] bg-[#140f1e] p-4">
             <p className="text-[11px] font-black uppercase tracking-[1.5px] text-[#ffb070]">Como fica em você</p>
             <div className="mt-3"><CartaoPrevia visual={visual} /></div>
             <div className="mt-5 rounded-xl bg-black/25 p-3 space-y-2">
@@ -366,7 +366,7 @@ function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
       setDados({ ...dados, receberZoeiras: !dados.receberZoeiras });
     } catch { toast('Não deu agora', 'error'); }
   };
-  if (!dados) return <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">{[0, 1, 2].map(i => <div key={i} className="h-[200px] rounded-2xl nx-skeleton" />)}</div>;
+  if (!dados) return <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">{[0, 1, 2].map(i => <div key={i} className="h-[200px] rounded-2xl nx-skeleton" />)}</div>;
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 rounded-2xl border border-[#2e2340] bg-[#140f1e] p-4">
@@ -380,7 +380,7 @@ function SecaoZoeiras({ onMudou }: { onMudou: () => void }) {
           <span className={cn('block w-5 h-5 rounded-full bg-white transition-transform', dados.receberZoeiras && 'translate-x-5')} />
         </button>
       </div>
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">
         {dados.zoeiras.map(z => (
           <div key={z.id} className="relative rounded-2xl border border-white/10 p-3 flex flex-col"
             style={{ background: z.pesada ? 'linear-gradient(180deg,#3a1630,#170f1c)' : 'linear-gradient(180deg,#1d1828,#15111d)' }}>
