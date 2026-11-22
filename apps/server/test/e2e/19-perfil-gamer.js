@@ -151,6 +151,10 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     check('Nexus+ não usa o efeito do Pro', r.status === 403, `status ${r.status}`);
     r = await call('PUT', '/loja/equipar', { tipo: 'efeito', itemId: 'm-mais' }, t);
     check('moldura não entra no lugar do efeito', r.status === 400, `status ${r.status}`);
+    r = await call('PUT', '/loja/equipar', { tipo: 'moldura', itemId: 'm-staff' }, t);
+    check('quem não é da equipe não usa a moldura Staff', r.status === 403, `status ${r.status}`);
+    r = await call('GET', '/loja', null, t);
+    check('moldura Staff não aparece na loja de quem não é da equipe', Array.isArray(r.data?.itens) && !r.data.itens.some(i => i.soStaff), `status ${r.status}`);
 
     console.log('● Foto animada');
     r = await call('POST', '/upload/avatar', arquivo(GIF, 'image/gif', 'a.gif'), t, true);

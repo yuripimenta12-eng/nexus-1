@@ -6,7 +6,8 @@ export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa'
 export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 // incluiPlano: vem de graça com o plano (não vende; some se o plano acabar)
-export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro' }
+// soStaff: só a equipe do Nexus (isAdmin) vê e usa; não vende nem sai em baú
+export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; soStaff?: boolean }
 
 const PRECO = {
   moldura: { comum: 1000, rara: 2000, epica: 4000, lendaria: 8000 },
@@ -92,6 +93,28 @@ export const CATALOGO: Item[] = [
   it('som', 's-tambor', 'Rufar', 'epica'),
   it('som', 's-raio', 'Trovão', 'epica'),
   it('som', 's-fanfarra', 'Fanfarra', 'lendaria'),
+  // Molduras de 22/11 (artes novas)
+  it('moldura', 'm-bronze', 'Bronze', 'comum'),
+  it('moldura', 'm-prata', 'Prata', 'comum'),
+  it('moldura', 'm-ouro', 'Ouro', 'rara'),
+  it('moldura', 'm-perola', 'Pérola do Mar', 'rara'),
+  it('moldura', 'm-quartzo-rosa', 'Quartzo Rosa', 'rara'),
+  it('moldura', 'm-cerejeira', 'Cerejeira', 'rara'),
+  it('moldura', 'm-vanguarda', 'Vanguarda', 'rara'),
+  it('moldura', 'm-borboleta-lunar', 'Borboleta Lunar', 'epica'),
+  it('moldura', 'm-esmeralda', 'Esmeralda', 'epica'),
+  it('moldura', 'm-rubi', 'Rubi', 'epica'),
+  it('moldura', 'm-imperial', 'Imperial', 'epica'),
+  it('moldura', 'm-halloween', 'Noite das Bruxas', 'epica'),
+  it('moldura', 'm-squad', 'Drop Quente', 'epica'),
+  it('moldura', 'm-batida', 'Batida', 'epica'),
+  it('moldura', 'm-trovao-dourado', 'Trovão Dourado', 'lendaria'),
+  it('moldura', 'm-paladino', 'Paladino', 'lendaria'),
+  it('moldura', 'm-rainha', 'Rainha', 'lendaria'),
+  it('moldura', 'm-dragao', 'Dragão Ametista', 'lendaria'),
+  // Só da equipe
+  it('moldura', 'm-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
+  it('moldura', 'm-moderacao', 'Martelo da Ordem', 'epica', { preco: null, soStaff: true }),
   // Temas de servidor: o dono (ou admin) veste o servidor inteiro
   it('tema', 't-neblina', 'Neblina', 'rara'),
   it('tema', 't-arcade', 'Neon Arcade', 'rara'),

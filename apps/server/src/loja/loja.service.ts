@@ -19,7 +19,7 @@ export class LojaService {
       this.prisma.carteira.findUnique({ where: { userId }, select: { saldo: true } }),
       this.prisma.itemPosse.findMany({ where: { userId }, select: { itemId: true, expiraEm: true } }),
       this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true, somEntrada: true, efeitoPerfil: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true, isAdmin: true } }),
     ]);
     const tem = new Map(posses.filter(valido).map(p => [p.itemId, p.expiraEm]));
     const plano = planoAtivo(user?.plano, user?.planoAte);
@@ -27,7 +27,8 @@ export class LojaService {
       saldo: carteira?.saldo ?? 0,
       plano,
       equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null, efeito: perfil?.efeitoPerfil ?? null },
-      itens: CATALOGO.map(i => ({ ...i, possui: tem.has(i.id) || incluso(i.incluiPlano, plano), expiraEm: tem.get(i.id) ?? null })),
+      itens: CATALOGO.filter(i => !i.soStaff || user?.isAdmin)
+        .map(i => ({ ...i, possui: tem.has(i.id) || incluso(i.incluiPlano, plano) || !!i.soStaff, expiraEm: tem.get(i.id) ?? null })),
     };
   }
 
@@ -142,7 +143,10 @@ export class LojaService {
     }
     const item = typeof itemId === 'string' ? itemPorId(itemId) : undefined;
     if (!item || item.tipo !== t) throw new BadRequestException('Item inválido para esse lugar');
-    if (item.incluiPlano) {
+    if (item.soStaff) {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+      if (!u?.isAdmin) throw new ForbiddenException('Item só da equipe do Nexus');
+    } else if (item.incluiPlano) {
       const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } });
       if (!incluso(item.incluiPlano, planoAtivo(u?.plano, u?.planoAte))) {
         throw new ForbiddenException(`Vem com o ${item.incluiPlano === 'pro' ? 'Nexus Pro' : 'Nexus+'}`);
