@@ -12,5 +12,7 @@ for t in $(docker exec "$C" sh -c 'ls test/e2e/[0-9]*-*.js' | sort -t/ -k3 -n); 
   # pausa: o limite de tentativas de login vale por minuto
   sleep 25
 done
+# Aviso (não bloqueia): conta de teste que a limpeza não conseguiu apagar
+docker exec -w /app "$C" node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.user.count({where:{email:{endsWith:'@exemplo.invalid'},createdAt:{gt:new Date(Date.now()-3*3600e3)}}}).then(n=>{if(n)console.log('AVISO: sobraram '+n+' conta(s) de teste sem apagar');return p.\$disconnect()})" 2>/dev/null
 [ $falhou -eq 0 ] && echo "TODOS OS TESTES PASSARAM" || echo "ALGUM TESTE FALHOU"
 exit $falhou

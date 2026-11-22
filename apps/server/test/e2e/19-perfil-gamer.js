@@ -195,6 +195,8 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
       console.log(`  (arquivos de teste apagados: ${n}/${enviados.length})`);
     } catch (e) { console.log('limpeza arquivos:', e.message); }
     if (serverId) await prisma.server.delete({ where: { id: serverId } }).catch(e => console.log('limpeza servidor:', e.message));
+    // Dar plano grava auditoria com o admin como autor; sem apagar, o banco não deixa apagar a conta
+    await prisma.auditLog.deleteMany({ where: { actorId: { in: [A, U, V, W].map(u => u.id) } } }).catch(e => console.log('limpeza registro:', e.message));
     for (const u of [A, U, V, W]) await prisma.user.delete({ where: { id: u.id } }).catch(e => console.log('limpeza:', e.message));
     console.log(`\nResultado: ${ok} ok, ${falhas} falha(s). Contas, servidor e arquivos de teste apagados.`);
     await prisma.$disconnect();

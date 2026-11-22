@@ -173,6 +173,8 @@ function socket(token, ua) {
     if (serverId) await prisma.server.delete({ where: { id: serverId } }).catch(e => console.log('limpeza servidor:', e.message));
     for (const u of [O_, A, M, B, X, U]) {
       await prisma.directMessage.deleteMany({ where: { OR: [{ senderId: u.id }, { receiverId: u.id }] } }).catch(() => {});
+      // O banimento grava auditoria com a conta como autora; sem apagar, o banco não deixa apagar a conta
+      await prisma.auditLog.deleteMany({ where: { actorId: u.id } }).catch(e => console.log('limpeza registro:', e.message));
       await prisma.user.delete({ where: { id: u.id } }).catch(e => console.log('limpeza:', e.message));
     }
     console.log(`\nResultado: ${ok} ok, ${falhas} falha(s). Contas e servidor de teste apagados.`);
