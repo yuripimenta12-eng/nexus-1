@@ -149,6 +149,9 @@ async function buildAndPublishMic(room: Room): Promise<void> {
       const [bin] = await Promise.all([carregarIA(), ctx.audioWorklet.addModule(IA_WORKLET)]);
       const { GtcrnWorkletNode } = await pacoteIA();
       ia = new GtcrnWorkletNode(ctx, { maxChannels: 1, wasmBinary: bin });
+      // Mono na entrada: a IA só limpa o 1º canal; com mic estéreo o 2º saía mudo
+      // e quem ouvia escutava a pessoa só de um lado do fone
+      ia.channelCount = 1; ia.channelCountMode = 'explicit'; ia.channelInterpretation = 'speakers';
     } catch { ia = null; }
   }
 
@@ -171,7 +174,9 @@ async function buildAndPublishMic(room: Room): Promise<void> {
   const src = ctx.createMediaStreamSource(raw);
   const gain = ctx.createGain();
   gain.gain.value = ms.inputVolume / 100;
+  // Voz sai em mono: toca igual nos dois lados do fone de quem ouve
   const dst = ctx.createMediaStreamDestination();
+  dst.channelCount = 1; dst.channelCountMode = 'explicit'; dst.channelInterpretation = 'speakers';
 
   // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
   const highpass = ctx.createBiquadFilter();
@@ -223,7 +228,7 @@ async function buildAndPublishMic(room: Room): Promise<void> {
       await ctx.audioWorklet.addModule(blobUrl);
       URL.revokeObjectURL(blobUrl);
 
-      const gateNode = new AudioWorkletNode(ctx, 'nexus-gate');
+      const gateNode = new AudioWorkletNode(ctx, 'nexus-gate', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] });
       ultimo.connect(gateNode);
       gateNode.connect(gain);
       ligouGate = true;
