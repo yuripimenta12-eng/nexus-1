@@ -4,7 +4,7 @@
 export interface PremioBau { item?: string; nex?: number; peso: number }
 export interface Bau { id: string; nome: string; preco: number; cor: string; desc: string; ate?: string; premios: PremioBau[] }
 
-// Estreia é o simples (Nex e coisas comuns). Os outros dão SEMPRE item, quase
+// Estreia e Aço são os simples (Nex e coisas comuns). Os outros dão SEMPRE item, quase
 // sempre algo raro para cima, e têm coisas que só saem deles.
 export const BAUS: Bau[] = [
   {
@@ -13,6 +13,15 @@ export const BAUS: Bau[] = [
     premios: [
       { nex: 150, peso: 30 }, { nex: 300, peso: 22 }, { item: 'p-violeta', peso: 12 }, { item: 'p-brasa', peso: 10 },
       { item: 'i-controle', peso: 12 }, { item: 'i-alien', peso: 8 }, { item: 'm-neon-roxo', peso: 4 }, { nex: 1200, peso: 2 },
+    ],
+  },
+  {
+    id: 'bau-aco', nome: 'Baú de Aço', preco: 1200, cor: '#5b8cff',
+    desc: 'O passo depois do Estreia: Nex, ícones e placas, e as molduras Bronze, Prata e Vanguarda.',
+    premios: [
+      { nex: 500, peso: 20 }, { nex: 1000, peso: 14 }, { item: 'i-gamepad', peso: 14 }, { item: 'i-telefone', peso: 10 },
+      { item: 'p-oceano', peso: 10 }, { item: 'm-bronze', peso: 12 }, { item: 'm-prata', peso: 10 }, { item: 'e-faiscas', peso: 6 },
+      { item: 'm-vanguarda', peso: 5 }, { nex: 3000, peso: 3 },
     ],
   },
   {
@@ -39,6 +48,31 @@ export const BAUS: Bau[] = [
     premios: [
       { item: 'i-gorro', peso: 24 }, { item: 'i-boneco', peso: 24 }, { item: 'p-natal', peso: 22 },
       { item: 'm-guirlanda', peso: 20 }, { item: 'm-pisca-pisca', peso: 7 }, { item: 'm-aurora', peso: 3 },
+    ],
+  },
+  {
+    id: 'bau-joias', nome: 'Baú das Joias', preco: 3600, cor: '#ff2d4d',
+    desc: 'Sempre sai item: molduras de pedras preciosas. Com sorte, a Rainha.',
+    premios: [
+      { item: 'm-quartzo-rosa', peso: 20 }, { item: 'm-perola', peso: 20 }, { item: 'p-chiclete', peso: 14 }, { item: 'i-diamante', peso: 12 },
+      { item: 'm-rubi', peso: 12 }, { item: 'm-esmeralda', peso: 10 }, { item: 'm-borboleta-lunar', peso: 8 }, { item: 'm-rainha', peso: 4 },
+    ],
+  },
+  {
+    id: 'bau-real', nome: 'Baú Real', preco: 4200, cor: '#ffc23d',
+    desc: 'Sempre sai item: ouro, coroa e fanfarra. Paladino e Rainha são os mais raros.',
+    premios: [
+      { item: 'm-ouro', peso: 22 }, { item: 'p-ouro', peso: 18 }, { item: 'i-coroa', peso: 14 }, { item: 'm-imperial', peso: 14 },
+      { item: 's-fanfarra', peso: 8 }, { item: 'm-paladino', peso: 4 }, { item: 'm-rainha', peso: 3 },
+    ],
+  },
+  {
+    id: 'bau-cosmico', nome: 'Baú Cósmico', preco: 6000, cor: '#9b5cff',
+    desc: 'Sempre sai item: galáxias, estrelas e o Dragão Ametista. O mais caro e o mais brilhante.',
+    premios: [
+      { item: 'm-galaxia', peso: 20 }, { item: 'p-galaxia', peso: 16 }, { item: 'e-estrelas', peso: 14 }, { item: 'm-eclipse', peso: 14 },
+      { item: 'm-cristal-plasma', peso: 12 }, { item: 'm-cauda-estelar', peso: 6 }, { item: 'm-dragao', peso: 5 }, { item: 'e-aurora', peso: 3 },
+      { item: 'm-aurora', peso: 2 },
     ],
   },
 ];

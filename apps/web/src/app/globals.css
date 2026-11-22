@@ -1226,10 +1226,13 @@ html[data-tema='t-84'] {
   100% { transform: translateY(0) rotate(0) scale(1) }
 }
 .nx-bau-arte { animation: nx-bau-flutua 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
+/* Brilho no chão, atrás do baú, respirando */
+@keyframes nx-bau-chao { 0%, 100% { opacity: .35; transform: translateX(-50%) scaleX(.9) } 50% { opacity: .7; transform: translateX(-50%) scaleX(1.05) } }
+.nx-bau-chao { transform: translateX(-50%); animation: nx-bau-chao 3.2s ease-in-out infinite; }
 .nx-bau-card:hover .nx-bau-arte {
   animation: nx-bau-mexe .9s ease-in-out infinite;
   filter: drop-shadow(0 0 18px rgba(255, 176, 80, .55)) drop-shadow(0 14px 24px rgba(0, 0, 0, .5)) brightness(1.08);
 }
 @media (prefers-reduced-motion: reduce) {
-  .nx-bau-arte, .nx-bau-card:hover .nx-bau-arte { animation: none; }
+  .nx-bau-arte, .nx-bau-card:hover .nx-bau-arte, .nx-bau-chao { animation: none; }
 }

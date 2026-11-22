@@ -3,7 +3,7 @@
 // Efeito de perfil (loja Nex): partículas num canvas por cima do cartão do perfil.
 // O pai precisa ser "relative". Para quando sai da tela; com "reduzir animações"
 // do sistema desenha um quadro parado.
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { EFEITOS, type TipoEfeito } from '@/lib/itens';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,17 @@ function coracao(ctx: CanvasRenderingContext2D, x: number, y: number, s: number)
   ctx.bezierCurveTo(x - s, y - s * 0.35, x - s * 0.45, y - s, x, y - s * 0.45);
   ctx.bezierCurveTo(x + s * 0.45, y - s, x + s, y - s * 0.35, x, y + s * 0.35);
   ctx.fill();
+}
+function floco(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, giro: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = giro + (i * Math.PI) / 3, c = Math.cos(a), s = Math.sin(a);
+    ctx.moveTo(x, y); ctx.lineTo(x + c * r, y + s * r);
+    // galhinhos em V a 60% do braço
+    const bx = x + c * r * 0.6, by = y + s * r * 0.6;
+    for (const d of [-0.6, 0.6]) { ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(a + d) * r * 0.35, by + Math.sin(a + d) * r * 0.35); }
+  }
+  ctx.stroke();
 }
 /** Raio quebrado do ponto A ao B (deslocamento do meio, como relâmpago de verdade). */
 function zigue(x1: number, y1: number, x2: number, y2: number, desvio: number, nivel: number): [number, number][] {
@@ -154,6 +165,56 @@ function criarMotor(tipo: TipoEfeito, cores: string[]): Motor {
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tx, ty); ctx.stroke();
       }
     };
+    case 'energia': return (ctx, w, h, dt, tempo) => {
+      // Energia em volta do objeto do meio (baú): nasce no anel de fora (lados e em cima, nunca na frente),
+      // sobe girando, e três orbes dão a volta por fora. O brilho do chão fica por conta do pai (CSS).
+      const cx = w / 2, cy = h * 0.56, rx = w * 0.47, ry = h * 0.36;
+      if (Math.random() < dt * 46) {
+        let a = ale(0, 6.283);
+        if (Math.sin(a) > 0.25) a = -a; // parte de baixo/frente vira parte de cima
+        nasce({ x: cx + Math.cos(a) * rx * ale(0.92, 1.06), y: cy + Math.sin(a) * ry * ale(0.92, 1.06), vy: ale(-50, -18), max: ale(1, 2), t: ale(1.2, 3), fase: a });
+      }
+      anda(dt);
+      if (!ctx) return;
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of ps) {
+        p.x += Math.cos(tempo * 2.4 + p.fase) * 14 * dt;
+        const k = Math.sin((p.vida / p.max) * Math.PI);
+        ctx.fillStyle = p.cor;
+        ctx.globalAlpha = k * 0.3; ctx.beginPath(); ctx.arc(p.x, p.y, p.t * 3.4, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = k; ctx.beginPath(); ctx.arc(p.x, p.y, p.t, 0, 6.283); ctx.fill();
+      }
+      for (let i = 0; i < 3; i++) {
+        const cor = cores[i % cores.length];
+        for (let r = 0; r < 8; r++) {
+          const a = tempo * 1.2 + (i * 6.283) / 3 - r * 0.06;
+          const x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+          const tam = (r ? 2.3 : 3.6) * (1 - r / 10);
+          ctx.fillStyle = cor;
+          ctx.globalAlpha = (r ? 0.55 : 1) * (1 - r / 8); ctx.beginPath(); ctx.arc(x, y, tam, 0, 6.283); ctx.fill();
+          if (!r) { ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(x, y, tam * 4, 0, 6.283); ctx.fill(); }
+        }
+      }
+    };
+    case 'natal': return (ctx, w, h, dt, tempo) => {
+      // Neve caindo + flocos grandes girando devagar
+      while (ps.length < quantos(w, h, 1100, 90)) nasce({ x: ale(0, w), y: ale(-10, h), vy: ale(16, 42), max: 1e9, t: ale(1, 2.6) });
+      if (refazer(w)) fixos = Array.from({ length: Math.max(6, quantos(w, h, 7000, 14)) }, () => ({ x: ale(0, w), y: ale(0, h), vx: 0, vy: ale(10, 22), vida: 0, max: 1, t: ale(4, 8), cor: cores[0], fase: ale(0, 6) }));
+      anda(dt);
+      if (!ctx) return;
+      ctx.fillStyle = cores[0];
+      for (const p of ps) {
+        p.x += Math.sin(tempo * 0.9 + p.fase) * 10 * dt;
+        if (p.y > h + 4) { p.y = -4; p.x = ale(0, w); }
+        ctx.globalAlpha = 0.45 + p.t / 5; ctx.beginPath(); ctx.arc(p.x, p.y, p.t, 0, 6.283); ctx.fill();
+      }
+      ctx.strokeStyle = cores[1] ?? cores[0]; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+      for (const f of fixos ?? []) {
+        f.y += f.vy * dt; f.x += Math.sin(tempo * 0.6 + f.fase) * 12 * dt;
+        if (f.y > h + 12) { f.y = -12; f.x = ale(0, w); }
+        ctx.globalAlpha = 0.9; floco(ctx, f.x, f.y, f.t, tempo * 0.5 + f.fase);
+      }
+    };
     case 'aurora': return (ctx, w, h, _dt, tempo) => {
       if (!ctx) return;
       ctx.globalCompositeOperation = 'lighter';
@@ -171,9 +232,11 @@ function criarMotor(tipo: TipoEfeito, cores: string[]): Motor {
   }
 }
 
-export function EfeitoPerfil({ id, className }: { id?: string | null; className?: string }) {
+/** id = efeito da loja; ou tipo + cores direto (baús). */
+export function EfeitoPerfil({ id, tipo, cores, className }: { id?: string | null; tipo?: TipoEfeito; cores?: string[]; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const ef = id ? EFEITOS[id] : undefined;
+  const chaveCores = cores?.join(',');
+  const ef = useMemo(() => (id ? EFEITOS[id] : tipo ? { tipo, cores: chaveCores ? chaveCores.split(',') : ['#ffffff'] } : undefined), [id, tipo, chaveCores]);
 
   useEffect(() => {
     const cv = ref.current;

@@ -34,6 +34,11 @@ for (const id of ['bau-neon', 'bau-som', 'bau-natal']) {
   caso(`${b.nome}: sempre sai item (nada de só Nex)`, b.premios.every(p => p.item));
   caso(`${b.nome}: tem item que só sai dele`, b.premios.some(p => cat.itemPorId(p.item).preco === null));
 }
+for (const id of ['bau-joias', 'bau-real', 'bau-cosmico']) {
+  const b = baus.bauPorId(id);
+  caso(`${b.nome}: sempre sai item (nada de só Nex)`, b.premios.every(p => p.item));
+}
+caso('nenhum baú dá item só da equipe ou do plano', baus.BAUS.every(b => b.premios.every(p => !p.item || (!cat.itemPorId(p.item).soStaff && !cat.itemPorId(p.item).incluiPlano))));
 const natal = baus.bauPorId('bau-natal');
 caso('Baú de Natal vale em dezembro', baus.bauAtivo(natal, new Date('2026-12-20T12:00:00Z')));
 caso('Baú de Natal some depois do Dia de Reis', !baus.bauAtivo(natal, new Date('2027-01-08T12:00:00Z')));

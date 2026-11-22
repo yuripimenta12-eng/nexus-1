@@ -178,7 +178,8 @@ export const MOLDURA_AURA: Record<string, { tipo: TipoAura; cores?: string[] }> 
 };
 
 // Efeitos de perfil: partículas desenhadas por cima do cartão (components/nex/efeito-perfil.tsx)
-export type TipoEfeito = 'faiscas' | 'neve' | 'coracoes' | 'brasas' | 'nevoa' | 'raios' | 'estrelas' | 'aurora';
+// energia e natal: usados em volta dos baús (não são itens à venda)
+export type TipoEfeito = 'faiscas' | 'neve' | 'coracoes' | 'brasas' | 'nevoa' | 'raios' | 'estrelas' | 'aurora' | 'energia' | 'natal';
 export const EFEITOS: Record<string, { tipo: TipoEfeito; cores: string[] }> = {
   'e-faiscas': { tipo: 'faiscas', cores: ['#ffffff', '#ffe28a', '#c9a6ff'] },
   'e-neve': { tipo: 'neve', cores: ['#ffffff', '#d8f1ff'] },
