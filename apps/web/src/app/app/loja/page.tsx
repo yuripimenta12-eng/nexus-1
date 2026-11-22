@@ -21,6 +21,7 @@ import { ArteIcone, Moldura, NomeComItens } from '@/components/nex/itens-visuais
 import { EfeitoPerfil } from '@/components/nex/efeito-perfil';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
+import { CartaoVitrine, BotaoVitrine, EmUso } from '@/components/nex/cartao-vitrine';
 
 interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; possui: boolean }
 interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[] }
@@ -148,58 +149,36 @@ export default function LojaPage() {
             ) : (
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(175px,1fr))]">
                 {lista.map(i => {
-                  const r = RARIDADE[i.raridade];
                   const usando = dados.equipados[i.tipo] === i.id;
                   const bloqueado = i.soPro && dados.plano !== 'pro' && !i.possui;
+                  const nomePlano = i.incluiPlano === 'pro' ? 'Nexus Pro' : 'Nexus+';
+                  const selo = i.incluiPlano ? { texto: i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+', cor: i.incluiPlano === 'pro' ? '#ffc23d' : '#8ff0ff' }
+                    : i.soPro ? { texto: 'Pro', cor: '#ffc23d' } : null;
+                  const condicao = i.incluiPlano ? (i.possui ? `Incluída no ${nomePlano}` : `Vem com o ${nomePlano}`)
+                    : usando ? 'Você está usando' : i.possui ? 'Já é sua'
+                    : bloqueado ? 'Exclusiva do Nexus Pro'
+                    : i.preco !== null ? 'Compra única com Nex' : 'Só sai em baú';
                   return (
-                    <div key={i.id}
-                      onMouseEnter={() => setProvando(i)} onFocus={() => setProvando(i)}
-                      onClick={e => { if (TEM_PREVIA.has(i.tipo) && !(e.target as HTMLElement).closest('button,a')) setVendo(i); }}
-                      className={cn('group relative rounded-2xl border overflow-hidden flex flex-col transition-transform hover:-translate-y-0.5', TEM_PREVIA.has(i.tipo) && 'cursor-pointer',
-                        provando?.id === i.id ? 'border-white/30' : 'border-white/10')}
-                      style={{ background: r.fundo }}>
-                      <div className="h-[118px] grid place-items-center relative">
-                        <PreviaItem item={i} nome={nome} avatar={user?.profile?.avatarUrl} />
-                        {TEM_PREVIA.has(i.tipo) && <span className="absolute bottom-1.5 right-2 flex items-center gap-1 text-[10px] font-bold text-white/70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"><Eye className="w-3 h-3" /> Ver</span>}
-                        {usando && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#3ddc84]/15 text-[#3ddc84]">Usando</span>}
-                        {i.soPro && <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ffc23d]/15 text-[#ffc23d]"><Crown className="w-3 h-3" /> Pro</span>}
-                        {i.incluiPlano && <span className={cn('absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full', i.incluiPlano === 'pro' ? 'bg-[#ffc23d]/15 text-[#ffc23d]' : 'bg-[#3ee0ff]/15 text-[#8ff0ff]')}>{i.incluiPlano === 'pro' ? <Crown className="w-3 h-3" /> : <Gem className="w-3 h-3" />} Grátis no {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</span>}
-                      </div>
-                      <div className="px-3 pb-3 flex-1 flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: r.cor }}>◆ {r.nome}</span>
-                        <b className="text-white text-sm leading-tight mt-0.5">{i.nome}</b>
-                        <div className="mt-auto pt-2.5">
-                          {i.possui && i.tipo === 'tema' ? (
-                            <button onClick={() => setAplicando(i)}
-                              className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-[#3ddc84]/15 text-[#3ddc84] hover:bg-[#3ddc84]/25">
-                              <Palette className="w-3.5 h-3.5" /> Aplicar num servidor
-                            </button>
-                          ) : i.possui ? (
-                            <button disabled={ocupado} onClick={() => equipar(i, !usando)}
-                              className={cn('w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 transition-colors',
-                                usando ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-[#3ddc84]/15 text-[#3ddc84] hover:bg-[#3ddc84]/25')}>
-                              {usando ? 'Tirar' : <><Check className="w-3.5 h-3.5" /> Usar</>}
-                            </button>
-                          ) : bloqueado ? (
-                            <span className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/30 text-[#a99fc0]">
-                              <Lock className="w-3.5 h-3.5" /> Só com Pro
-                            </span>
-                          ) : i.incluiPlano ? (
-                            <Link href="/app/planos" className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/30 text-[#a99fc0] hover:text-white">
-                              <Lock className="w-3.5 h-3.5" /> Vem com o {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}
-                            </Link>
-                          ) : i.preco !== null ? (
-                            <button onClick={() => setComprando(i)}
-                              className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center gap-1.5 bg-black/35 text-white hover:bg-black/50 border border-white/10">
-                              <MoedaNex className="w-4 h-4" /> {formatarNex(i.preco)}
-                            </button>
-                          ) : (
-                            <span className="w-full h-9 rounded-[11px] text-xs font-black flex items-center justify-center bg-black/30 text-[#a99fc0]">Só em baú</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="absolute bottom-0 inset-x-0 h-[3px]" style={{ background: r.cor }} />
-                    </div>
+                    <CartaoVitrine key={i.id} raridade={i.raridade} nome={i.nome} selo={selo} condicao={condicao}
+                      previa={<PreviaItem item={i} nome={nome} avatar={user?.profile?.avatarUrl} />}
+                      usando={usando} destacado={provando?.id === i.id} verPrevia={TEM_PREVIA.has(i.tipo)}
+                      onAbrir={() => setVendo(i)} onPassar={() => setProvando(i)}>
+                      {i.possui && i.tipo === 'tema' ? (
+                        <BotaoVitrine variante="primario" onClick={() => setAplicando(i)}><Palette className="w-4 h-4" /> Aplicar</BotaoVitrine>
+                      ) : i.possui && usando ? (
+                        <BotaoVitrine variante="uso" disabled={ocupado} onClick={() => equipar(i, false)} titulo="Clique para tirar"><EmUso /></BotaoVitrine>
+                      ) : i.possui ? (
+                        <BotaoVitrine variante="primario" disabled={ocupado} onClick={() => equipar(i, true)}>{i.tipo === 'moldura' ? 'Usar borda' : 'Usar'}</BotaoVitrine>
+                      ) : bloqueado ? (
+                        <BotaoVitrine variante="bloqueado" href="/app/planos"><Lock className="w-4 h-4" /> Só com Pro</BotaoVitrine>
+                      ) : i.incluiPlano ? (
+                        <BotaoVitrine variante="bloqueado" href="/app/planos"><Lock className="w-4 h-4" /> Ver o {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</BotaoVitrine>
+                      ) : i.preco !== null ? (
+                        <BotaoVitrine variante="primario" onClick={() => setComprando(i)}><MoedaNex className="w-[18px] h-[18px]" /> {formatarNex(i.preco)}</BotaoVitrine>
+                      ) : (
+                        <BotaoVitrine variante="bloqueado" disabled>Só em baú</BotaoVitrine>
+                      )}
+                    </CartaoVitrine>
                   );
                 })}
               </div>
