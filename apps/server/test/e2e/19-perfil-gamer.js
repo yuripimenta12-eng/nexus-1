@@ -61,6 +61,8 @@ function socket(token, ua) {
 }
 
 
+// O banco (jsonb) devolve as chaves em outra ordem: compara o conteúdo
+const igual = (a, b) => { try { require('assert').deepStrictEqual(a, b); return true; } catch { return false; } };
 const enviados = [];
 const arquivo = (conteudo, tipo, nome) => { const f = new FormData(); f.append('file', new Blob([conteudo], { type: tipo }), nome); return f; };
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -85,8 +87,8 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     check('salva jogos, conexões e "procurando duo"', r.status === 200, `status ${r.status} ${JSON.stringify(r.data)}`);
     r = await call('GET', `/users/${U.id}/profile`, null, tv);
     const p = r.data?.profile || {};
-    check('os outros veem os jogos (sem o inválido)', JSON.stringify(p.jogos) === JSON.stringify([{ jogo: 'Valorant', rank: 'Ouro 2', nick: 'kanjin#777' }, { jogo: 'CS2', rank: 'Premier 12.400' }]), JSON.stringify(p.jogos));
-    check('conexões limpas (sem link estranho)', JSON.stringify(p.conexoes) === JSON.stringify({ twitch: 'kanjin', riot: 'kanjin #777' }), JSON.stringify(p.conexoes));
+    check('os outros veem os jogos (sem o inválido)', igual(p.jogos, [{ jogo: 'Valorant', rank: 'Ouro 2', nick: 'kanjin#777' }, { jogo: 'CS2', rank: 'Premier 12.400' }]), JSON.stringify(p.jogos));
+    check('conexões limpas (sem link estranho)', igual(p.conexoes, { twitch: 'kanjin', riot: 'kanjin #777' }), JSON.stringify(p.conexoes));
     check('"procurando duo" aparece', p.procurandoDuo === true);
     check('números vêm junto', !!r.data?.numeros && typeof r.data.numeros.horasCall === 'number' && typeof r.data.numeros.vitoriasUnidos === 'number');
     r = await call('PATCH', '/users/@me/profile', { jogos: 'Valorant' }, t);

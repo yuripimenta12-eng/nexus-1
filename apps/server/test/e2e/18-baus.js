@@ -89,9 +89,11 @@ function socket(token, ua) {
       const esperado = 1000 - 600 + (r.data.premio.nex || 0) + (r.data.reembolso || 0);
       check('saldo bate com preço, prêmio e reembolso', r.data.saldo === esperado, `saldo ${r.data.saldo}, esperado ${esperado}`);
     }
-    // Saldo para um baú só, dois pedidos juntos
-    await prisma.carteira.update({ where: { userId: U.id }, data: { saldo: 600 } });
-    const dois = await Promise.all([call('POST', '/loja/baus/bau-estreia/abrir', null, t), call('POST', '/loja/baus/bau-estreia/abrir', null, t)]);
+    // Saldo para um baú só, dois pedidos juntos. Baú Neon: só dá item e a conta não
+    // tem nenhum dele (sem reembolso). O Estreia podia dar Nex que pagava o segundo.
+    const neon = (await call('GET', '/loja/baus', null, t)).data.find(b => b.id === 'bau-neon');
+    await prisma.carteira.update({ where: { userId: U.id }, data: { saldo: neon.preco } });
+    const dois = await Promise.all([call('POST', '/loja/baus/bau-neon/abrir', null, t), call('POST', '/loja/baus/bau-neon/abrir', null, t)]);
     check('dois baús juntos com saldo para um: só um abre', dois.filter(x => x.status === 200 || x.status === 201).length === 1);
     const mov = await prisma.nexMovimento.count({ where: { userId: U.id, motivo: { startsWith: 'Abriu' } } });
     check('extrato registra cada abertura', mov === 2, `aberturas ${mov}`);
