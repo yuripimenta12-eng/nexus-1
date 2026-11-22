@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Check, Crown, Gem, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { BENEFICIOS, LIVE_POR_PLANO, PRECO_PLANO, type Plano } from '@/lib/planos';
+import { BENEFICIOS, PRECO_PLANO, rotuloLivePlano, type Plano } from '@/lib/planos';
 
 type Beneficio = { texto: string; emBreve?: boolean };
 export type Cartao = {
@@ -29,7 +29,7 @@ export const PARA_VOCE: Cartao[] = [
     preco: 'R$ 0', precoNota: 'Para sempre',
     beneficios: [
       { texto: 'Calls de voz e vídeo, chat e servidores' },
-      { texto: `Live de tela em ${LIVE_POR_PLANO.gratis.rotulo}` },
+      { texto: `Live de tela em ${rotuloLivePlano('gratis')} (você escolhe)` },
       { texto: 'DJ na call, placar e conquistas' },
       { texto: 'Perfil gamer: jogos, conexões e "procurando duo"' },
       { texto: `Arquivos de até ${BENEFICIOS.gratis.arquivoMB} MB` },
@@ -41,7 +41,7 @@ export const PARA_VOCE: Cartao[] = [
     preco: PRECO_PLANO.mais.mes, precoNota: `por mês · ou ${PRECO_PLANO.mais.ano} por ano`,
     beneficios: [
       { texto: 'Tudo do Grátis' },
-      { texto: `Live de tela em ${LIVE_POR_PLANO.mais.rotulo}` },
+      { texto: `Live de tela em ${rotuloLivePlano('mais')} (você escolhe)` },
       { texto: 'Foto e capa animadas (GIF)' },
       { texto: 'Cor ou degradê no nome, em todo lugar' },
       { texto: 'Moldura exclusiva Nexus+' },
@@ -56,7 +56,7 @@ export const PARA_VOCE: Cartao[] = [
     preco: PRECO_PLANO.pro.mes, precoNota: `por mês · ou ${PRECO_PLANO.pro.ano} por ano`, destaque: 'Melhor para streamers',
     beneficios: [
       { texto: 'Tudo do Nexus+' },
-      { texto: `Live de tela em ${LIVE_POR_PLANO.pro.rotulo}` },
+      { texto: `Live de tela em ${rotuloLivePlano('pro')} (você escolhe)` },
       { texto: 'Versão mais leve da live para quem tem internet fraca' },
       { texto: 'Molduras animadas exclusivas do Pro (e a Realeza na loja)' },
       { texto: `Arquivos de até ${BENEFICIOS.pro.arquivoMB} MB` },

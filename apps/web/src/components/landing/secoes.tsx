@@ -16,7 +16,7 @@ const LIMA = '#c8f53b';
 const DETALHES = [
   { emoji: '🎙️', titulo: 'Voz em tempo real', texto: 'Veja quem está falando, silencie, ensurdeça e troque de sala num clique.', cor: '#7a2cff' },
   { emoji: '📹', titulo: 'Câmera', texto: 'Ligue a câmera e veja todo mundo da call ao mesmo tempo.', cor: '#21d4fd' },
-  { emoji: '🖥️', titulo: 'Live de tela', texto: 'A 60 quadros e com o som do jogo. 540p grátis, até 1080p no Pro.', cor: '#ff6a00' },
+  { emoji: '🖥️', titulo: 'Live de tela', texto: 'Com o som do jogo e o FPS que você escolher. 480p grátis, até 1080p 60fps no Pro.', cor: '#ff6a00' },
   { emoji: '💿', titulo: 'DJ na call', texto: 'Diga o nome ou cole o link da música, e o DJ toca para a sala inteira.', cor: '#ff4f79' },
   { emoji: '🎮', titulo: 'Jogando agora', texto: 'Com o app de PC, seu perfil mostra o jogo que você está jogando.', cor: '#43e3a3' },
   { emoji: '🏆', titulo: 'Placar e conquistas', texto: 'Quem mora na call, quem mais fala e quem é o DJ da mesa.', cor: '#ffc23d' },
@@ -76,11 +76,11 @@ export function GaleriaDetalhes() {
 // ── Mural de lives (demonstração) ───────────────────────────────────────
 const LIVES = [
   { fundo: '/login-cena-full.webp', titulo: 'Ranqueada valendo', avatar: '/avatar-1.webp', qualidade: '1080p · 60fps', vendo: 14, reacoes: ['🔥', '😂', '👏'] },
-  { fundo: '/cadastro-bg.webp', titulo: 'Construindo a base nova', avatar: '/avatar-2.webp', qualidade: '720p · 60fps', vendo: 6, reacoes: ['😍', '🔥'] },
-  { fundo: '/mascote-voz.webp', titulo: 'Bate-papo da madrugada', avatar: '/avatar-3.webp', qualidade: '540p · 60fps', vendo: 9, reacoes: ['🦉', '💬'] },
+  { fundo: '/cadastro-bg.webp', titulo: 'Construindo a base nova', avatar: '/avatar-2.webp', qualidade: '720p · 30fps', vendo: 6, reacoes: ['😍', '🔥'] },
+  { fundo: '/mascote-voz.webp', titulo: 'Bate-papo da madrugada', avatar: '/avatar-3.webp', qualidade: '480p · 30fps', vendo: 9, reacoes: ['🦉', '💬'] },
   { fundo: '/login-bg.webp', titulo: 'Speedrun na sala 2', avatar: '/avatar-2.webp', qualidade: '1080p · 60fps', vendo: 21, reacoes: ['⚡', '🏆', '🔥'] },
-  { fundo: '/mascote-cena.webp', titulo: 'DJ tocando o pedido da galera', avatar: '/avatar-1.webp', qualidade: '720p · 60fps', vendo: 11, reacoes: ['🎵', '💿'] },
-  { fundo: '/mascote-logo.webp', titulo: 'Primeira live no Nexus', avatar: '/avatar-3.webp', qualidade: '540p · 60fps', vendo: 4, reacoes: ['👏', '🎉'] },
+  { fundo: '/mascote-cena.webp', titulo: 'DJ tocando o pedido da galera', avatar: '/avatar-1.webp', qualidade: '720p · 24fps', vendo: 11, reacoes: ['🎵', '💿'] },
+  { fundo: '/mascote-logo.webp', titulo: 'Primeira live no Nexus', avatar: '/avatar-3.webp', qualidade: '480p · 24fps', vendo: 4, reacoes: ['👏', '🎉'] },
 ];
 
 function CartaoLive({ l, i }: { l: (typeof LIVES)[number]; i: number }) {
@@ -205,7 +205,7 @@ export function Comentarios() {
 
 // ── Perguntas frequentes ─────────────────────────────────────────────────
 const PERGUNTAS = [
-  { p: 'O Nexus é grátis?', r: 'Sim. O Grátis tem calls de voz e vídeo, chat, servidores, DJ, placar, conquistas e live de tela em 540p 60fps. Os planos só aumentam a qualidade da live e personalizam o perfil.' },
+  { p: 'O Nexus é grátis?', r: 'Sim. O Grátis tem calls de voz e vídeo, chat, servidores, DJ, placar, conquistas e live de tela em 480p (24 ou 30fps). Os planos só aumentam a qualidade da live e personalizam o perfil.' },
   { p: 'Preciso baixar alguma coisa?', r: 'Não. O Nexus funciona no navegador. No Windows tem o app de PC, com Modo jogo e o "Jogando agora". No celular, dá para instalar pelo próprio navegador.' },
   { p: 'Como assino um plano?', r: 'O pagamento pelo site está chegando. Por enquanto, quem libera os planos é o dono do Nexus.' },
   { p: 'Como funciona o Indique e ganhe?', r: 'Cada pessoa tem um link próprio na página de planos. Quando alguém que entrou pelo seu link ganha o primeiro plano pago, você ganha 30 dias de Nexus+, que somam se você já tiver plano.' },

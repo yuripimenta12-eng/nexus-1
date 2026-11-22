@@ -28,7 +28,7 @@ const PARA_SERVIDORES: Cartao[] = [
     Icone: Rocket, cores: { base: '#1d1028', blobA: '#ff4f79', blobB: '#7a2cff', icone: '#ff8aa8' },
     preco: 'Em breve', precoNota: 'Tudo do Turbo 1', destaque: 'O mais pedido',
     beneficios: [
-      { texto: 'Live em 720p 60fps para todos do servidor', emBreve: true },
+      { texto: 'Live em 720p 30fps para todos do servidor', emBreve: true },
       { texto: 'Convite personalizado (nexuslink.art/seuservidor)', emBreve: true },
     ],
   },

@@ -39,7 +39,9 @@ import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelRea
 import { Smile } from 'lucide-react';
 import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
-import { corNomeDe } from '@/lib/planos';
+import { corNomeDe, planoAtivo, LIVE_OPCOES, podeUsarLive, melhorLive } from '@/lib/planos';
+import Link from 'next/link';
+import { Lock as Cadeado } from 'lucide-react';
 import { useEscutarZoeiras, ZoeirasDoQuadro, BotaoZoeira, BotaoEscudo, AvisoZoeira, useApelido } from '@/components/voice/zoeiras';
 
 // Gradientes por participante (paleta da referência nexus-call)
@@ -480,12 +482,19 @@ export default function VoicePage() {
     router.push(`/app/servers/${serverId}`);
   };
 
-  const handleScreenShare = async () => {
+  // Qualidade da live escolhida (fica salva neste aparelho)
+  const [menuLive, setMenuLive] = useState(false);
+  const [opcaoLive, setOpcaoLive] = useState<string | null>(null);
+  useEffect(() => { try { setOpcaoLive(localStorage.getItem('nx-live-qualidade')); } catch {} }, []);
+  const planoLive = planoAtivo(user);
+  const opcaoLiveAtual = LIVE_OPCOES.find(o => o.id === opcaoLive && podeUsarLive(planoLive, o)) ?? melhorLive(planoLive);
+
+  const handleScreenShare = async (opcaoId?: string) => {
     try {
       if (localScreenSharing) {
         await stopScreenShare();
       } else {
-        await startScreenShare();
+        await startScreenShare(opcaoId);
         registrarEventoPlacar('live');
         // Chrome só captura som de Aba ou Tela inteira (com a caixa marcada).
         // Se a live nasceu muda, avisa o streamer NA HORA — antes era silêncio
@@ -1365,8 +1374,43 @@ export default function VoicePage() {
             </ControlButton>
 
             {(canShareScreen || localScreenSharing) && (
+            <div className="relative">
+            {menuLive && !localScreenSharing && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuLive(false)} />
+                <div role="menu" aria-label="Qualidade da live"
+                  className="absolute bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-50 w-[270px] rounded-2xl border border-[var(--th-line-2)] bg-[#140f1e] p-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.6)]">
+                  <p className="px-1 pb-1 text-[11px] font-black uppercase tracking-[1.5px] text-[#ffb070]">Qualidade da live</p>
+                  {(['gratis', 'mais', 'pro'] as const).map(pl => (
+                    <div key={pl} className="mt-1.5">
+                      <p className="px-1 pb-1 text-[10px] font-black text-[#8d82a0]">{pl === 'gratis' ? 'Grátis' : pl === 'mais' ? 'Nexus+' : 'Nexus Pro'}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {LIVE_OPCOES.filter(o => o.plano === pl).map(o => {
+                          const ok = podeUsarLive(planoLive, o), atual = o.id === opcaoLiveAtual.id;
+                          return (
+                            <button key={o.id} role="menuitem" disabled={!ok}
+                              onClick={() => { try { localStorage.setItem('nx-live-qualidade', o.id); } catch {} setOpcaoLive(o.id); setMenuLive(false); handleScreenShare(o.id); }}
+                              className={cn('h-12 rounded-xl border text-left px-2.5 flex flex-col justify-center transition-colors',
+                                !ok ? 'border-white/5 bg-black/20 text-[#5d5370] cursor-not-allowed'
+                                  : atual ? 'border-[#ff8a3d] bg-[#2a1830] text-white' : 'border-white/10 bg-white/5 text-[#e6dff0] hover:border-[#7842a0] hover:bg-[#21152c]')}>
+                              <b className="text-sm leading-none flex items-center gap-1">{o.height}p {!ok && <Cadeado className="w-3 h-3" />}</b>
+                              <span className="text-[11px] mt-1 opacity-80">{o.frameRate} fps</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="mt-2 px-1 text-[10px] leading-snug text-[#8d82a0]">A live fica travada no FPS escolhido. 1080p 60fps pede um PC e uma internet bons.</p>
+                  {planoLive !== 'pro' && (
+                    <Link href="/app/planos" className="mt-1.5 block text-center text-[11px] font-black text-[#c9a6ff] hover:text-white">Liberar mais qualidade nos planos</Link>
+                  )}
+                </div>
+              </>
+            )}
             <button
-              onClick={handleScreenShare}
+              onClick={() => (localScreenSharing ? handleScreenShare() : setMenuLive(v => !v))}
+              aria-haspopup={!localScreenSharing ? 'menu' : undefined}
               title={localScreenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
               className={cn(
                 'h-12 px-4 rounded-[15px] border text-xs font-extrabold flex items-center gap-2 transition-all',
@@ -1378,7 +1422,9 @@ export default function VoicePage() {
             >
               <Monitor className="w-[17px] h-[17px]" />
               <span className="hidden md:inline">{localScreenSharing ? 'Parar tela' : 'Compartilhar tela'}</span>
+              {!localScreenSharing && <span className="hidden md:inline text-[10px] font-black text-[#ffb070]">{opcaoLiveAtual.height}p{opcaoLiveAtual.frameRate}</span>}
             </button>
+            </div>
             )}
 
 

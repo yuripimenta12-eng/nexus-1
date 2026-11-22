@@ -3,7 +3,7 @@ import { getSocket, joinVoiceRoom, leaveVoiceRoom } from '@/lib/socket';
 import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
-import { LIVE_POR_PLANO, planoAtivo } from '@/lib/planos';
+import { LIVE_OPCOES, podeUsarLive, melhorLive, planoAtivo } from '@/lib/planos';
 import {
   Room,
   RoomEvent,
@@ -86,7 +86,7 @@ interface VoiceStore {
   disconnect: () => Promise<void>;
   toggleMic: () => Promise<void>;
   toggleCam: () => Promise<void>;
-  startScreenShare: () => Promise<void>;
+  startScreenShare: (opcaoId?: string) => Promise<void>;
   stopScreenShare: () => Promise<void>;
   localMusicSharing: boolean;
   startTabMusic: () => Promise<void>;
@@ -694,25 +694,27 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     }
   },
 
-  startScreenShare: async () => {
+  startScreenShare: async (opcaoId?: string) => {
     const { room } = get();
     if (!room) return;
     if (get().localMusicSharing) {
       throw new Error('Pare a música da aba antes de transmitir a tela.');
     }
     if (!get().canVideo) throw new Error('Seu cargo não permite câmera nem transmitir a tela neste servidor.');
-    // A qualidade vem do plano de quem transmite: Grátis 540p60, Nexus+ 720p60,
-    // Pro 1080p60. Sem escolha nem teste.
+    // Quem transmite escolhe a qualidade entre as que o plano dele libera
+    // (lib/planos.ts: Grátis 480p 24/30, Nexus+ 720p 24/30, Pro 1080p 30/60).
     // Lê o plano atual do servidor: o app pode estar aberto desde antes de ganhar o plano
     await Promise.race([
       api.get('/auth/me').then(r => { if (r.data?.id) useAuthStore.getState().setUser(r.data); }),
       new Promise(r => setTimeout(r, 3000)),
     ]).catch(() => {});
     const plano = planoAtivo(useAuthStore.getState().user);
-    const opts = LIVE_POR_PLANO[plano];
-    // Só o Pro manda também uma versão 720p30, para quem assiste com internet
-    // fraca. Nos outros, uma camada só (uma segunda faria o PC comprimir duas vezes).
-    const simulcast = plano === 'pro';
+    const pedida = LIVE_OPCOES.find(o => o.id === opcaoId);
+    // Opção acima do plano (ou plano que venceu) cai para a melhor do plano
+    const opts = pedida && podeUsarLive(plano, pedida) ? pedida : melhorLive(plano);
+    // Só a live em 1080p manda também uma versão 720p30, para quem assiste com
+    // internet fraca. Nas outras, uma camada só (uma segunda faria o PC comprimir duas vezes).
+    const simulcast = opts.height >= 1080;
 
     await room.localParticipant.setScreenShareEnabled(
       true,
@@ -740,6 +742,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         ...(simulcast ? { screenShareSimulcastLayers: [new VideoPreset(1280, 720, 1_500_000, 30)] } : {}),
       },
     );
+    // FPS cravado: a captura fica presa no valor escolhido (nem acima, nem tentando outro)
+    const tela = room.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track?.mediaStreamTrack;
+    await tela?.applyConstraints({ frameRate: { ideal: opts.frameRate, max: opts.frameRate } }).catch(() => {});
 
     set({ localScreenSharing: true, liveEndedNotice: null });
   },

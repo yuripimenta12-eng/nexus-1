@@ -22,7 +22,7 @@ import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas } from
 import { CartaoPlano, PARA_VOCE } from '@/components/cartao-plano';
 import { useAuthStore } from '@/stores/auth.store';
 import { isDesktopApp } from '@/lib/desktop';
-import { LIVE_POR_PLANO, planoAtivo } from '@/lib/planos';
+import { rotuloLivePlano, planoAtivo } from '@/lib/planos';
 
 // Letreiros do final: de cima para baixo, o último é a barra em pé da direita
 // some antes das bordas do quadro: o brilho cortado na borda formava um quadrado
@@ -255,8 +255,8 @@ export default function Landing() {
                 <div className="mt-6 grid grid-cols-3 gap-2 text-center">
                   {(['gratis', 'mais', 'pro'] as const).map((p) => (
                     <div key={p} className="rounded-xl bg-white/5 px-2 py-3">
-                      <p className="text-lg font-black">{LIVE_POR_PLANO[p].rotulo.split(' ')[0]}</p>
-                      <p className="text-[11px] text-white/50">{p === 'gratis' ? 'Grátis' : p === 'mais' ? 'Nexus+' : 'Pro'} · 60fps</p>
+                      <p className="text-lg font-black">{rotuloLivePlano(p).split(' ')[0]}</p>
+                      <p className="text-[11px] text-white/50">{p === 'gratis' ? 'Grátis' : p === 'mais' ? 'Nexus+' : 'Pro'} · {rotuloLivePlano(p).split(' ').slice(1).join(' ')}</p>
                     </div>
                   ))}
                 </div>
@@ -264,7 +264,7 @@ export default function Landing() {
             </Aparecer>
             <Aparecer de="direita" atraso={0.1} className="md:order-1">
               <h3 className="text-3xl font-black tracking-tight sm:text-4xl">Live de tela a 60 quadros</h3>
-              <p className="mt-3 text-white/70">Mostre o jogo para a call com fluidez de verdade, com o som junto. Grátis em 540p, e até 1080p no Nexus Pro.</p>
+              <p className="mt-3 text-white/70">Mostre o jogo para a call com fluidez de verdade, com o som junto. Grátis em 480p, e até 1080p 60fps no Nexus Pro.</p>
             </Aparecer>
           </div>
 
