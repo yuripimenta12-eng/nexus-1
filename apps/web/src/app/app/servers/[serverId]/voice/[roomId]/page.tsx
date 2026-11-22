@@ -1157,23 +1157,26 @@ export default function VoicePage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full grid place-items-center">
-                        {membersMeta[p.identity]?.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={membersMeta[p.identity]!.avatarUrl!}
-                            alt=""
-                            draggable={false}
-                            className="w-9 h-9 rounded-xl object-cover select-none"
-                          />
-                        ) : (
-                          <div
-                            className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white"
-                            style={{ background: `linear-gradient(145deg, ${gradientFor(p.identity)[0]}, ${gradientFor(p.identity)[1]})` }}
-                          >
-                            {getInitials(p.participant.name || p.identity)}
-                          </div>
-                        )}
+                      <div className="w-full h-full grid place-items-center pb-2">
+                        <span className="relative w-9 h-9">
+                          <Moldura id={membersMeta[p.identity]?.moldura} espessura={3} />
+                          {membersMeta[p.identity]?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={membersMeta[p.identity]!.avatarUrl!}
+                              alt=""
+                              draggable={false}
+                              className="w-9 h-9 rounded-full object-cover select-none"
+                            />
+                          ) : (
+                            <div
+                              className="w-9 h-9 rounded-full grid place-items-center font-black text-[11px] text-white"
+                              style={{ background: `linear-gradient(145deg, ${gradientFor(p.identity)[0]}, ${gradientFor(p.identity)[1]})` }}
+                            >
+                              {getInitials(p.participant.name || p.identity)}
+                            </div>
+                          )}
+                        </span>
                       </div>
                     )}
                     <div className="absolute bottom-1 left-1 flex items-center gap-1 text-white text-[9px] bg-black/60 px-1 rounded max-w-[90%]">
@@ -1527,22 +1530,25 @@ export default function VoicePage() {
                       className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[var(--th-panel-2)] text-left"
                     >
                       <DockItem className="shrink-0" escala={1.18} alcance={70}>
+                      <span className="relative block w-9 h-9">
+                      <Moldura id={membersMeta[p.identity]?.moldura} espessura={2} />
                       {membersMeta[p.identity]?.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={membersMeta[p.identity]!.avatarUrl!}
                           alt=""
                           draggable={false}
-                          className="w-9 h-9 rounded-xl object-cover select-none shrink-0"
+                          className="w-9 h-9 rounded-full object-cover select-none shrink-0"
                         />
                       ) : (
                         <div
-                          className="w-9 h-9 rounded-xl grid place-items-center font-black text-[11px] text-white shrink-0"
+                          className="w-9 h-9 rounded-full grid place-items-center font-black text-[11px] text-white shrink-0"
                           style={{ background: `linear-gradient(145deg, ${c1}, ${c2})` }}
                         >
                           {getInitials(p.participant.name || p.identity)}
                         </div>
                       )}
+                      </span>
                       </DockItem>
                       <div className="min-w-0 flex-1">
                         <b
