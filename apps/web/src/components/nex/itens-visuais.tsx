@@ -2,8 +2,9 @@
 
 // Como os itens da loja aparecem: moldura em volta da foto, ícone ao lado do
 // nome e placa atrás do nome. Item desconhecido simplesmente não aparece.
-import { MOLDURAS, MOLDURA_ARTE, MOLDURA_FX, ICONES, PLACAS, PLACAS_ARTE, arteDoIcone, type FxMoldura } from '@/lib/itens';
+import { MOLDURAS, MOLDURA_ARTE, MOLDURA_FX, MOLDURA_AURA, ICONES, PLACAS, PLACAS_ARTE, arteDoIcone, type FxMoldura } from '@/lib/itens';
 import { useState } from 'react';
+import { AuraMoldura } from './aura-moldura';
 import { cn } from '@/lib/utils';
 
 /** Anel por cima da foto. O pai precisa ser "relative" e do tamanho da foto. */
@@ -14,7 +15,10 @@ export function Moldura({ id, espessura: base = 3 }: { id?: string | null; espes
   if (!m) return null;
   const arte = MOLDURA_ARTE[id!];
   // Fotos pequenas (lista de membros) ficam paradas, como no Discord
-  const fx: FxMoldura[] = base >= 3 ? MOLDURA_FX[id!] ?? [] : [];
+  // Foto grande + moldura especial: aura em canvas no lugar dos efeitos simples
+  const aura = base >= 4 ? MOLDURA_AURA[id!] : undefined;
+  const fx: FxMoldura[] = aura ? [] : base >= 3 ? MOLDURA_FX[id!] ?? [] : [];
+  const auraEl = aura && <AuraMoldura tipo={aura.tipo} cores={aura.cores} escala={MOLDURA_ARTE[id!]?.escala} />;
   const pronta = carregou === id;
   if (arte) {
     // Arte 3D: a foto fica no furo do meio (medido em lib/itens.ts)
@@ -25,7 +29,8 @@ export function Moldura({ id, espessura: base = 3 }: { id?: string | null; espes
       // eslint-disable-next-line @next/next/no-img-element
       <img src={url} alt="" draggable={false} className={cn('absolute inset-0 w-full h-full max-w-none', extra)} style={style} />
     );
-    return (
+    return (<>
+      {auraEl}
       <span aria-hidden className={cn('pointer-events-none select-none absolute z-[1] nx-fx', fx.length > 0 && 'isolate')}
         style={{ width: `${arte.escala * 100}%`, height: `${arte.escala * 100}%`, left: `${arte.x * 100}%`, top: `${arte.y * 100}%`,
           filter: m.brilho && base >= 3 ? `drop-shadow(0 0 ${base + 2}px ${m.brilho}88)` : undefined }}>
@@ -47,12 +52,13 @@ export function Moldura({ id, espessura: base = 3 }: { id?: string | null; espes
         {fx.includes('chama') && <Brasas cx={cx} cy={cy} r={furo * 1.25} />}
         {fx.includes('raio') && <Raios cx={cx} cy={cy} r0={furo * 1.05} r1={0.5} cor={m.brilho ?? '#8ab4ff'} />}
       </span>
-    );
+    </>);
   }
   const espessura = Math.round(base * (m.grossura ?? 1));
   const anel = m.anel;
   const mascara = `radial-gradient(farthest-side, transparent calc(100% - ${espessura}px), #000 calc(100% - ${espessura}px + 1px))`;
-  return (
+  return (<>
+    {auraEl}
     <span aria-hidden className="pointer-events-none absolute z-[1]" style={{ inset: -espessura - 1 }}>
       <span
         className={cn('absolute inset-0 rounded-full', m.anim && `nx-mold-${m.anim}`)}
@@ -76,7 +82,7 @@ export function Moldura({ id, espessura: base = 3 }: { id?: string | null; espes
         </span>
       )}
     </span>
-  );
+  </>);
 }
 
 // Animações da própria arte (podem somar: cada uma mexe numa propriedade)

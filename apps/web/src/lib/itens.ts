@@ -108,6 +108,22 @@ export const MOLDURA_FX: Record<string, FxMoldura[]> = {
   'm-sakura': ['brilho', 'faisca'], 'm-guirlanda': ['faisca'], 'm-pisca-pisca': ['faisca', 'brilho'],
 };
 
+// Aura animada em canvas (components/nex/aura-moldura.tsx) nas molduras especiais.
+// Cada tipo tem um movimento só dele. Aparece em fotos grandes (perfil, call, loja);
+// nas menores fica o efeito simples de MOLDURA_FX.
+export type TipoAura = 'fogo' | 'gelo' | 'natal' | 'energia-roxa' | 'energia' | 'raios' | 'cosmo' | 'galaxia';
+export const MOLDURA_AURA: Record<string, { tipo: TipoAura; cores?: string[] }> = {
+  'm-fogo': { tipo: 'fogo' },
+  'm-gelo': { tipo: 'gelo' },
+  'm-pisca-pisca': { tipo: 'natal' },
+  'm-neon-roxo': { tipo: 'energia-roxa' },
+  'm-circuito': { tipo: 'energia' },
+  'm-raio': { tipo: 'raios' },
+  'm-pro-eletrica': { tipo: 'raios', cores: ['#ffb000', '#fff3a8'] },
+  'm-cauda-estelar': { tipo: 'cosmo' },
+  'm-galaxia': { tipo: 'galaxia' },
+};
+
 // Efeitos de perfil: partículas desenhadas por cima do cartão (components/nex/efeito-perfil.tsx)
 export type TipoEfeito = 'faiscas' | 'neve' | 'coracoes' | 'brasas' | 'nevoa' | 'raios' | 'estrelas' | 'aurora';
 export const EFEITOS: Record<string, { tipo: TipoEfeito; cores: string[] }> = {
