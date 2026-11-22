@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -483,7 +484,9 @@ export default function VoicePage() {
   };
 
   // Qualidade da live escolhida (fica salva neste aparelho)
-  const [menuLive, setMenuLive] = useState(false);
+  // Posição do menu na tela (a barra de controles rola de lado e cortaria um menu dentro dela)
+  const [menuLive, setMenuLive] = useState<{ x: number; base: number } | null>(null);
+  const botaoLiveRef = useRef<HTMLButtonElement>(null);
   const [opcaoLive, setOpcaoLive] = useState<string | null>(null);
   useEffect(() => { try { setOpcaoLive(localStorage.getItem('nx-live-qualidade')); } catch {} }, []);
   const planoLive = planoAtivo(user);
@@ -1375,11 +1378,12 @@ export default function VoicePage() {
 
             {(canShareScreen || localScreenSharing) && (
             <div className="relative">
-            {menuLive && !localScreenSharing && (
+            {menuLive && !localScreenSharing && createPortal(
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuLive(false)} />
+                <div className="fixed inset-0 z-[90]" onClick={() => setMenuLive(null)} />
                 <div role="menu" aria-label="Qualidade da live"
-                  className="absolute bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-50 w-[270px] rounded-2xl border border-[var(--th-line-2)] bg-[#140f1e] p-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.6)]">
+                  className="fixed z-[91] w-[270px] -translate-x-1/2 rounded-2xl border border-[var(--th-line-2)] bg-[#140f1e] p-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.6)]"
+                  style={{ left: menuLive.x, bottom: menuLive.base }}>
                   <p className="px-1 pb-1 text-[11px] font-black uppercase tracking-[1.5px] text-[#ffb070]">Qualidade da live</p>
                   {(['gratis', 'mais', 'pro'] as const).map(pl => (
                     <div key={pl} className="mt-1.5">
@@ -1389,7 +1393,7 @@ export default function VoicePage() {
                           const ok = podeUsarLive(planoLive, o), atual = o.id === opcaoLiveAtual.id;
                           return (
                             <button key={o.id} role="menuitem" disabled={!ok}
-                              onClick={() => { try { localStorage.setItem('nx-live-qualidade', o.id); } catch {} setOpcaoLive(o.id); setMenuLive(false); handleScreenShare(o.id); }}
+                              onClick={() => { try { localStorage.setItem('nx-live-qualidade', o.id); } catch {} setOpcaoLive(o.id); setMenuLive(null); handleScreenShare(o.id); }}
                               className={cn('h-12 rounded-xl border text-left px-2.5 flex flex-col justify-center transition-colors',
                                 !ok ? 'border-white/5 bg-black/20 text-[#5d5370] cursor-not-allowed'
                                   : atual ? 'border-[#ff8a3d] bg-[#2a1830] text-white' : 'border-white/10 bg-white/5 text-[#e6dff0] hover:border-[#7842a0] hover:bg-[#21152c]')}>
@@ -1406,10 +1410,20 @@ export default function VoicePage() {
                     <Link href="/app/planos" className="mt-1.5 block text-center text-[11px] font-black text-[#c9a6ff] hover:text-white">Liberar mais qualidade nos planos</Link>
                   )}
                 </div>
-              </>
+              </>,
+              // Em tela cheia só o elemento em tela cheia aparece
+              document.fullscreenElement ?? document.body,
             )}
             <button
-              onClick={() => (localScreenSharing ? handleScreenShare() : setMenuLive(v => !v))}
+              ref={botaoLiveRef}
+              onClick={() => {
+                if (localScreenSharing) { handleScreenShare(); return; }
+                if (menuLive) { setMenuLive(null); return; }
+                const r = botaoLiveRef.current!.getBoundingClientRect();
+                // Centraliza no botão sem passar da borda da tela (145 = metade do menu + folga)
+                const x = Math.min(window.innerWidth - 145, Math.max(145, r.left + r.width / 2));
+                setMenuLive({ x, base: window.innerHeight - r.top + 10 });
+              }}
               aria-haspopup={!localScreenSharing ? 'menu' : undefined}
               title={localScreenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
               className={cn(
