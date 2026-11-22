@@ -341,6 +341,25 @@
 .nx-mold-pisca { animation: nx-mold-pisca 3s steps(1) infinite; }
 .nx-mold-glitch { animation: nx-mold-glitch .9s steps(2) infinite; }
 .nx-mold-glitch2 { animation: nx-mold-glitch .7s steps(2) infinite reverse; mix-blend-mode: screen; }
+/* Molduras com arte 3D animadas (MOLDURA_FX em lib/itens.ts) */
+@keyframes nx-fx-gira { to { transform: rotate(360deg); } }
+@keyframes nx-fx-arco { to { filter: hue-rotate(360deg); } }
+@keyframes nx-fx-pulso { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes nx-fx-chama { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1); } 30% { filter: brightness(1.18) saturate(1.2); transform: scale(1.012,1.02); } 55% { filter: brightness(.95); transform: scale(1); } 80% { filter: brightness(1.12) saturate(1.15); transform: scale(1.006,1.012); } }
+@keyframes nx-fx-faisca { 0%,100% { transform: scale(0) rotate(0); opacity: 0; } 45% { transform: scale(1) rotate(45deg); opacity: 1; } 70% { transform: scale(.4) rotate(90deg); opacity: .6; } }
+@keyframes nx-fx-brasa { 0% { transform: translate(0,0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(2%,-26%); opacity: 0; } }
+@keyframes nx-fx-raio { 0%,100% { opacity: 0; } 3% { opacity: 1; } 6% { opacity: .15; } 9% { opacity: 1; } 16% { opacity: 0; } }
+@keyframes nx-fx-glitch { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-1.5%,1%); } 50% { transform: translate(1.5%,-1%); } 75% { transform: translate(-1%,0); } }
+.nx-fx-brilho { background: conic-gradient(from 0deg, transparent 0 62%, rgba(255,255,255,.08) 70%, rgba(255,255,255,.85) 80%, rgba(255,255,255,.08) 88%, transparent 94%); animation: nx-fx-gira 3.4s linear infinite; }
+.nx-fx-faisca { clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); animation: nx-fx-faisca 2.6s ease-in-out infinite; opacity: 0; }
+.nx-fx-brasa { animation: nx-fx-brasa 2.2s ease-out infinite; opacity: 0; }
+.nx-fx-raio { animation: nx-fx-raio 2.6s linear infinite; opacity: 0; }
+.nx-fx-glitch-a { animation: nx-fx-glitch .8s steps(2) infinite; }
+.nx-fx-glitch-b { animation: nx-fx-glitch .65s steps(2) infinite reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .nx-fx, .nx-fx * { animation: none !important; }
+  .nx-fx-part { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .nx-mold-gira, .nx-mold-pulsa, .nx-mold-pisca, .nx-mold-glitch, .nx-mold-glitch2 { animation: none; }
 }

@@ -5,7 +5,7 @@ import { randomInt } from 'crypto';
 import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoPerfil } from './loja.catalogo';
 import { BAUS, bauPorId, bauAtivo, sortearPremio, somaPesos } from './loja.baus';
 
-const TIPOS: TipoPerfil[] = ['moldura', 'icone', 'placa', 'som'];
+const TIPOS: TipoPerfil[] = ['moldura', 'icone', 'placa', 'som', 'efeito'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
 const incluso = (exigido: Plano | undefined, plano: Plano) => !!exigido && planoCobre(plano, exigido);
 
@@ -18,7 +18,7 @@ export class LojaService {
     const [carteira, posses, perfil, user] = await Promise.all([
       this.prisma.carteira.findUnique({ where: { userId }, select: { saldo: true } }),
       this.prisma.itemPosse.findMany({ where: { userId }, select: { itemId: true, expiraEm: true } }),
-      this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true, somEntrada: true } }),
+      this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true, somEntrada: true, efeitoPerfil: true } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } }),
     ]);
     const tem = new Map(posses.filter(valido).map(p => [p.itemId, p.expiraEm]));
@@ -26,7 +26,7 @@ export class LojaService {
     return {
       saldo: carteira?.saldo ?? 0,
       plano,
-      equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null },
+      equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null, efeito: perfil?.efeitoPerfil ?? null },
       itens: CATALOGO.map(i => ({ ...i, possui: tem.has(i.id) || incluso(i.incluiPlano, plano), expiraEm: tem.get(i.id) ?? null })),
     };
   }

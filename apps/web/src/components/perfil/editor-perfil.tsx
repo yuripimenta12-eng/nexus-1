@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
 import { SeloPlano } from '@/components/ui/selo-plano';
 import { NomeComItens } from '@/components/nex/itens-visuais';
+import { EfeitoPerfil } from '@/components/nex/efeito-perfil';
 import { corSegura } from '@/lib/seguro';
 import { BENEFICIOS, NOME_PLANO, planoAtivo, type Plano } from '@/lib/planos';
 import { JOGOS_SUGERIDOS, REDES, type Conexoes, type JogoPerfil, type PerfilCompleto } from '@/lib/perfil-gamer';
@@ -194,7 +195,8 @@ export function EditorPerfilGamer() {
             </button>
           ))}
         </div>
-        <div className="rounded-[18px] overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)] shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
+        <div className="relative rounded-[18px] overflow-hidden border border-[var(--th-line-2)] bg-[var(--th-panel)] shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
+          <EfeitoPerfil id={pf?.efeitoPerfil} />
           <div className="relative h-[92px]" style={{ background: banner }}>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--th-panel)]/70" />
           </div>

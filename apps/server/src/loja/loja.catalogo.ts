@@ -1,8 +1,8 @@
 // Catálogo da loja Nex. O visual de cada item fica no site (apps/web/src/lib/itens.ts),
 // com o mesmo id. Preço null = não vende direto (só baú, evento ou roleta).
-export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema';
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema' | 'efeito';
 /** Onde cada tipo fica guardado no perfil quando equipado (tema vai no servidor). */
-export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa', som: 'somEntrada' } as const;
+export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa', som: 'somEntrada', efeito: 'efeitoPerfil' } as const;
 export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 // incluiPlano: vem de graça com o plano (não vende; some se o plano acabar)
@@ -14,6 +14,7 @@ const PRECO = {
   placa: { comum: 800, rara: 1500, epica: 2500, lendaria: 4000 },
   som: { comum: 2000, rara: 3000, epica: 4000, lendaria: 5000 },
   tema: { comum: 4000, rara: 5000, epica: 8000, lendaria: 12000 },
+  efeito: { comum: 1500, rara: 3000, epica: 5000, lendaria: 9000 },
 } as const;
 const it = (tipo: TipoItem, id: string, nome: string, raridade: Raridade, extra: Partial<Item> = {}): Item =>
   ({ id, tipo, nome, raridade, preco: PRECO[tipo][raridade], ...extra });
@@ -44,6 +45,16 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-mais', 'Órbita Nexus+', 'epica', { preco: null, incluiPlano: 'mais' }),
   it('moldura', 'm-pro', 'Axolote Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   it('moldura', 'm-pro-eletrica', 'Elétrica Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
+  // Efeitos de perfil: animação por cima do cartão do perfil
+  it('efeito', 'e-faiscas', 'Faíscas', 'comum'),
+  it('efeito', 'e-neve', 'Nevasca', 'comum'),
+  it('efeito', 'e-coracoes', 'Corações', 'rara'),
+  it('efeito', 'e-brasas', 'Brasas', 'rara'),
+  it('efeito', 'e-nevoa', 'Névoa Roxa', 'rara'),
+  it('efeito', 'e-raios', 'Tempestade Elétrica', 'epica'),
+  it('efeito', 'e-estrelas', 'Chuva de Estrelas', 'epica'),
+  it('efeito', 'e-aurora', 'Aurora', 'lendaria'),
+  it('efeito', 'e-pro', 'Trovão Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   // Ícones: ao lado do nome, na lista, no chat e na call
   it('icone', 'i-controle', 'Controle', 'comum'),
   it('icone', 'i-fantasma', 'Fantasma', 'comum'),

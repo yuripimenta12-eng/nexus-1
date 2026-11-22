@@ -13,7 +13,7 @@ export interface PerfilCompleto {
   plano?: string | null;
   profile?: {
     displayName?: string; avatarUrl?: string | null; bannerUrl?: string | null; bannerColor?: string | null;
-    bio?: string | null; customStatus?: string | null; moldura?: string | null; icone?: string | null; placa?: string | null;
+    bio?: string | null; customStatus?: string | null; moldura?: string | null; icone?: string | null; placa?: string | null; efeitoPerfil?: string | null;
     corNome?: string | null; jogos?: JogoPerfil[] | null; conexoes?: Conexoes | null; procurandoDuo?: boolean;
   } | null;
   numeros?: { horasCall: number; vitoriasUnidos: number };

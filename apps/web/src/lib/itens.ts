@@ -1,6 +1,6 @@
 // Visual dos itens da loja Nex (mesmos ids do catálogo do servidor: src/loja/loja.catalogo.ts).
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
-export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema';
+export type TipoItem = 'moldura' | 'icone' | 'placa' | 'som' | 'tema' | 'efeito';
 
 // Temas de servidor: cores da miniatura na loja (as de verdade ficam em globals.css)
 export const TEMAS: Record<string, { fundo: string; lado: string; painel: string; brilho: string }> = {
@@ -90,6 +90,36 @@ export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number
   'm-oceano': { escala: 1.598, x: -0.247, y: -0.304 }, 'm-pisca-pisca': { escala: 1.545, x: -0.252, y: -0.299 },
   'm-pixel': { escala: 1.589, x: -0.28, y: -0.283 }, 'm-por-do-sol': { escala: 1.585, x: -0.268, y: -0.297 },
   'm-sakura': { escala: 1.896, x: -0.418, y: -0.343 },
+};
+
+// Animação por cima da arte da moldura (components/nex/itens-visuais.tsx):
+// brilho = luz correndo pelo anel; faisca = brilhinhos; chama = fogo tremendo + brasas;
+// raio = raios piscando; glitch = cópias coloridas tremendo; pulso = respira; arco = cores mudando
+export type FxMoldura = 'brilho' | 'faisca' | 'chama' | 'raio' | 'glitch' | 'pulso' | 'arco';
+export const MOLDURA_FX: Record<string, FxMoldura[]> = {
+  'm-neon-roxo': ['brilho'], 'm-neon-laranja': ['brilho'], 'm-limao': ['brilho'], 'm-gelo': ['brilho'],
+  'm-holografica': ['brilho', 'arco'], 'm-por-do-sol': ['brilho'], 'm-oceano': ['brilho'], 'm-brasil': ['brilho'],
+  'm-circuito': ['brilho'], 'm-portal': ['brilho', 'pulso'], 'm-pulso': ['brilho', 'pulso'],
+  'm-fogo': ['chama', 'brilho'], 'm-raio': ['raio', 'brilho'], 'm-glitch': ['glitch'], 'm-pixel': ['glitch'],
+  'm-galaxia': ['brilho', 'faisca'], 'm-cristal-plasma': ['brilho', 'faisca'], 'm-eclipse': ['brilho', 'faisca'],
+  'm-aurora': ['brilho', 'faisca', 'arco'], 'm-cauda-estelar': ['brilho', 'faisca'],
+  'm-coroa': ['brilho', 'faisca', 'pulso'], 'm-cristal': ['brilho', 'faisca', 'pulso'],
+  'm-mais': ['brilho', 'faisca'], 'm-pro': ['brilho', 'faisca', 'chama'], 'm-pro-eletrica': ['raio'],
+  'm-sakura': ['brilho', 'faisca'], 'm-guirlanda': ['faisca'], 'm-pisca-pisca': ['faisca', 'brilho'],
+};
+
+// Efeitos de perfil: partículas desenhadas por cima do cartão (components/nex/efeito-perfil.tsx)
+export type TipoEfeito = 'faiscas' | 'neve' | 'coracoes' | 'brasas' | 'nevoa' | 'raios' | 'estrelas' | 'aurora';
+export const EFEITOS: Record<string, { tipo: TipoEfeito; cores: string[] }> = {
+  'e-faiscas': { tipo: 'faiscas', cores: ['#ffffff', '#ffe28a', '#c9a6ff'] },
+  'e-neve': { tipo: 'neve', cores: ['#ffffff', '#d8f1ff'] },
+  'e-coracoes': { tipo: 'coracoes', cores: ['#ff4f79', '#ff8cc6', '#ffb3d1'] },
+  'e-brasas': { tipo: 'brasas', cores: ['#ff6a00', '#ffb000', '#ff3d00'] },
+  'e-nevoa': { tipo: 'nevoa', cores: ['#7a2cff', '#b366ff', '#3b1a73'] },
+  'e-raios': { tipo: 'raios', cores: ['#7fb2ff', '#c8e2ff', '#5b6bff'] },
+  'e-estrelas': { tipo: 'estrelas', cores: ['#ffffff', '#ffe28a', '#9fd8ff'] },
+  'e-aurora': { tipo: 'aurora', cores: ['#3dffb0', '#7a2cff', '#00d4ff'] },
+  'e-pro': { tipo: 'raios', cores: ['#ffd000', '#fff3a8', '#ff6a00'] },
 };
 
 // Placas com arte (public/itens/placas/<id>.webp, 120px de altura): o meio estica e as pontas ficam iguais

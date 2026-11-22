@@ -118,6 +118,7 @@ model Profile {
   icone        String?    @db.VarChar(40)
   placa        String?    @db.VarChar(40)
   somEntrada   String?    @db.VarChar(40)
+  efeitoPerfil String?    @db.VarChar(40)
   // Zoeiras na call: aceita receber? escudo ativo até quando?
   receberZoeiras Boolean  @default(true)
   escudoAte    DateTime?

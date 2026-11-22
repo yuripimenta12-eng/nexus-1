@@ -13,6 +13,7 @@ import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
 import { corSegura } from '@/lib/seguro';
 import { NomeComItens } from '@/components/nex/itens-visuais';
+import { EfeitoPerfil } from '@/components/nex/efeito-perfil';
 import { corNomeDe } from '@/lib/planos';
 import { JogandoAgora, SecoesPerfilGamer } from '@/components/perfil/secoes-perfil';
 import type { PerfilCompleto } from '@/lib/perfil-gamer';
@@ -39,7 +40,7 @@ interface Member {
     id: string;
     username: string;
     isBetaTester?: boolean;
-    profile: { displayName: string; avatarUrl: string | null; customStatus?: string | null } | null;
+    profile: { displayName: string; avatarUrl: string | null; customStatus?: string | null; efeitoPerfil?: string | null } | null;
   };
 }
 
@@ -313,10 +314,11 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-[340px] animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+      <EfeitoPerfil id={pub?.profile?.efeitoPerfil ?? member.user.profile?.efeitoPerfil} className="rounded-[18px]" />
       <div
-        className="relative w-full max-w-[340px] max-h-[90vh] overflow-y-auto nx-no-scrollbar rounded-[18px] border border-[var(--th-line-2)] bg-[var(--th-panel)]
-                   shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
+        className="relative w-full max-h-[90vh] overflow-y-auto nx-no-scrollbar rounded-[18px] border border-[var(--th-line-2)] bg-[var(--th-panel)]
+                   shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
       >
         {/* Banner: imagem do perfil, o gradiente escolhido ou a cor do cargo */}
         <div className="relative h-[92px]" style={{ background: bannerBg }}>
@@ -423,6 +425,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           className="absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-black/30 hover:bg-black/50 text-white grid place-items-center">
           <X className="w-4 h-4" />
         </button>
+      </div>
       </div>
     </div>
   );

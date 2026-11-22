@@ -147,6 +147,10 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     check('Nexus+ não usa a do Pro', r.status === 403, `status ${r.status}`);
     r = await call('POST', '/loja/comprar/m-pro', null, t);
     check('moldura do plano não se compra', r.status === 400, `status ${r.status}`);
+    r = await call('PUT', '/loja/equipar', { tipo: 'efeito', itemId: 'e-pro' }, t);
+    check('Nexus+ não usa o efeito do Pro', r.status === 403, `status ${r.status}`);
+    r = await call('PUT', '/loja/equipar', { tipo: 'efeito', itemId: 'm-mais' }, t);
+    check('moldura não entra no lugar do efeito', r.status === 400, `status ${r.status}`);
 
     console.log('● Foto animada');
     r = await call('POST', '/upload/avatar', arquivo(GIF, 'image/gif', 'a.gif'), t, true);
@@ -166,10 +170,12 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     check('Nexus+ manda arquivo de 51 MB', r.status === 201, `status ${r.status} ${r.data?.message}`);
 
     console.log('● Plano acabou');
+    await prisma.profile.update({ where: { userId: U.id }, data: { efeitoPerfil: 'e-pro' } });
     r = await call('POST', `/admin/users/${U.id}/plano`, { plano: 'gratis' }, ta);
     const perfil = await prisma.profile.findUnique({ where: { userId: U.id } });
     check('sai a cor do nome', perfil.corNome === null);
     check('sai a moldura do plano', perfil.moldura === null);
+    check('sai o efeito do plano', perfil.efeitoPerfil === null);
     check('foto animada vira a cópia parada', /-anim-estatico\.webp$/.test(perfil.avatarUrl || ''), perfil.avatarUrl);
   } catch (e) {
     falhas++; console.log('ERRO no teste:', e.message);

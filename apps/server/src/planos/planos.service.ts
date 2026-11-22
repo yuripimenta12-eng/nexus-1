@@ -64,7 +64,7 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
   async ajustarPerfil(userIds: string[]) {
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, plano: true, planoAte: true, profile: { select: { corNome: true, moldura: true, avatarUrl: true, bannerUrl: true } } },
+      select: { id: true, plano: true, planoAte: true, profile: { select: { corNome: true, moldura: true, efeitoPerfil: true, avatarUrl: true, bannerUrl: true } } },
     });
     // Foto animada enviada com plano tem uma cópia parada ao lado (ver UploadService)
     const parar = (url: string | null) => (url && /-anim\.gif$/.test(url) ? url.replace(/-anim\.gif$/, '-anim-estatico.webp') : undefined);
@@ -73,10 +73,12 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
       if (!p) continue;
       const plano = planoAtivo(u.plano, u.planoAte);
       const b = BENEFICIOS[plano];
-      const data: { corNome?: null; moldura?: null; avatarUrl?: string; bannerUrl?: string } = {};
+      const data: { corNome?: null; moldura?: null; efeitoPerfil?: null; avatarUrl?: string; bannerUrl?: string } = {};
       if (!b.corNome && p.corNome) data.corNome = null;
       const m = p.moldura ? itemPorId(p.moldura) : undefined;
       if (m?.incluiPlano && !planoCobre(plano, m.incluiPlano)) data.moldura = null;
+      const e = p.efeitoPerfil ? itemPorId(p.efeitoPerfil) : undefined;
+      if (e?.incluiPlano && !planoCobre(plano, e.incluiPlano)) data.efeitoPerfil = null;
       if (!b.avatarAnimado) {
         const a = parar(p.avatarUrl); if (a) data.avatarUrl = a;
         const c = parar(p.bannerUrl); if (c) data.bannerUrl = c;

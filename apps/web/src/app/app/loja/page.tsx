@@ -4,18 +4,21 @@
 // Quem decide preço, saldo e posse é o servidor (/loja); aqui só mostra.
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Check, Lock, Loader2, X, Crown, Play, Palette, Gem } from 'lucide-react';
+import { Store, Check, Lock, Loader2, X, Crown, Play, Palette, Gem, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { SecaoBaus, BannerEvento } from '@/components/nex/baus';
 import { playSomEntrada } from '@/lib/sounds';
 import api from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
+import { corSegura } from '@/lib/seguro';
+import { corNomeDe } from '@/lib/planos';
 import { toast } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNex } from '@/lib/nex';
 import { RARIDADE, SONS, SONS_ARTE, TEMAS, arteDaZoeira, arteDoTema, type Raridade, type TipoItem } from '@/lib/itens';
 import { Avatar } from '@/components/ui/avatar';
-import { ArteIcone, NomeComItens } from '@/components/nex/itens-visuais';
+import { ArteIcone, Moldura, NomeComItens } from '@/components/nex/itens-visuais';
+import { EfeitoPerfil } from '@/components/nex/efeito-perfil';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 
@@ -29,6 +32,7 @@ const SECOES = [
   { id: 'moldura', nome: 'Molduras', arte: 'molduras' },
   { id: 'icone', nome: 'Ícones', arte: 'icone' },
   { id: 'placa', nome: 'Placas do nome', arte: 'placa' },
+  { id: 'efeito', nome: 'Efeitos de perfil', arte: 'efeito' },
   { id: 'som', nome: 'Sons de entrada', arte: 'som' },
   { id: 'tema', nome: 'Temas de servidor', arte: 'tema' },
   { id: 'zoeiras', nome: 'Zoeiras', arte: 'zoeiras' },
@@ -44,6 +48,7 @@ export default function LojaPage() {
   const [provando, setProvando] = useState<ItemLoja | null>(null);
   const [comprando, setComprando] = useState<ItemLoja | null>(null);
   const [aplicando, setAplicando] = useState<ItemLoja | null>(null);
+  const [vendo, setVendo] = useState<ItemLoja | null>(null); // janela grande de prévia
   const [ocupado, setOcupado] = useState(false);
 
   const carregar = () => api.get('/loja').then(({ data }) => setDados(data)).catch(() => setDados(d => d ?? { saldo: 0, plano: 'gratis', equipados: { moldura: null, icone: null, placa: null }, itens: [] }));
@@ -62,6 +67,7 @@ export default function LojaPage() {
     moldura: provando?.tipo === 'moldura' ? provando.id : dados?.equipados.moldura,
     icone: provando?.tipo === 'icone' ? provando.id : dados?.equipados.icone,
     placa: provando?.tipo === 'placa' ? provando.id : dados?.equipados.placa,
+    efeito: provando?.tipo === 'efeito' ? provando.id : dados?.equipados.efeito,
   };
   const nome = user?.profile?.displayName || user?.username || 'Você';
 
@@ -148,11 +154,13 @@ export default function LojaPage() {
                   return (
                     <div key={i.id}
                       onMouseEnter={() => setProvando(i)} onFocus={() => setProvando(i)}
-                      className={cn('group relative rounded-2xl border overflow-hidden flex flex-col transition-transform hover:-translate-y-0.5',
+                      onClick={e => { if (TEM_PREVIA.has(i.tipo) && !(e.target as HTMLElement).closest('button,a')) setVendo(i); }}
+                      className={cn('group relative rounded-2xl border overflow-hidden flex flex-col transition-transform hover:-translate-y-0.5', TEM_PREVIA.has(i.tipo) && 'cursor-pointer',
                         provando?.id === i.id ? 'border-white/30' : 'border-white/10')}
                       style={{ background: r.fundo }}>
                       <div className="h-[118px] grid place-items-center relative">
                         <PreviaItem item={i} nome={nome} avatar={user?.profile?.avatarUrl} />
+                        {TEM_PREVIA.has(i.tipo) && <span className="absolute bottom-1.5 right-2 flex items-center gap-1 text-[10px] font-bold text-white/70 opacity-0 group-hover:opacity-100 transition-opacity"><Eye className="w-3 h-3" /> Ver</span>}
                         {usando && <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#3ddc84]/15 text-[#3ddc84]">Usando</span>}
                         {i.soPro && <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#ffc23d]/15 text-[#ffc23d]"><Crown className="w-3 h-3" /> Pro</span>}
                         {i.incluiPlano && <span className={cn('absolute top-2 right-2 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full', i.incluiPlano === 'pro' ? 'bg-[#ffc23d]/15 text-[#ffc23d]' : 'bg-[#3ee0ff]/15 text-[#8ff0ff]')}>{i.incluiPlano === 'pro' ? <Crown className="w-3 h-3" /> : <Gem className="w-3 h-3" />} Grátis no {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</span>}
@@ -201,10 +209,7 @@ export default function LojaPage() {
           {/* Prévia: como fica em você */}
           <aside className="lg:sticky lg:top-6 self-start rounded-2xl border border-[#2e2340] bg-[#140f1e] p-4">
             <p className="text-[11px] font-black uppercase tracking-[1.5px] text-[#ffb070]">Como fica em você</p>
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <Avatar src={user?.profile?.avatarUrl} name={nome} size="xl" moldura={visual.moldura} />
-              <NomeComItens nome={nome} icone={visual.icone} placa={visual.placa} className="text-white text-lg font-black" />
-            </div>
+            <div className="mt-3"><CartaoPrevia visual={visual} /></div>
             <div className="mt-5 rounded-xl bg-black/25 p-3 space-y-2">
               <p className="text-[10px] font-black uppercase tracking-wider text-[#8d82a0]">Na lista de membros</p>
               <div className="flex items-center gap-2.5">
@@ -218,6 +223,38 @@ export default function LojaPage() {
       </div>
 
       {aplicando && <AplicarTema tema={aplicando} onFechar={() => setAplicando(null)} />}
+
+      <AnimatePresence>
+        {vendo && dados && (() => {
+          const it = dados.itens.find(x => x.id === vendo.id) ?? vendo;
+          const usando = dados.equipados[it.tipo] === it.id;
+          const v = { ...dados.equipados, [it.tipo]: it.id } as Visual;
+          return (
+            <PreviaGrande item={it} visual={v} onFechar={() => setVendo(null)}>
+              {it.possui ? (
+                <button disabled={ocupado} onClick={() => equipar(it, !usando)}
+                  className={cn('w-full h-11 rounded-[13px] text-sm font-black flex items-center justify-center gap-2',
+                    usando ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-[#3ddc84] text-[#06210f] hover:brightness-110')}>
+                  {ocupado ? <Loader2 className="w-4 h-4 animate-spin" /> : usando ? 'Tirar' : <><Check className="w-4 h-4" /> Usar agora</>}
+                </button>
+              ) : it.incluiPlano ? (
+                <Link href="/app/planos" className="w-full h-11 rounded-[13px] text-sm font-black flex items-center justify-center gap-2 bg-[#2a1c45] text-white border border-[#4d3560]">
+                  <Lock className="w-4 h-4" /> Vem com o {it.incluiPlano === 'pro' ? 'Nexus Pro' : 'Nexus+'}
+                </Link>
+              ) : it.soPro && dados.plano !== 'pro' ? (
+                <span className="w-full h-11 rounded-[13px] text-sm font-black flex items-center justify-center gap-2 bg-black/30 text-[#a99fc0]"><Lock className="w-4 h-4" /> Só com Pro</span>
+              ) : it.preco !== null ? (
+                <button onClick={() => { setVendo(null); setComprando(it); }}
+                  className="w-full h-11 rounded-[13px] text-sm font-black text-white bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] flex items-center justify-center gap-2 hover:brightness-110">
+                  Comprar por <MoedaNex className="w-5 h-5" /> {formatarNex(it.preco)}
+                </button>
+              ) : (
+                <span className="w-full h-11 rounded-[13px] text-sm font-black flex items-center justify-center bg-black/30 text-[#a99fc0]">Só sai em baú</span>
+              )}
+            </PreviaGrande>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* Confirmar compra */}
       <AnimatePresence>
@@ -397,5 +434,110 @@ function PreviaItem({ item, nome, avatar }: { item: ItemLoja; nome: string; avat
         className="w-9 h-9 rounded-full grid place-items-center bg-white/10 hover:bg-white/20 text-white"><Play className="w-4 h-4 ml-0.5" /></button>
     </span>
   );
+  if (item.tipo === 'efeito') return (
+    <div className="relative w-[150px] h-[96px] rounded-xl overflow-hidden border border-white/10 bg-[#120d1c] shadow-[0_10px_24px_rgba(0,0,0,0.45)]">
+      <div className="h-9 bg-gradient-to-r from-[#7a2cff] to-[#ff6a00] opacity-80" />
+      <div className="absolute left-3 top-5"><Foto src={avatar} nome={nome} tamanho={40} /></div>
+      <span className="absolute left-3 bottom-2.5 h-2 w-20 rounded-full bg-white/25" />
+      <EfeitoPerfil id={item.id} />
+    </div>
+  );
   return <NomeComItens nome={nome} placa={item.id} className="text-white text-base font-black max-w-[90%]" />;
 }
+
+type Visual = Partial<Record<TipoItem, string | null | undefined>>;
+// Tipos que abrem a janela grande ao clicar (tema e som têm o próprio jeito)
+const TEM_PREVIA = new Set<TipoItem>(['moldura', 'icone', 'placa', 'efeito']);
+
+/** Foto redonda de qualquer tamanho, com a moldura por cima. */
+function Foto({ src, nome, tamanho, moldura }: { src?: string | null; nome: string; tamanho: number; moldura?: string | null }) {
+  return (
+    <div className="relative shrink-0" style={{ width: tamanho, height: tamanho }}>
+      {src
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={src} alt="" className="w-full h-full rounded-full object-cover" />
+        : <div className="w-full h-full rounded-full grid place-items-center bg-accent text-white font-black" style={{ fontSize: tamanho * 0.36 }}>{getInitials(nome)}</div>}
+      <Moldura id={moldura} espessura={Math.max(3, Math.round(tamanho / 18))} />
+    </div>
+  );
+}
+
+/** Seu cartão de perfil com os itens do "visual" (o que está usando + o que está provando). */
+function CartaoPrevia({ visual, tamanhoFoto = 72 }: { visual: Visual; tamanhoFoto?: number }) {
+  const { user } = useAuthStore();
+  const pf = user?.profile;
+  const nome = pf?.displayName || user?.username || 'Você';
+  const [b1, b2] = (pf?.bannerColor || '').split(',').map(c => corSegura(c, ''));
+  const banner = pf?.bannerUrl ? `center / cover no-repeat url(${pf.bannerUrl})` : b1 && b2 ? `linear-gradient(120deg, ${b1}, ${b2})` : 'linear-gradient(120deg, #7a2cff, #ff6a00)';
+  return (
+    <div className="relative w-full rounded-[16px] overflow-hidden border border-white/10 bg-[#151020] shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
+      <div className="h-[70px]" style={{ background: banner }} />
+      <div className="px-3.5 pb-3.5" style={{ marginTop: -tamanhoFoto / 2 }}>
+        <div className="rounded-full inline-block ring-4 ring-[#151020]"><Foto src={pf?.avatarUrl} nome={nome} tamanho={tamanhoFoto} moldura={visual.moldura} /></div>
+        <div className="mt-2"><NomeComItens nome={nome} icone={visual.icone} placa={visual.placa} corNome={corNomeDe(user)} className="text-white text-lg font-black" /></div>
+        <p className="text-xs text-[#8d82a0]">@{user?.username}</p>
+      </div>
+      <EfeitoPerfil id={visual.efeito} />
+    </div>
+  );
+}
+
+/** Janela grande: o item em destaque à esquerda e, à direita, seu perfil e uma mensagem já usando ele. */
+function PreviaGrande({ item, visual, onFechar, children }: { item: ItemLoja; visual: Visual; onFechar: () => void; children: React.ReactNode }) {
+  const { user } = useAuthStore();
+  const pf = user?.profile;
+  const nome = pf?.displayName || user?.username || 'Você';
+  const r = RARIDADE[item.raridade];
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onFechar();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onFechar]);
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <motion.div className="fixed inset-0 z-[70] bg-black/75 flex items-center justify-center p-3 sm:p-6"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onFechar}>
+      <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94, y: 12 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+        onClick={e => e.stopPropagation()} role="dialog" aria-label={`Prévia de ${item.nome}`}
+        className="relative w-full max-w-[860px] max-h-[92vh] overflow-y-auto nx-no-scrollbar rounded-[22px] border border-[#3a2a4d] bg-[#120d1c] grid md:grid-cols-[300px_1fr] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+        {/* Item em destaque */}
+        <div className="p-6 flex flex-col">
+          <div className="flex-1 min-h-[180px] grid place-items-center">
+            {item.tipo === 'moldura' ? <Foto src={pf?.avatarUrl} nome={nome} tamanho={132} moldura={item.id} />
+              : item.tipo === 'icone' ? <ArteIcone id={item.id} tamanho={120} className="drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
+              : item.tipo === 'placa' ? <NomeComItens nome={nome} placa={item.id} className="text-white text-2xl font-black" />
+              : <div className="relative w-[200px] h-[150px] rounded-2xl overflow-hidden border border-white/10 bg-[#0d0915]"><EfeitoPerfil id={item.id} /></div>}
+          </div>
+          <p className="mt-4 text-[10px] font-black uppercase tracking-wider" style={{ color: r.cor }}>◆ {r.nome}</p>
+          <h3 className="text-white text-2xl font-black leading-tight">{item.nome}</h3>
+          <p className="text-sm text-[#a99fc0] mt-1">{DESCRICAO[item.tipo]}</p>
+          <div className="mt-5">{children}</div>
+        </div>
+        {/* Como fica em você */}
+        <div className="relative min-h-[340px] p-6 pt-14 flex flex-col items-center justify-center gap-3 overflow-hidden" style={{ background: r.fundo }}>
+          <div className="absolute inset-0 opacity-60" style={{ background: `radial-gradient(60% 60% at 50% 40%, ${r.cor}33, transparent 70%)` }} />
+          <span className="absolute top-4 left-4 text-[11px] font-black px-2.5 py-1 rounded-full bg-black/40 text-white/90">Como fica em você</span>
+          <div className="relative w-full max-w-[300px]"><CartaoPrevia visual={visual} tamanhoFoto={80} /></div>
+          <div className="relative w-full max-w-[340px] rounded-[14px] bg-[#1a1326]/95 border border-white/10 p-3 flex gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.45)]">
+            <Foto src={pf?.avatarUrl} nome={nome} tamanho={36} moldura={visual.moldura} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <NomeComItens nome={nome} icone={visual.icone} placa={visual.placa} corNome={corNomeDe(user)} className="text-sm font-bold text-white" />
+                <span className="text-[10px] text-[#8d82a0] shrink-0">{hora}</span>
+              </div>
+              <p className="text-[13px] text-[#e6dff0]">Olha o meu visual novo 😎</p>
+            </div>
+          </div>
+        </div>
+        <button onClick={onFechar} aria-label="Fechar" className="absolute right-3 top-3 w-9 h-9 rounded-full grid place-items-center bg-black/40 text-white hover:bg-black/60"><X className="w-4 h-4" /></button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const DESCRICAO: Partial<Record<TipoItem, string>> = {
+  moldura: 'Fica em volta da sua foto em todo lugar.',
+  icone: 'Aparece ao lado do seu nome na lista, no chat e na call.',
+  placa: 'Uma faixa colorida atrás do seu nome.',
+  efeito: 'Uma animação por cima do seu perfil quando alguém abre ele.',
+};

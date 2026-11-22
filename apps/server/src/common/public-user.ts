@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 export const PUBLIC_PROFILE = {
   select: {
     id: true, userId: true, displayName: true, avatarUrl: true, bannerUrl: true, bannerColor: true, bio: true,
-    status: true, customStatus: true, moldura: true, icone: true, placa: true, somEntrada: true,
+    status: true, customStatus: true, moldura: true, icone: true, placa: true, somEntrada: true, efeitoPerfil: true,
     receberZoeiras: true, escudoAte: true, corNome: true, procurandoDuo: true, updatedAt: true,
   },
 } satisfies Prisma.ProfileDefaultArgs;

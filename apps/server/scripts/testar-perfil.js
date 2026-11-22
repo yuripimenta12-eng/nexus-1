@@ -60,4 +60,10 @@ const dj = fs.readFileSync(path.join(__dirname, '..', '..', 'dj', 'src', 'index.
 const m = dj.match(/FILA_POR_PLANO = \{ gratis: (\d+), mais: (\d+), pro: (\d+) \}/);
 caso('fila do DJ igual nos dois lugares', m && [Number(m[1]), Number(m[2]), Number(m[3])], [BENEFICIOS.gratis.filaDj, BENEFICIOS.mais.filaDj, BENEFICIOS.pro.filaDj]);
 
+// Todo item do catálogo tem visual no site (senão some em silêncio no perfil)
+const { CATALOGO } = carregar('loja/loja.catalogo.ts');
+const visual = fs.readFileSync(path.join(__dirname, '..', '..', 'web', 'src', 'lib', 'itens.ts'), 'utf8');
+const semVisual = CATALOGO.filter(i => ['moldura', 'icone', 'efeito'].includes(i.tipo) && !visual.includes("'" + i.id + "':")).map(i => i.id);
+caso('todo item da loja tem visual no site', semVisual, []);
+
 console.log(`\n${ok} verificações passaram.`);
