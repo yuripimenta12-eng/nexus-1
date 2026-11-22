@@ -13,7 +13,9 @@ import { useAuthStore } from '@/stores/auth.store';
 
 const LIMA = '#c8f53b';
 
-export const CONQUISTAS: { chave: string; emoji: string; nome: string; meta: string }[] = [
+// Arte de cada uma em public/conquistas/<chave>.webp. exclusiva: só aparece para quem tem (não dá mais para ganhar)
+export const CONQUISTAS: { chave: string; emoji: string; nome: string; meta: string; exclusiva?: boolean }[] = [
+  { chave: 'beta', emoji: '🧪', nome: 'Beta', meta: 'Jogou no beta do Nexus', exclusiva: true },
   { chave: 'tagarela', emoji: '💬', nome: 'Tagarela', meta: '100 mensagens' },
   { chave: 'rato-de-call', emoji: '🎧', nome: 'Rato de call', meta: '10 h em call' },
   { chave: 'dj-da-mesa', emoji: '🎛️', nome: 'DJ da mesa', meta: '100 músicas' },
@@ -104,7 +106,7 @@ export function BatimentoPlacar() {
                      bg-[#141019]/95 border shadow-2xl"
           style={{ borderColor: `${LIMA}88`, boxShadow: `0 0 24px ${LIMA}33` }}
         >
-          <Hexagono emoji={c.emoji} ativo tamanho={52} />
+          <Hexagono chave={c.chave} emoji={c.emoji} ativo tamanho={56} />
           <div className="min-w-0">
             <p className="text-[10px] font-black tracking-[2px] uppercase" style={{ color: LIMA }}>Conquista desbloqueada</p>
             <b className="block text-white text-lg leading-tight">{c.nome}</b>
@@ -117,7 +119,14 @@ export function BatimentoPlacar() {
 }
 
 const HEX = 'polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%)';
-function Hexagono({ emoji, ativo, tamanho = 44 }: { emoji: string; ativo: boolean; tamanho?: number }) {
+function Hexagono({ chave, emoji, ativo, tamanho = 44 }: { chave?: string; emoji: string; ativo: boolean; tamanho?: number }) {
+  // Com arte: o próprio hexágono 3D (bloqueada fica cinza e apagada)
+  if (chave) return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/conquistas/${chave}.webp`} alt="" draggable={false} width={tamanho} height={tamanho}
+      className={cn('shrink-0 select-none object-contain transition-[filter,opacity]', ativo ? 'drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]' : 'grayscale opacity-30')}
+      style={{ width: tamanho, height: tamanho }} />
+  );
   return (
     <div className="shrink-0 grid place-items-center" style={{ width: tamanho, height: tamanho * 0.9, clipPath: HEX, background: ativo ? LIMA : '#2a2433' }}>
       <div className="grid place-items-center" style={{ width: tamanho - 4, height: tamanho * 0.9 - 4, clipPath: HEX, background: ativo ? '#18131f' : '#1a1620' }}>
@@ -146,7 +155,7 @@ export function FaixaConquistas({ userId, className }: { userId?: string; classN
       <div className="flex flex-wrap gap-1">
         {lista.map(c => (
           <div key={c.chave} title={`${c.nome} · ${c.meta}`} role="img" aria-label={c.nome}>
-            <Hexagono emoji={c.emoji} ativo tamanho={36} />
+            <Hexagono chave={c.chave} emoji={c.emoji} ativo tamanho={40} />
           </div>
         ))}
       </div>
@@ -229,12 +238,12 @@ export function PainelPlacar({ serverId }: { serverId: string }) {
 
       <h4 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mt-6 mb-3">Suas conquistas</h4>
       <div className="grid grid-cols-4 gap-x-1 gap-y-3">
-        {CONQUISTAS.map(c => {
+        {CONQUISTAS.filter(c => !c.exclusiva || conq.has(c.chave)).map(c => {
           const ativo = conq.has(c.chave);
           return (
             <motion.div key={c.chave} title={`${c.nome} · ${c.meta}`} className="flex flex-col items-center text-center"
               whileHover={{ y: -3, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
-              <Hexagono emoji={c.emoji} ativo={ativo} />
+              <Hexagono chave={c.chave} emoji={c.emoji} ativo={ativo} tamanho={52} />
               <b className={cn('text-[9.5px] leading-tight mt-1', ativo ? 'text-white' : 'text-[#5c5468]')}>{c.nome}</b>
               <small className={cn('text-[8.5px] leading-tight', ativo ? 'text-[#a99cb8]' : 'text-[#4a4354]')}>{c.meta}</small>
             </motion.div>

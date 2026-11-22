@@ -156,7 +156,7 @@ export class PlacarService {
       this.prisma.conquista.findMany({ where: { userId }, select: { chave: true, desbloqueadaEm: true } }),
       this.progresso(userId),
     ]);
-    return { desbloqueadas: lista, progresso };
+    return { desbloqueadas: await this.comBeta(userId, lista), progresso };
   }
 
   // Conquistas de qualquer pessoa, para o cartão de perfil (só as desbloqueadas)
@@ -166,7 +166,13 @@ export class PlacarService {
     const desbloqueadas = await this.prisma.conquista.findMany({
       where: { userId }, select: { chave: true, desbloqueadaEm: true }, orderBy: { desbloqueadaEm: 'asc' },
     });
-    return { desbloqueadas };
+    return { desbloqueadas: await this.comBeta(userId, desbloqueadas) };
+  }
+
+  // "Beta": quem participou do beta (marca isBetaTester, dada pelo dono no painel). Vem primeiro.
+  private async comBeta(userId: string, lista: { chave: string; desbloqueadaEm: Date }[]) {
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBetaTester: true, createdAt: true } });
+    return u?.isBetaTester ? [{ chave: 'beta', desbloqueadaEm: u.createdAt }, ...lista] : lista;
   }
 
   private async progresso(userId: string, contarMensagens = true) {

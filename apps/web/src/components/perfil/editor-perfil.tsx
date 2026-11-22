@@ -2,6 +2,7 @@
 
 // Editor do perfil gamer com prévia ao vivo: jogos, "procurando duo", conexões
 // e cor do nome (Nexus+/Pro). Clicar numa parte da prévia pula para o ajuste.
+import { FaixaConquistas } from '@/components/voice/placar';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Loader2, Lock, Check } from 'lucide-react';
@@ -211,6 +212,7 @@ export function EditorPerfilGamer() {
             </div>
             <p className="text-[#8a8095] text-[12.5px]">@{user?.username}</p>
             <SeloPlano usuario={{ plano: simulado }} className="mt-2" />
+            <FaixaConquistas userId={user?.id} className="mt-3" />
             {extra.jogando && <div className="mt-3"><JogandoAgora nome={extra.jogando.nome} desde={extra.jogando.desde} /></div>}
             {(pf?.customStatus || pf?.bio) && (
               <div className="mt-3 rounded-xl bg-[var(--th-panel-2)] px-3 py-2.5 space-y-1">
