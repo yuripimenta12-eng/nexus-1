@@ -93,19 +93,17 @@ export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number
 };
 
 // Animação por cima da arte da moldura (components/nex/itens-visuais.tsx):
-// brilho = luz correndo pelo anel; faisca = brilhinhos; chama = fogo tremendo + brasas;
+// faisca = brilhinhos; chama = fogo tremendo + brasas;
 // raio = raios piscando; glitch = cópias coloridas tremendo; pulso = respira; arco = cores mudando
-export type FxMoldura = 'brilho' | 'faisca' | 'chama' | 'raio' | 'glitch' | 'pulso' | 'arco';
+export type FxMoldura = 'faisca' | 'chama' | 'raio' | 'glitch' | 'pulso' | 'arco';
 export const MOLDURA_FX: Record<string, FxMoldura[]> = {
-  'm-neon-roxo': ['brilho'], 'm-neon-laranja': ['brilho'], 'm-limao': ['brilho'], 'm-gelo': ['brilho'],
-  'm-holografica': ['brilho', 'arco'], 'm-por-do-sol': ['brilho'], 'm-oceano': ['brilho'], 'm-brasil': ['brilho'],
-  'm-circuito': ['brilho'], 'm-portal': ['brilho', 'pulso'], 'm-pulso': ['brilho', 'pulso'],
-  'm-fogo': ['chama', 'brilho'], 'm-raio': ['raio', 'brilho'], 'm-glitch': ['glitch'], 'm-pixel': ['glitch'],
-  'm-galaxia': ['brilho', 'faisca'], 'm-cristal-plasma': ['brilho', 'faisca'], 'm-eclipse': ['brilho', 'faisca'],
-  'm-aurora': ['brilho', 'faisca', 'arco'], 'm-cauda-estelar': ['brilho', 'faisca'],
-  'm-coroa': ['brilho', 'faisca', 'pulso'], 'm-cristal': ['brilho', 'faisca', 'pulso'],
-  'm-mais': ['brilho', 'faisca'], 'm-pro': ['brilho', 'faisca', 'chama'], 'm-pro-eletrica': ['raio'],
-  'm-sakura': ['brilho', 'faisca'], 'm-guirlanda': ['faisca'], 'm-pisca-pisca': ['faisca', 'brilho'],
+  'm-holografica': ['arco'], 'm-portal': ['pulso'], 'm-pulso': ['pulso'],
+  'm-fogo': ['chama'], 'm-raio': ['raio'], 'm-glitch': ['glitch'], 'm-pixel': ['glitch'],
+  'm-galaxia': ['faisca'], 'm-cristal-plasma': ['faisca'], 'm-eclipse': ['faisca'],
+  'm-aurora': ['faisca', 'arco'], 'm-cauda-estelar': ['faisca'],
+  'm-coroa': ['faisca', 'pulso'], 'm-cristal': ['faisca', 'pulso'],
+  'm-mais': ['faisca'], 'm-pro': ['faisca', 'chama'], 'm-pro-eletrica': ['raio'],
+  'm-sakura': ['faisca'], 'm-guirlanda': ['faisca'], 'm-pisca-pisca': ['faisca'],
 };
 
 // Aura animada em canvas (components/nex/aura-moldura.tsx) nas molduras especiais.

@@ -41,13 +41,6 @@ export function Moldura({ id, espessura: base = 3 }: { id?: string | null; espes
           {img('nx-fx-glitch-a opacity-60 mix-blend-screen', { filter: 'hue-rotate(90deg)' })}
           {img('nx-fx-glitch-b opacity-50 mix-blend-screen', { filter: 'hue-rotate(-120deg)' })}
         </>}
-        {pronta && fx.includes('brilho') && (
-          // Luz correndo só por cima da arte (a própria imagem é a máscara)
-          <span className="absolute inset-0 overflow-hidden mix-blend-screen"
-            style={{ WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>
-            <span className="absolute -inset-1/2 nx-fx-brilho" />
-          </span>
-        )}
         {fx.includes('faisca') && <Faiscas cx={cx} cy={cy} r0={furo * 1.15} cor={m.brilho ?? '#fff'} />}
         {fx.includes('chama') && <Brasas cx={cx} cy={cy} r={furo * 1.25} />}
         {fx.includes('raio') && <Raios cx={cx} cy={cy} r0={furo * 1.05} r1={0.5} cor={m.brilho ?? '#8ab4ff'} />}
