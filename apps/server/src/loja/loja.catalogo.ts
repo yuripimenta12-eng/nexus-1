@@ -108,7 +108,6 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-halloween', 'Noite das Bruxas', 'epica'),
   it('moldura', 'm-squad', 'Drop Quente', 'epica'),
   it('moldura', 'm-batida', 'Batida', 'epica'),
-  it('moldura', 'm-trovao-dourado', 'Trovão Dourado', 'lendaria'),
   it('moldura', 'm-paladino', 'Paladino', 'lendaria'),
   it('moldura', 'm-rainha', 'Rainha', 'lendaria'),
   it('moldura', 'm-dragao', 'Dragão Ametista', 'lendaria'),
