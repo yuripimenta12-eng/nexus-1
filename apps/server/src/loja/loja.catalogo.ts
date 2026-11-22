@@ -6,7 +6,7 @@ export const CAMPO_PERFIL = { moldura: 'moldura', icone: 'icone', placa: 'placa'
 export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 // incluiPlano: vem de graça com o plano (não vende; some se o plano acabar)
-// soStaff: só a equipe do Nexus (isAdmin) vê e usa; não vende nem sai em baú
+// soStaff: só a equipe do Nexus (cargo Staff ou isAdmin) vê e usa; não vende nem sai em baú
 export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; soStaff?: boolean }
 
 const PRECO = {
@@ -114,6 +114,7 @@ export const CATALOGO: Item[] = [
   // Só da equipe
   it('moldura', 'm-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
   it('moldura', 'm-moderacao', 'Martelo da Ordem', 'epica', { preco: null, soStaff: true }),
+  it('icone', 'i-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
   // Temas de servidor: o dono (ou admin) veste o servidor inteiro
   it('tema', 't-neblina', 'Neblina', 'rara'),
   it('tema', 't-arcade', 'Neon Arcade', 'rara'),

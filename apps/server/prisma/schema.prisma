@@ -22,6 +22,9 @@ model User {
   // Emblema BETA NEXT: quem criou conta enquanto o Nexus estava em beta
   // (o dono fecha a entrada de novos no painel e pode dar/tirar na mão)
   isBetaTester      Boolean  @default(false)
+  // Cargo Staff (equipe do Nexus): ganha as molduras e o ícone da equipe. O dono dá/tira no painel.
+  // isAdmin também conta como Staff.
+  isStaff           Boolean  @default(false)
   // Versão do app de PC (Electron) da última vez que a pessoa entrou por ele —
   // o dono vê no painel quem já atualizou. Vazio = nunca usou o app de PC.
   desktopVersion    String?  @db.VarChar(20)

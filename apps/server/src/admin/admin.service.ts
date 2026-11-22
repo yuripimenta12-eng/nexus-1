@@ -1,4 +1,5 @@
 import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { CATALOGO } from '../loja/loja.catalogo';
 import { toSafeUser } from '../common/safe-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { ADMIN_USER } from '../common/public-user';
@@ -129,6 +130,24 @@ export class AdminService {
       data: { actorId: adminId, action: on ? 'ADMIN_BETA_GRANT' : 'ADMIN_BETA_REVOKE', targetType: 'USER', targetId },
     });
     return { id: targetId, isBetaTester: on };
+  }
+
+  // Cargo Staff: ganha as molduras e o ícone da equipe. Ao tirar, sai o que era da equipe do perfil.
+  async setUserStaff(adminId: string, targetId: string, on: boolean) {
+    await this.requireAdmin(adminId);
+    if (typeof on !== 'boolean') throw new BadRequestException('Valor inválido');
+    const alvo = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true, isAdmin: true } });
+    if (!alvo) throw new NotFoundException('Usuário não encontrado');
+    await this.prisma.user.update({ where: { id: targetId }, data: { isStaff: on } });
+    if (!on && !alvo.isAdmin) {
+      const daEquipe = CATALOGO.filter(i => i.soStaff).map(i => i.id);
+      await this.prisma.profile.updateMany({ where: { userId: targetId, moldura: { in: daEquipe } }, data: { moldura: null } });
+      await this.prisma.profile.updateMany({ where: { userId: targetId, icone: { in: daEquipe } }, data: { icone: null } });
+    }
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: on ? 'ADMIN_STAFF_GRANT' : 'ADMIN_STAFF_REVOKE', targetType: 'USER', targetId },
+    });
+    return { id: targetId, isStaff: on };
   }
 
   // Dar/tirar plano na mão (enquanto não há pagamento)

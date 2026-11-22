@@ -20,5 +20,5 @@ export const PUBLIC_USER = {
 
 // Painel do dono: mesmo assim, nunca hash da senha nem 2FA
 export const ADMIN_USER = {
-  select: { id: true, username: true, email: true, createdAt: true, isSuspended: true, isAdmin: true, isBetaTester: true, profile: true },
+  select: { id: true, username: true, email: true, createdAt: true, isSuspended: true, isAdmin: true, isBetaTester: true, isStaff: true, profile: true },
 } satisfies Prisma.UserDefaultArgs;

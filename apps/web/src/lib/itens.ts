@@ -84,7 +84,7 @@ export const MOLDURAS: Record<string, { anel: string; brilho?: string; anim?: 'g
 export const ICONES: Record<string, string> = {
   'i-controle': '🎮', 'i-fantasma': '👻', 'i-gato': '🐱', 'i-pizza': '🍕',
   'i-caveira': '💀', 'i-foguete': '🚀', 'i-arara': '🦜', 'i-bola': '⚽',
-  'i-fogo': '🔥', 'i-raio': '⚡', 'i-coroa': '👑', 'i-diamante': '💎',
+  'i-fogo': '🔥', 'i-raio': '⚡', 'i-coroa': '👑', 'i-diamante': '💎', 'i-staff': '🛡️',
   'i-alien': '👽', 'i-gorro': '🎅', 'i-boneco': '⛄',
   // Só nos baús
   'i-camera': '📹', 'i-tv': '📺', 'i-coruja': '🦉', 'i-trofeu': '🏆', 'i-taca': '🏆',

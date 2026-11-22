@@ -155,6 +155,11 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     check('quem não é da equipe não usa a moldura Staff', r.status === 403, `status ${r.status}`);
     r = await call('GET', '/loja', null, t);
     check('moldura Staff não aparece na loja de quem não é da equipe', Array.isArray(r.data?.itens) && !r.data.itens.some(i => i.soStaff), `status ${r.status}`);
+    await prisma.user.update({ where: { id: U.id }, data: { isStaff: true } });
+    r = await call('PUT', '/loja/equipar', { tipo: 'icone', itemId: 'i-staff' }, t);
+    check('cargo Staff usa o ícone da equipe', r.status === 200, `status ${r.status}`);
+    await prisma.user.update({ where: { id: U.id }, data: { isStaff: false } });
+    await prisma.profile.update({ where: { userId: U.id }, data: { icone: null } });
 
     console.log('● Foto animada');
     r = await call('POST', '/upload/avatar', arquivo(GIF, 'image/gif', 'a.gif'), t, true);

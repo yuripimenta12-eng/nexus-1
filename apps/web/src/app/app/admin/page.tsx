@@ -109,6 +109,11 @@ export default function AdminPage() {
     },
   });
 
+  const staffMutation = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) => api.post(`/admin/users/${id}/staff`, { on }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  });
+
   // Dar/tirar plano na mão (enquanto não há pagamento)
   const planoMutation = useMutation({
     mutationFn: ({ id, plano, dias }: { id: string; plano: Plano; dias?: number }) => api.post(`/admin/users/${id}/plano`, { plano, dias }),
@@ -311,6 +316,10 @@ export default function AdminPage() {
                               <p className="text-white font-medium flex items-center gap-1.5">
                                 {u.profile?.displayName || u.username}
                                 {u.isBetaTester && <EmblemaBeta size={15} />}
+                                {u.isStaff && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src="/itens/icones/i-staff.webp" alt="Staff" title="Staff do Nexus" className="w-4 h-4 object-contain" />
+                                )}
                                 <EmblemaPlano usuario={u} size={15} />
                                 {u.twoFactorEnabled && <span title="Verificação em duas etapas ligada"><ShieldCheck className="w-3.5 h-3.5 text-success" /></span>}
                                 {u.isVerified && !isRemoved(u) && <span title="E-mail confirmado"><MailCheck className="w-3.5 h-3.5 text-accent-blue" /></span>}
@@ -374,6 +383,21 @@ export default function AdminPage() {
                               title={u.isBetaTester ? 'Tirar o emblema BETA NEXT' : 'Dar o emblema BETA NEXT'}
                             >
                               {u.isBetaTester ? 'Tirar BETA' : 'Dar BETA'}
+                            </button>
+                          )}
+                          {!isRemoved(u) && (
+                            <button
+                              onClick={() => {
+                                const nome = u.profile?.displayName || u.username;
+                                if (window.confirm(u.isStaff ? `Tirar o cargo Staff de ${nome}? Sai a moldura e o ícone da equipe do perfil.` : `Dar o cargo Staff para ${nome}? Ganha as molduras Staff e Martelo da Ordem e o ícone da equipe.`)) {
+                                  staffMutation.mutate({ id: u.id, on: !u.isStaff });
+                                }
+                              }}
+                              disabled={staffMutation.isPending}
+                              className="text-xs px-3 py-1 mr-2 rounded-md transition-colors disabled:opacity-30 bg-white/5 text-[#c9a6ff] hover:bg-white/10"
+                              title={u.isStaff ? 'Tirar o cargo Staff' : 'Dar o cargo Staff'}
+                            >
+                              {u.isStaff ? 'Tirar Staff' : 'Dar Staff'}
                             </button>
                           )}
                           {!isRemoved(u) && <button
