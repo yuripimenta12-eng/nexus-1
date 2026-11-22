@@ -4,6 +4,8 @@ import { useMediaStore } from '@/stores/media.store';
 import { useAuthStore } from '@/stores/auth.store';
 import api from '@/lib/api';
 import { LIVE_OPCOES, podeUsarLive, melhorLive, planoAtivo } from '@/lib/planos';
+// Só o tipo aqui: o pacote estende AudioWorkletNode, que não existe no servidor (SSR)
+import type { GtcrnWorkletNode } from '@sapphi-red/web-noise-suppressor';
 import {
   Room,
   RoomEvent,
@@ -111,35 +113,73 @@ interface VoiceStore {
   switchVideoInput: (deviceId: string) => Promise<void>;
 }
 
-// Pipeline WebAudio do microfone: getUserMedia → filtro grave → portão de
-// ruído → GainNode → track publicado. Permite controlar o ganho de entrada
-// (0–200%) em tempo real e cortar chiado/apito constante entre as falas.
+// Pipeline WebAudio do microfone: getUserMedia → filtro grave → supressão de
+// ruído com IA (GTCRN) → portão de ruído → GainNode → track publicado.
+// Permite controlar o ganho de entrada (0–200%) em tempo real.
 interface MicPipeline {
   ctx: AudioContext;
   raw: MediaStream;
   gain: GainNode;
   processed: MediaStreamTrack;
+  ia: GtcrnWorkletNode | null;
 }
 
 let micPipeline: MicPipeline | null = null;
 
+// Supressão de ruído com IA (GTCRN, @sapphi-red/web-noise-suppressor 0.4.1):
+// tira teclado, mouse, ventilador, cliques e barulho de fundo, deixando a voz.
+// Os arquivos ficam em public/ruido (copiados do pacote; trocar junto se atualizar a versão).
+const IA_WASM = '/ruido/gtcrn-0.4.1.wasm';
+const IA_WORKLET = '/ruido/gtcrn-0.4.1.js';
+let iaBinario: Promise<ArrayBuffer> | null = null;
+const pacoteIA = () => import('@sapphi-red/web-noise-suppressor');
+const carregarIA = () => (iaBinario ??= pacoteIA().then(m => m.loadGtcrn({ url: IA_WASM })).catch(e => { iaBinario = null; throw e; }));
+
 async function buildAndPublishMic(room: Room): Promise<void> {
   const ms = useMediaStore.getState();
-  const raw = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      deviceId: ms.audioInputId ? { exact: ms.audioInputId } : undefined,
-      echoCancellation: ms.echoCancellation,
-      noiseSuppression: ms.noiseSuppression,
-      autoGainControl: ms.autoGainControl,
-    },
-  });
   const ctx = new AudioContext();
   // Contexto pode nascer "suspended" (política de autoplay) = mic mudo sem erro.
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  // A IA só roda em 48kHz/16kHz (o padrão do Windows é 48kHz). Qualquer falha
+  // cai na supressão do próprio navegador: nunca deixa ninguém sem microfone.
+  let ia: GtcrnWorkletNode | null = null;
+  if (ms.noiseSuppression && (ctx as any).audioWorklet && (ctx.sampleRate === 48000 || ctx.sampleRate === 16000)) {
+    try {
+      const [bin] = await Promise.all([carregarIA(), ctx.audioWorklet.addModule(IA_WORKLET)]);
+      const { GtcrnWorkletNode } = await pacoteIA();
+      ia = new GtcrnWorkletNode(ctx, { maxChannels: 1, wasmBinary: bin });
+    } catch { ia = null; }
+  }
+
+  let raw: MediaStream;
+  try {
+    raw = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        deviceId: ms.audioInputId ? { exact: ms.audioInputId } : undefined,
+        echoCancellation: ms.echoCancellation,
+        // Com a IA ligada, a do navegador sai (as duas juntas deixam a voz "metálica")
+        noiseSuppression: ia ? false : ms.noiseSuppression,
+        autoGainControl: ms.autoGainControl,
+        channelCount: 1,
+      },
+    });
+  } catch (e) {
+    ia?.destroy(); ctx.close().catch(() => {});
+    throw e;
+  }
   const src = ctx.createMediaStreamSource(raw);
   const gain = ctx.createGain();
   gain.gain.value = ms.inputVolume / 100;
   const dst = ctx.createMediaStreamDestination();
+
+  // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
+  const highpass = ctx.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = 85;
+  src.connect(highpass);
+  let ultimo: AudioNode = highpass;
+  if (ia) { highpass.connect(ia); ultimo = ia; }
 
   // Portão de ruído na THREAD DE ÁUDIO (AudioWorklet): funciona igual com a
   // aba em segundo plano/minimizada. A versão antiga usava requestAnimationFrame,
@@ -150,7 +190,7 @@ async function buildAndPublishMic(room: Room): Promise<void> {
     try {
       const codigo = `
         class NexusGate extends AudioWorkletProcessor {
-          constructor() { super(); this.gain = 1; this.segurarAte = 0; }
+          constructor() { super(); this.gain = 1; this.segurarAte = 0; this.piso = 0.004; this.acima = 0; }
           process(inputs, outputs) {
             const inp = inputs[0], out = outputs[0];
             if (!inp || !inp[0] || !out || !out[0]) return true;
@@ -158,8 +198,14 @@ async function buildAndPublishMic(room: Room): Promise<void> {
             let sum = 0;
             for (let i = 0; i < ch0.length; i++) sum += ch0[i] * ch0[i];
             const rms = Math.sqrt(sum / ch0.length);
-            // ~ -38dB: fala normal passa, chiado de fundo não; segura 0,4s entre palavras
-            if (rms > 0.012) this.segurarAte = currentTime + 0.4;
+            // Aprende o barulho do ambiente: desce rápido, sobe devagar (a fala não "vira" piso)
+            this.piso = rms < this.piso ? this.piso * 0.9 + rms * 0.1 : this.piso * 0.9995 + rms * 0.0005;
+            // Abre só bem acima do ambiente (~ -38dB no mínimo): voz de quem está longe
+            // e o que sobrou de barulho ficam de fora
+            const limiar = Math.max(0.012, this.piso * 3.5);
+            // Precisa de ~8ms seguidos acima do limiar: estalo curto (tecla, clique) não abre
+            this.acima = rms > limiar ? this.acima + 1 : 0;
+            if (this.acima >= 3) this.segurarAte = currentTime + 0.35;
             const alvo = currentTime < this.segurarAte ? 1 : 0;
             // abre rápido (~30ms, não come o começo da palavra), fecha suave (~250ms)
             const passo = alvo > this.gain ? 0.3 : 0.05;
@@ -177,14 +223,8 @@ async function buildAndPublishMic(room: Room): Promise<void> {
       await ctx.audioWorklet.addModule(blobUrl);
       URL.revokeObjectURL(blobUrl);
 
-      // Filtro passa-alta: remove zumbido grave de energia/ventilador (< 85Hz)
-      const highpass = ctx.createBiquadFilter();
-      highpass.type = 'highpass';
-      highpass.frequency.value = 85;
       const gateNode = new AudioWorkletNode(ctx, 'nexus-gate');
-
-      src.connect(highpass);
-      highpass.connect(gateNode);
+      ultimo.connect(gateNode);
       gateNode.connect(gain);
       ligouGate = true;
     } catch {
@@ -192,7 +232,7 @@ async function buildAndPublishMic(room: Room): Promise<void> {
     }
   }
   if (!ligouGate) {
-    src.connect(gain);
+    ultimo.connect(gain);
   }
 
   gain.connect(dst);
@@ -201,7 +241,7 @@ async function buildAndPublishMic(room: Room): Promise<void> {
   await room.localParticipant.publishTrack(processed, {
     source: Track.Source.Microphone,
   });
-  micPipeline = { ctx, raw, gain, processed };
+  micPipeline = { ctx, raw, gain, processed, ia };
 }
 
 async function teardownMic(room: Room | null): Promise<void> {
@@ -213,6 +253,7 @@ async function teardownMic(room: Room | null): Promise<void> {
   }
   micPipeline?.raw.getTracks().forEach(t => t.stop());
   micPipeline?.processed.stop();
+  micPipeline?.ia?.destroy();
   micPipeline?.ctx.close().catch(() => {});
   micPipeline = null;
 }

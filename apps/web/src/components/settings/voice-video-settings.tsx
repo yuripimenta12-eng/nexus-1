@@ -176,8 +176,8 @@ export function VoiceVideoSettings() {
         {ms.inputProfile === 'custom' && (
           <div className="mt-3 rounded-2xl border border-[var(--th-line)] bg-[var(--th-panel)] divide-y divide-[var(--th-line)]">
             <ToggleRow
-              label="Supressão de ruído"
-              desc="Remove ruídos de fundo como ventilador e teclado"
+              label="Supressão de ruído com IA"
+              desc="Tira teclado, mouse, ventilador, cliques e barulho de fundo e deixa só a voz"
               checked={ms.noiseSuppression}
               onChange={(v) => { ms.setNoiseSuppression(v); rebuildMicIfLive(); }}
             />
@@ -195,7 +195,7 @@ export function VoiceVideoSettings() {
             />
             <ToggleRow
               label="Portão de ruído"
-              desc="Silencia seu microfone quando você não está falando — mata chiados e apitos constantes"
+              desc="Silencia seu microfone quando você não está falando — corta chiados e vozes de quem está longe"
               checked={ms.noiseGate}
               onChange={(v) => { ms.setNoiseGate(v); rebuildMicIfLive(); }}
             />
