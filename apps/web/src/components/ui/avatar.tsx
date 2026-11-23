@@ -25,7 +25,9 @@ interface AvatarProps {
 }
 
 export function Avatar({ src, name, size = 'md', className, moldura }: AvatarProps) {
-  const { wrapper, text, anel } = SIZES[size];
+  const { wrapper: tamanho, text, anel } = SIZES[size];
+  // Com moldura, o tamanho (e um className que o mude) fica no contêiner; a foto o preenche
+  const wrapper = moldura ? 'w-full h-full' : tamanho;
 
   const foto = src ? (
     <div className={cn('rounded-full overflow-hidden shrink-0', wrapper, !moldura && className)}>
@@ -46,7 +48,7 @@ export function Avatar({ src, name, size = 'md', className, moldura }: AvatarPro
 
   if (!moldura) return foto;
   return (
-    <div className={cn('relative shrink-0', wrapper, className)}>
+    <div className={cn('relative shrink-0', tamanho, className)}>
       {foto}
       <Moldura id={moldura} espessura={anel} />
     </div>
