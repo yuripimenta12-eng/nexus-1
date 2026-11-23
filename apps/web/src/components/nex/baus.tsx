@@ -122,7 +122,7 @@ export function BannerEvento({ onAbrir }: { onAbrir: () => void }) {
     <div className="nx-bau-card relative overflow-hidden rounded-[22px] border border-white/10 mb-4 p-5 sm:p-6 flex items-center gap-4"
       style={{ background: 'radial-gradient(circle at 85% 40%, rgba(255,59,59,0.35), transparent 55%), linear-gradient(110deg, #1d0f1a, #12301e)' }}>
       <EfeitoPerfil tipo="natal" cores={['#ffffff', '#d8f1ff']} className="z-0" />
-      <div className="relative z-10 min-w-0 flex-1">
+      <div className="relative z-10 min-w-0 flex-1 sm:pr-[44%]">
         <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#ff3b3b] text-white">● Evento de Natal</span>
         <h3 className="text-white text-2xl sm:text-3xl font-black mt-2 leading-tight">O Baú de Natal chegou 🎄</h3>
         <p className="text-sm text-white/80 mt-1">Guirlanda, Pisca-pisca, gorro e boneco de neve. Só saem agora, até o Dia de Reis.</p>
@@ -131,7 +131,9 @@ export function BannerEvento({ onAbrir }: { onAbrir: () => void }) {
           <span className="flex items-center gap-1.5 h-10 px-3 rounded-full text-xs font-black text-white border border-white/20"><Clock className="w-3.5 h-3.5" /> faltam {faltam(natal.ate)} dias</span>
         </div>
       </div>
-      <BauArte id={natal.id} cor={natal.cor} className="nx-bau-arte relative z-10 w-28 h-24 sm:w-40 sm:h-32 shrink-0 drop-shadow-[0_14px_30px_rgba(255,59,59,0.35)]" />
+      {/* No computador o baú ocupa a metade direita inteira do banner */}
+      <span aria-hidden className="hidden sm:block absolute z-0 right-[4%] bottom-3 w-[36%] h-6 rounded-[50%] bg-black/50 blur-[10px]" />
+      <BauArte id={natal.id} cor={natal.cor} className="nx-bau-arte relative z-10 w-28 h-24 shrink-0 sm:absolute sm:right-3 sm:inset-y-2 sm:w-[43%] sm:h-auto drop-shadow-[0_14px_30px_rgba(255,59,59,0.45)]" />
     </div>
   );
 }
