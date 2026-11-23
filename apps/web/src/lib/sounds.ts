@@ -233,11 +233,32 @@ function chacoalhar(startIn: number, dur: number, peak: number) {
   ruido.start(t0); ruido.stop(t0 + dur);
 }
 
-/** Alguém PISCOU para você na call: "tlim" rápido e a tela chacoalhando */
+// "Alarme": nota quadrada pulando entre dois tons bem rápido (estridente de propósito)
+function alarme(startIn: number, dur: number, f1: number, f2: number, porSegundo: number, peak: number) {
+  const c = ac();
+  if (!c) return;
+  const t0 = c.currentTime + startIn;
+  const o = c.createOscillator();
+  o.type = 'square';
+  const passo = 1 / porSegundo;
+  for (let t = 0, i = 0; t < dur; t += passo, i++) o.frequency.setValueAtTime(i % 2 ? f2 : f1, t0 + t);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.015);
+  g.gain.setValueAtTime(peak, t0 + dur - 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(c.destination);
+  o.start(t0);
+  o.stop(t0 + dur + 0.05);
+}
+
+/** Alguém PISCOU para você na call: alto e chato de propósito, é para chamar atenção.
+ *  Dois "BRRRIM" de alarme com a tela chacoalhando por baixo (~1 s). */
 export function playPiscada() {
-  tone(1568.0, 0, 0.09, 'triangle', 0.09);    // G6
-  tone(2093.0, 0.05, 0.12, 'triangle', 0.08); // C7
-  chacoalhar(0.06, 0.55, 0.2);
+  alarme(0, 0.32, 1046.5, 1568.0, 22, 0.22);     // C6 ↔ G6
+  alarme(0.4, 0.42, 1174.7, 1760.0, 22, 0.24);   // D6 ↔ A6, um pouco mais alto
+  chacoalhar(0, 0.9, 0.5);
+  tone(2637.0, 0.82, 0.16, 'square', 0.12);      // E7: "tlim" final
 }
 
 /** Alguém MENCIONOU você (@nome) — dois toques altos e rápidos */

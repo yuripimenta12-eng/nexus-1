@@ -326,7 +326,7 @@
   60% { transform: translate(6px, -1px) rotate(0.3deg); }
   80% { transform: translate(-3px, 0) rotate(0); }
 }
-.nx-chacoalha { animation: nx-chacoalha 0.6s ease-in-out; }
+.nx-chacoalha { animation: nx-chacoalha 0.45s ease-in-out 2; } /* duas vezes, junto com os dois toques do som */
 @media (prefers-reduced-motion: reduce) {
   .nx-chacoalha { animation: none; }
 }
