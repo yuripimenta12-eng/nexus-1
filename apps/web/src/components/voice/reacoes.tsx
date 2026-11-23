@@ -154,20 +154,23 @@ export function QuadroTremendo({ identity, children }: { identity: string; child
 }
 
 /** Botão que aparece no quadro de outra pessoa (ao passar o mouse; no celular, sempre). */
-export function BotaoPiscar({ identity, nome }: { identity: string; nome: string }) {
+// pequeno: na faixa de miniaturas durante a live (só o raio, no canto)
+export function BotaoPiscar({ identity, nome, pequeno }: { identity: string; nome: string; pequeno?: boolean }) {
   return (
     <button
       onClick={(e) => { e.stopPropagation(); enviarPiscada(identity); }}
       title={`Piscar para ${nome}`}
       aria-label={`Piscar para ${nome}`}
       className={cn(
-        'absolute left-3 top-3 z-20 h-8 px-2.5 rounded-[10px] flex items-center gap-1.5 text-[11px] font-black',
+        pequeno
+          ? 'absolute right-1 top-1 z-20 w-7 h-7 rounded-lg grid place-items-center'
+          : 'absolute left-3 top-3 z-20 h-8 px-2.5 rounded-[10px] flex items-center gap-1.5 text-[11px] font-black',
         'bg-black/45 backdrop-blur border border-white/10 text-[#ffd27a] transition-all',
         'opacity-0 group-hover/quadro:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
         'hover:border-[#ff8a3d] hover:text-white',
       )}
     >
-      <Zap className="w-3.5 h-3.5" /> Piscar
+      <Zap className="w-3.5 h-3.5" />{!pequeno && ' Piscar'}
     </button>
   );
 }

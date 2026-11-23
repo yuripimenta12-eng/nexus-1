@@ -358,6 +358,19 @@ export default function VoicePage() {
   const [membersMeta, setMembersMeta] = useState<Record<string, MetaMembro>>({});
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
 
+  // Foto, moldura e nome de quem está na call: recarrega quando alguém entra/sai/abre live,
+  // ao voltar para a janela e a cada 45 s (antes era só ao abrir a página e ficava a foto velha)
+  const [versaoMembros, setVersaoMembros] = useState(0);
+  useEffect(() => {
+    if (!serverId) return;
+    const recarregar = () => setVersaoMembros(v => v + 1);
+    const s = getSocket();
+    s.on('voice:presence', recarregar);
+    window.addEventListener('focus', recarregar);
+    const t = setInterval(recarregar, 45_000);
+    return () => { s.off('voice:presence', recarregar); window.removeEventListener('focus', recarregar); clearInterval(t); };
+  }, [serverId]);
+
   useEffect(() => {
     if (!serverId) return;
     api.get(`/servers/${serverId}/members`)
@@ -372,7 +385,7 @@ export default function VoicePage() {
         setMembersMeta(map);
       })
       .catch(() => {});
-  }, [serverId]);
+  }, [serverId, versaoMembros]);
 
   const ROLE_RANK: Record<string, number> = { OWNER: 0, ADMIN: 1, MODERATOR: 2, MEMBER: 3 };
   const myRole = membersMeta[user?.id || '']?.role || 'MEMBER';
@@ -1193,7 +1206,7 @@ export default function VoicePage() {
                       : p.screenSharing ? 'Voltar para a live'
                       : undefined}
                     className={cn(
-                      'relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2 transition-colors',
+                      'group/quadro relative w-32 h-20 shrink-0 rounded-xl overflow-hidden bg-[#14101a] border-2 transition-colors',
                       (p.camEnabled || p.screenSharing) && 'cursor-pointer hover:border-[#c887ff]',
                       focusedCam === p.identity ? 'border-orange shadow-[0_0_12px_rgba(255,106,0,0.4)]'
                         : p.isSpeaking ? 'border-[#8f42ff]' : 'border-[var(--th-line-2)]',
@@ -1233,6 +1246,10 @@ export default function VoicePage() {
                       {p.screenSharing && <LiveBadge tiny />}
                       {focusModeUsers.has(p.identity) && <FocusBadge small />}
                     </div>
+                    {/* Piscar também durante a live (aqui o quadro grande não aparece) */}
+                    {p.identity !== user?.id && p.identity !== DJ_IDENTITY && (
+                      <BotaoPiscar identity={p.identity} nome={p.participant.name || p.identity} pequeno />
+                    )}
                   </div>
                 ))}
               </div>
