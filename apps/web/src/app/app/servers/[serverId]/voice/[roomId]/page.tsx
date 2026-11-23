@@ -35,7 +35,7 @@ import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
 import { corSegura, capaSegura } from '@/lib/seguro';
 import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
-import { useEscutarReacoes, VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
+import { VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
 import { Smile } from 'lucide-react';
 import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
@@ -179,7 +179,6 @@ export default function VoicePage() {
   const [reacoesAberto, setReacoesAberto] = useState(false); // bandeja de emojis voando
   const [escolhasAberto, setEscolhasAberto] = useState(false); // par ou ímpar e votação
   const votacaoRolando = useEscolhas(s => !!s.votacao && !s.votacao.encerrada);
-  useEscutarReacoes();
   useEscutarZoeiras(roomId);
   useEscutarEscolhas(isConnected && voiceRoomId === roomId ? roomId : undefined, isConnected);
   useEffect(() => { if (serverId) marcarEntrouNaVoz(serverId); }, [serverId]);

@@ -61,6 +61,7 @@ export function enviarPiscada(alvo: string): boolean {
   if (agora - useReacoes.getState().ultimaPiscadaEnviada < ESPERA_PISCADA_MS) return false;
   useReacoes.setState({ ultimaPiscadaEnviada: agora });
   tremer(alvo);
+  try { playPiscada(); } catch { /* sem áudio liberado */ } // quem pisca ouve o mesmo som que o outro vai ouvir
   room.localParticipant.publishData(enc({ alvo }), { reliable: true, topic: TOPICO_PISCADA }).catch(() => {});
   return true;
 }
@@ -76,8 +77,14 @@ function dentroDoLimite(chave: string, max: number, janelaMs: number) {
   return true;
 }
 
-/** Liga a escuta das reações enquanto a página da call está aberta. */
-export function useEscutarReacoes() {
+/** Fica montado no app todo: a piscada toca mesmo se a pessoa estiver no chat, fora da tela da call. */
+export function EscutarReacoes() {
+  useEscutarReacoes();
+  return null;
+}
+
+/** Liga a escuta das reações enquanto estiver numa call. */
+function useEscutarReacoes() {
   const room = useVoiceStore(s => s.room);
   useEffect(() => {
     if (!room) return;

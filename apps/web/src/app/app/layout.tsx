@@ -1,5 +1,6 @@
 'use client';
 
+import { EscutarReacoes } from '@/components/voice/reacoes';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -137,6 +138,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <MovidoDeSala />
       {/* Placar da call: conta o tempo e mostra conquistas desbloqueadas */}
       <BatimentoPlacar />
+      <EscutarReacoes />
       {/* UNidos: jogo de cartas da chamada */}
       <UnidosHost />
       <PushPrompt />
