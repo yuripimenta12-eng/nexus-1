@@ -14,7 +14,7 @@ import { useVoiceStore } from '@/stores/voice.store';
 // site): o Nexus aberto continua com a versão antiga até recarregar. Sair e
 // entrar na conta não recarrega; o botão "Atualizar" sim, e a pessoa continua logada.
 const BUILD = process.env.NEXT_PUBLIC_BUILD_ID;
-const CHECAR_A_CADA = 5 * 60_000;
+const CHECAR_A_CADA = 2 * 60_000;
 
 function useSiteNovo() {
   const [novo, setNovo] = useState(false);
@@ -36,11 +36,41 @@ function useSiteNovo() {
   return novo;
 }
 
+// Recarrega sozinho com o site novo, mas só quando não atrapalha: fora da call,
+// sem texto digitado em nenhum campo, e com a janela escondida ou parada há 2 min.
+const PARADO_MS = 2 * 60_000;
+function temTextoDigitado() {
+  return Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input:not([type]), input[type=text], input[type=search]'))
+    .some(el => el.value.trim().length > 0)
+    || !!document.querySelector('[contenteditable="true"]:not(:empty)');
+}
+function useRecarregarSozinho(ativo: boolean) {
+  useEffect(() => {
+    if (!ativo) return;
+    let ultimoUso = Date.now();
+    const usou = () => { ultimoUso = Date.now(); };
+    const tentar = () => {
+      if (useVoiceStore.getState().isConnected || temTextoDigitado()) return;
+      if (document.hidden || Date.now() - ultimoUso > PARADO_MS) window.location.reload();
+    };
+    const eventos = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    eventos.forEach(e => window.addEventListener(e, usou, { passive: true }));
+    document.addEventListener('visibilitychange', tentar);
+    const t = setInterval(tentar, 15_000);
+    return () => {
+      eventos.forEach(e => window.removeEventListener(e, usou));
+      document.removeEventListener('visibilitychange', tentar);
+      clearInterval(t);
+    };
+  }, [ativo]);
+}
+
 export function AtualizacaoApp() {
   const [versaoApp, setVersao] = useState<string | null>(null);
   const [fechado, setFechado] = useState(false);
   const emCall = useVoiceStore(s => s.isConnected);
   const siteNovo = useSiteNovo();
+  useRecarregarSozinho(siteNovo);
 
   useEffect(() => watchAppUpdate(setVersao), []);
 
