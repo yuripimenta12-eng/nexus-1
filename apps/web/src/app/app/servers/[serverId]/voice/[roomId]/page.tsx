@@ -42,6 +42,8 @@ import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
 import { corNomeDe, planoAtivo, LIVE_OPCOES, podeUsarLive, melhorLive } from '@/lib/planos';
 import Link from 'next/link';
 import { abrirJanelaFlutuante, suportaJanelaFlutuante } from '@/lib/janela-flutuante';
+import { useEscutarEscolhas, PainelEscolhas, CartoesEscolhas, useEscolhas } from '@/components/voice/escolhas';
+import { Vote } from 'lucide-react';
 import { PictureInPicture2 } from 'lucide-react';
 import { Lock as Cadeado } from 'lucide-react';
 import { useEscutarZoeiras, ZoeirasDoQuadro, BotaoZoeira, BotaoEscudo, AvisoZoeira, useApelido } from '@/components/voice/zoeiras';
@@ -175,8 +177,11 @@ export default function VoicePage() {
   const unidosErro = useUnidos(s => s.erro);
   const [djPanel, setDjPanel] = useState(false);           // painel do DJ Nexus (bot de música)
   const [reacoesAberto, setReacoesAberto] = useState(false); // bandeja de emojis voando
+  const [escolhasAberto, setEscolhasAberto] = useState(false); // par ou ímpar e votação
+  const votacaoRolando = useEscolhas(s => !!s.votacao && !s.votacao.encerrada);
   useEscutarReacoes();
   useEscutarZoeiras(roomId);
+  useEscutarEscolhas(isConnected && voiceRoomId === roomId ? roomId : undefined, isConnected);
   useEffect(() => { if (serverId) marcarEntrouNaVoz(serverId); }, [serverId]);
   const tabMusicOn = useAnyTabMusic();                     // alguém transmitindo música de uma aba
   const djState = useVoiceStore(s => s.djState);
@@ -723,6 +728,7 @@ export default function VoicePage() {
         <div data-nx-palco className="flex-1 flex flex-col min-w-0 min-h-0 relative">
           <AvisoPiscada />
           <AvisoZoeira />
+          <CartoesEscolhas nomeDe={chatNameFor} />
           {/* Topbar (em tela cheia vira overlay flutuante que some com o mouse parado) */}
           <div className={cn(
             'h-[60px] md:h-[70px] flex items-center px-3 md:px-5 border-b border-[var(--th-line-2)] bg-[var(--th-rail)] backdrop-blur-md shrink-0',
@@ -1358,6 +1364,30 @@ export default function VoicePage() {
                 )}
               </span>
             </ControlButton>
+
+            {/* Par ou ímpar e votação: para a call decidir jogo, mapa ou o que for */}
+            <div className="relative">
+              <ControlButton
+                onClick={() => setEscolhasAberto(v => !v)}
+                active={escolhasAberto || votacaoRolando}
+                title="Par ou ímpar e votação (para decidir o jogo ou o que for)"
+              >
+                <span className="relative">
+                  <Vote className="w-5 h-5" />
+                  {votacaoRolando && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[#7a2cff] animate-pulse" />}
+                </span>
+              </ControlButton>
+              <AnimatePresence>
+                {escolhasAberto && (
+                  <PainelEscolhas
+                    onClose={() => setEscolhasAberto(false)}
+                    pessoas={participantsList
+                      .filter(p => p.identity !== user?.id && p.identity !== DJ_IDENTITY)
+                      .map(p => ({ id: p.identity, nome: p.participant.name || p.identity.slice(0, 8) }))}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* DJ Nexus: bot de música (YouTube/SoundCloud) que entra na call */}
             <div className="relative">

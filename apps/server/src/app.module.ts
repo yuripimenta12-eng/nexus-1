@@ -24,6 +24,7 @@ import { PushModule } from './push/push.module';
 import { MutesModule } from './mutes/mutes.module';
 import { GifsModule } from './gifs/gifs.module';
 import { UnidosModule } from './games/unidos/unidos.module';
+import { EscolhasModule } from './games/escolhas/escolhas.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { PlacarModule } from './placar/placar.module';
 import { PlanosModule } from './planos/planos.module';
@@ -58,6 +59,7 @@ import { HealthController } from './health.controller';
     MutesModule,
     GifsModule,
     UnidosModule,
+    EscolhasModule,
     AnnouncementsModule,
     PlacarModule,
     PlanosModule,
