@@ -29,9 +29,10 @@ export function Avatar({ src, name, size = 'md', className, moldura }: AvatarPro
   // Com moldura, o tamanho (e um className que o mude) fica no contêiner; a foto o preenche
   const wrapper = moldura ? 'w-full h-full' : tamanho;
 
+  // 128 px (256 em tela de alta densidade): com 64 a foto do perfil (84 px) saía esticada e borrada
   const foto = src ? (
     <div className={cn('rounded-full overflow-hidden shrink-0', wrapper, !moldura && className)}>
-      <Image src={src} alt={name} width={64} height={64} className="w-full h-full object-cover" unoptimized={!imagemOtimizavel(src)} />
+      <Image src={src} alt={name} width={128} height={128} quality={90} className="w-full h-full object-cover" unoptimized={!imagemOtimizavel(src)} />
     </div>
   ) : (
     <div
