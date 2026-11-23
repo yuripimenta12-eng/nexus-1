@@ -20,6 +20,18 @@ export class LojaController {
     return this.loja.comprar(userId, itemId);
   }
 
+  @Post('prisma/comprar/:itemId')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  comprarComPrisma(@CurrentUser('id') userId: string, @Param('itemId') itemId: string) {
+    return this.loja.comprarComPrisma(userId, itemId);
+  }
+
+  @Post('prisma/caixa/:id')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  abrirCaixaPrisma(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.loja.abrirCaixaPrisma(userId, id);
+  }
+
   @Get('baus')
   baus() {
     return this.loja.listarBaus();

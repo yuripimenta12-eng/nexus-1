@@ -39,6 +39,19 @@ for (const id of ['bau-joias', 'bau-real', 'bau-cosmico']) {
   caso(`${b.nome}: sempre sai item (nada de só Nex)`, b.premios.every(p => p.item));
 }
 caso('nenhum baú dá item só da equipe ou do plano', baus.BAUS.every(b => b.premios.every(p => !p.item || (!cat.itemPorId(p.item).soStaff && !cat.itemPorId(p.item).incluiPlano))));
+caso('nenhum baú dá item de Prisma', baus.BAUS.every(b => b.premios.every(p => !p.item || !cat.itemPorId(p.item).precoPrisma)));
+caso('item de Prisma não vende com Nex', cat.CATALOGO.every(i => !i.precoPrisma || i.preco === null));
+const pr = carregar('loja.prisma.ts', { './loja.catalogo': cat });
+for (const c of pr.CAIXAS_PRISMA) {
+  caso(`${c.nome}: só tem itens de Prisma`, c.itens.every(id => cat.itemPorId(id) && cat.itemPorId(id).precoPrisma));
+  const soma = c.itens.reduce((t, id) => t + cat.itemPorId(id).precoPrisma, 0);
+  caso(`${c.nome}: sai mais barata que comprar separado (${c.preco} < ${soma})`, c.preco < soma);
+  caso(`${c.nome}: sem nada, paga o preço cheio`, pr.precoCaixa(c, () => false) === c.preco);
+  const um = c.itens[0];
+  const parcial = pr.precoCaixa(c, id => id === um);
+  caso(`${c.nome}: quem já tem parte paga menos (${parcial})`, parcial < c.preco && parcial > 0);
+}
+caso('pacotes de Prisma com preço em reais válido', pr.PACOTES_PRISMA.every(p => /^\d+\.\d{2}$/.test(p.reais) && p.prismas > 0));
 const natal = baus.bauPorId('bau-natal');
 caso('Baú de Natal vale em dezembro', baus.bauAtivo(natal, new Date('2026-12-20T12:00:00Z')));
 caso('Baú de Natal some depois do Dia de Reis', !baus.bauAtivo(natal, new Date('2027-01-08T12:00:00Z')));

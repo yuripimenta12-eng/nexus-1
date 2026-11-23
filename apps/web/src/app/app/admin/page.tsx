@@ -114,6 +114,13 @@ export default function AdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
 
+  // Dar/tirar Prisma (moeda paga) na mão, enquanto o Pix não está ligado
+  const prismaMutation = useMutation({
+    mutationFn: ({ id, quantidade }: { id: string; quantidade: number }) => api.post(`/admin/users/${id}/prismas`, { quantidade }),
+    onSuccess: ({ data }) => window.alert(`Pronto: agora a pessoa tem ${data.prismas} Prisma.`),
+    onError: (e: any) => window.alert(e?.response?.data?.message || 'Não deu para mudar a Prisma'),
+  });
+
   // Dar/tirar plano na mão (enquanto não há pagamento)
   const planoMutation = useMutation({
     mutationFn: ({ id, plano, dias }: { id: string; plano: Plano; dias?: number }) => api.post(`/admin/users/${id}/plano`, { plano, dias }),
@@ -398,6 +405,21 @@ export default function AdminPage() {
                               title={u.isStaff ? 'Tirar o cargo Staff' : 'Dar o cargo Staff'}
                             >
                               {u.isStaff ? 'Tirar Staff' : 'Dar Staff'}
+                            </button>
+                          )}
+                          {!isRemoved(u) && (
+                            <button
+                              onClick={() => {
+                                const nome = u.profile?.displayName || u.username;
+                                const v = window.prompt(`Quantas Prisma dar para ${nome}? (número negativo tira)`, '100');
+                                const q = Number(v);
+                                if (v && Number.isInteger(q) && q !== 0) prismaMutation.mutate({ id: u.id, quantidade: q });
+                              }}
+                              disabled={prismaMutation.isPending}
+                              className="text-xs px-3 py-1 mr-2 rounded-md transition-colors disabled:opacity-30 bg-white/5 text-[#5cc8ff] hover:bg-white/10"
+                              title="Dar ou tirar Prisma (moeda azul)"
+                            >
+                              Prisma
                             </button>
                           )}
                           {!isRemoved(u) && <button

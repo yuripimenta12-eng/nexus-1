@@ -159,6 +159,23 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     r = await call('PUT', '/loja/equipar', { tipo: 'icone', itemId: 'i-staff' }, t);
     check('cargo Staff usa o ícone da equipe', r.status === 200, `status ${r.status}`);
     await prisma.user.update({ where: { id: U.id }, data: { isStaff: false } });
+    // Prisma: sem saldo não compra; com saldo compra; item de Prisma não sai com Nex
+    r = await call('POST', '/loja/prisma/comprar/m-dragao', null, t);
+    check('sem Prisma não compra item de Prisma', r.status === 400, `status ${r.status}`);
+    r = await call('POST', '/loja/comprar/m-dragao', null, t);
+    check('item de Prisma não sai com Nex', r.status === 400, `status ${r.status}`);
+    r = await call('POST', `/admin/users/${U.id}/prismas`, { quantidade: 300 }, t);
+    check('quem não é dono não dá Prisma', r.status === 403, `status ${r.status}`);
+    r = await call('POST', `/admin/users/${U.id}/prismas`, { quantidade: 500 }, ta);
+    check('dono dá Prisma no painel', r.status === 201 && r.data?.prismas === 500, `status ${r.status} ${JSON.stringify(r.data)}`);
+    r = await call('POST', '/loja/prisma/comprar/m-dragao', null, t);
+    check('compra moldura com Prisma', r.status === 201 && r.data?.prismas === 250, `status ${r.status} ${JSON.stringify(r.data)}`);
+    r = await call('POST', '/loja/prisma/caixa/cx-dragao', null, t);
+    check('caixa cobra só o que falta', r.status === 201 && r.data?.pago === 156 && r.data?.itens?.join() === 'e-aurora', `status ${r.status} ${JSON.stringify(r.data)}`);
+    r = await call('POST', '/loja/prisma/caixa/cx-dragao', null, t);
+    check('caixa que já tem tudo não cobra', r.status === 409, `status ${r.status}`);
+    r = await call('POST', `/admin/users/${U.id}/prismas`, { quantidade: -1000 }, ta);
+    check('não tira mais Prisma do que a pessoa tem', r.status === 400, `status ${r.status}`);
     await prisma.profile.update({ where: { userId: U.id }, data: { icone: null } });
 
     console.log('● Foto animada');

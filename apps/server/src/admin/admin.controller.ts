@@ -43,6 +43,11 @@ export class AdminController {
     return this.adminService.setBetaCadastros(userId, body?.cadastrosGanham);
   }
 
+  @Post('users/:id/prismas')
+  userPrismas(@CurrentUser('id') userId: string, @Param('id') targetId: string, @Body() body: { quantidade: number }) {
+    return this.adminService.setUserPrismas(userId, targetId, body?.quantidade);
+  }
+
   @Post('users/:id/staff')
   userStaff(@CurrentUser('id') userId: string, @Param('id') targetId: string, @Body() body: { on: boolean }) {
     return this.adminService.setUserStaff(userId, targetId, body?.on);

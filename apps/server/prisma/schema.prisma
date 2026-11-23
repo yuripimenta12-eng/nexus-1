@@ -76,6 +76,7 @@ model User {
   ideiaVotos             IdeiaVoto[]
   carteira               Carteira?
   nexMovimentos          NexMovimento[]
+  prismaMovimentos       PrismaMovimento[]
   missaoResgates         MissaoResgate[]
   itens                  ItemPosse[]
   zoeiras                ZoeiraEstoque[]
@@ -768,6 +769,8 @@ model Carteira {
   unidosVitorias  Int      @default(0)
   unidosData      String?  @db.VarChar(10)
   unidosHoje      Int      @default(0)
+  // Prisma: moeda AZUL comprada com dinheiro (src/loja/loja.prisma.ts). Nunca vira Nex.
+  prismas         Int      @default(0)
   atualizadoEm    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -787,6 +790,20 @@ model NexMovimento {
 
   @@index([userId, criadoEm])
   @@map("nex_movimentos")
+}
+
+// Extrato da Prisma (moeda paga): toda entrada e saída, com o motivo
+model PrismaMovimento {
+  id       String   @id @default(cuid())
+  userId   String
+  valor    Int
+  motivo   String   @db.VarChar(48)
+  criadoEm DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, criadoEm])
+  @@map("prisma_movimentos")
 }
 
 // Missão já resgatada: periodo = "sempre" ou o dia (AAAA-MM-DD) das diárias

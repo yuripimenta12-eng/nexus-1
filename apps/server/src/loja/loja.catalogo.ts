@@ -7,7 +7,8 @@ export type TipoPerfil = keyof typeof CAMPO_PERFIL;
 export type Raridade = 'comum' | 'rara' | 'epica' | 'lendaria';
 // incluiPlano: vem de graça com o plano (não vende; some se o plano acabar)
 // soStaff: só a equipe do Nexus (cargo Staff ou isAdmin) vê e usa; não vende nem sai em baú
-export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; soStaff?: boolean }
+// precoPrisma: exclusivo da Prisma (moeda paga, loja.prisma.ts); não vende com Nex nem sai em baú
+export interface Item { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; soStaff?: boolean; precoPrisma?: number }
 
 const PRECO = {
   moldura: { comum: 1000, rara: 2000, epica: 4000, lendaria: 8000 },
@@ -54,7 +55,7 @@ export const CATALOGO: Item[] = [
   it('efeito', 'e-nevoa', 'Névoa Roxa', 'rara'),
   it('efeito', 'e-raios', 'Tempestade Elétrica', 'epica'),
   it('efeito', 'e-estrelas', 'Chuva de Estrelas', 'epica'),
-  it('efeito', 'e-aurora', 'Aurora', 'lendaria'),
+  it('efeito', 'e-aurora', 'Aurora', 'lendaria', { preco: null, precoPrisma: 200 }),
   it('efeito', 'e-pro', 'Trovão Pro', 'lendaria', { preco: null, incluiPlano: 'pro' }),
   // Ícones: ao lado do nome, na lista, no chat e na call
   it('icone', 'i-controle', 'Controle', 'comum'),
@@ -68,7 +69,7 @@ export const CATALOGO: Item[] = [
   it('icone', 'i-fogo', 'Fogo', 'epica'),
   it('icone', 'i-raio', 'Raio', 'epica'),
   it('icone', 'i-coroa', 'Coroa', 'lendaria'),
-  it('icone', 'i-diamante', 'Diamante', 'lendaria'),
+  it('icone', 'i-diamante', 'Diamante', 'lendaria', { preco: null, precoPrisma: 120 }),
   it('icone', 'i-gamepad', 'Gamepad', 'comum'),
   it('icone', 'i-chat', 'Papo', 'comum'),
   it('icone', 'i-telefone', 'Telefone', 'comum'),
@@ -108,9 +109,10 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-halloween', 'Noite das Bruxas', 'epica'),
   it('moldura', 'm-squad', 'Drop Quente', 'epica'),
   it('moldura', 'm-batida', 'Batida', 'epica'),
-  it('moldura', 'm-paladino', 'Paladino', 'lendaria'),
-  it('moldura', 'm-rainha', 'Rainha', 'lendaria'),
-  it('moldura', 'm-dragao', 'Dragão Ametista', 'lendaria'),
+  // Exclusivas da Prisma (moeda paga)
+  it('moldura', 'm-paladino', 'Paladino', 'lendaria', { preco: null, precoPrisma: 250 }),
+  it('moldura', 'm-rainha', 'Rainha', 'lendaria', { preco: null, precoPrisma: 250 }),
+  it('moldura', 'm-dragao', 'Dragão Ametista', 'lendaria', { preco: null, precoPrisma: 250 }),
   // Só da equipe
   it('moldura', 'm-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
   it('moldura', 'm-moderacao', 'Martelo da Ordem', 'epica', { preco: null, soStaff: true }),

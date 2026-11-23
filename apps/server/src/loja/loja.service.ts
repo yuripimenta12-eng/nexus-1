@@ -4,6 +4,8 @@ import { planoAtivo, planoCobre, type Plano } from '../planos/planos.regras';
 import { randomInt } from 'crypto';
 import { CATALOGO, CAMPO_PERFIL, itemPorId, valorDoItem, type TipoPerfil } from './loja.catalogo';
 import { BAUS, bauPorId, bauAtivo, sortearPremio, somaPesos } from './loja.baus';
+import { CAIXAS_PRISMA, PACOTES_PRISMA, caixaPorId, precoCaixa } from './loja.prisma';
+import type { Prisma } from '@prisma/client';
 
 const TIPOS: TipoPerfil[] = ['moldura', 'icone', 'placa', 'som', 'efeito'];
 const valido = (p: { expiraEm: Date | null }) => !p.expiraEm || p.expiraEm.getTime() > Date.now();
@@ -16,7 +18,7 @@ export class LojaService {
   /** Vitrine: catálogo com o que a pessoa já tem e o que está usando. */
   async listar(userId: string) {
     const [carteira, posses, perfil, user] = await Promise.all([
-      this.prisma.carteira.findUnique({ where: { userId }, select: { saldo: true } }),
+      this.prisma.carteira.findUnique({ where: { userId }, select: { saldo: true, prismas: true } }),
       this.prisma.itemPosse.findMany({ where: { userId }, select: { itemId: true, expiraEm: true } }),
       this.prisma.profile.findUnique({ where: { userId }, select: { moldura: true, icone: true, placa: true, somEntrada: true, efeitoPerfil: true } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true, isAdmin: true, isStaff: true } }),
@@ -25,7 +27,10 @@ export class LojaService {
     const plano = planoAtivo(user?.plano, user?.planoAte);
     return {
       saldo: carteira?.saldo ?? 0,
+      prismas: carteira?.prismas ?? 0,
       plano,
+      pacotesPrisma: PACOTES_PRISMA,
+      caixasPrisma: CAIXAS_PRISMA.map(c => ({ ...c, precoPraVoce: precoCaixa(c, id => tem.has(id)), temTudo: c.itens.every(id => tem.has(id)) })),
       equipados: { moldura: perfil?.moldura ?? null, icone: perfil?.icone ?? null, placa: perfil?.placa ?? null, som: perfil?.somEntrada ?? null, efeito: perfil?.efeitoPerfil ?? null },
       itens: CATALOGO.filter(i => !i.soStaff || user?.isAdmin || user?.isStaff)
         .map(i => ({ ...i, possui: tem.has(i.id) || incluso(i.incluiPlano, plano) || !!i.soStaff, expiraEm: tem.get(i.id) ?? null })),
@@ -56,6 +61,53 @@ export class LojaService {
       return tx.carteira.findUnique({ where: { userId }, select: { saldo: true } });
     });
     return { itemId, saldo: r!.saldo };
+  }
+
+  /** Desconta Prisma só se o saldo cobrir (condição no banco) e anota no extrato. */
+  private async debitarPrisma(tx: Prisma.TransactionClient, userId: string, valor: number, motivo: string) {
+    const ok = await tx.carteira.updateMany({ where: { userId, prismas: { gte: valor } }, data: { prismas: { decrement: valor } } });
+    if (ok.count !== 1) throw new BadRequestException('Prisma insuficiente');
+    await tx.prismaMovimento.create({ data: { userId, valor: -valor, motivo: motivo.slice(0, 48) } });
+  }
+
+  /** Entrega um item; create falha se outra compra igual entrou junto (e desfaz a cobrança). */
+  private async entregar(tx: Prisma.TransactionClient, userId: string, itemId: string, origem: string) {
+    const ja = await tx.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId } } });
+    if (!ja) await tx.itemPosse.create({ data: { userId, itemId, origem } });
+    else await tx.itemPosse.update({ where: { userId_itemId: { userId, itemId } }, data: { origem, expiraEm: null } });
+  }
+
+  /** Compra um item exclusivo da Prisma. */
+  async comprarComPrisma(userId: string, itemId: string) {
+    const item = itemPorId(itemId);
+    if (!item) throw new NotFoundException('Item não encontrado');
+    if (!item.precoPrisma) throw new BadRequestException('Esse item não é vendido com Prisma');
+    const preco = item.precoPrisma;
+    const ja = await this.prisma.itemPosse.findUnique({ where: { userId_itemId: { userId, itemId } } });
+    if (ja && valido(ja)) throw new ConflictException('Você já tem esse item');
+    const c = await this.prisma.$transaction(async (tx) => {
+      await this.debitarPrisma(tx, userId, preco, `Loja: ${item.nome}`);
+      await this.entregar(tx, userId, itemId, 'prisma');
+      return tx.carteira.findUnique({ where: { userId }, select: { prismas: true } });
+    });
+    return { itemId, prismas: c!.prismas };
+  }
+
+  /** Caixa Prisma: sem sorteio, entrega tudo o que a pessoa ainda não tem. */
+  async abrirCaixaPrisma(userId: string, id: string) {
+    const caixa = caixaPorId(id);
+    if (!caixa) throw new NotFoundException('Caixa não encontrada');
+    const posses = await this.prisma.itemPosse.findMany({ where: { userId, itemId: { in: caixa.itens } }, select: { itemId: true, expiraEm: true } });
+    const tem = new Set(posses.filter(valido).map(p => p.itemId));
+    const novos = caixa.itens.filter(i => !tem.has(i));
+    if (!novos.length) throw new ConflictException('Você já tem tudo dessa caixa');
+    const preco = precoCaixa(caixa, i => tem.has(i));
+    const c = await this.prisma.$transaction(async (tx) => {
+      await this.debitarPrisma(tx, userId, preco, `Abriu ${caixa.nome}`);
+      for (const itemId of novos) await this.entregar(tx, userId, itemId, 'prisma');
+      return tx.carteira.findUnique({ where: { userId }, select: { prismas: true } });
+    });
+    return { caixa: caixa.id, itens: novos, pago: preco, prismas: c!.prismas };
   }
 
   /** Baús à venda agora, com a chance de cada prêmio em %. */

@@ -52,27 +52,26 @@ export const BAUS: Bau[] = [
   },
   {
     id: 'bau-joias', nome: 'Baú das Joias', preco: 3600, cor: '#ff2d4d',
-    desc: 'Sempre sai item: molduras de pedras preciosas. Com sorte, a Rainha.',
+    desc: 'Sempre sai item: molduras de pedras preciosas. Com sorte, a Borboleta Lunar.',
     premios: [
-      { item: 'm-quartzo-rosa', peso: 20 }, { item: 'm-perola', peso: 20 }, { item: 'p-chiclete', peso: 14 }, { item: 'i-diamante', peso: 12 },
-      { item: 'm-rubi', peso: 12 }, { item: 'm-esmeralda', peso: 10 }, { item: 'm-borboleta-lunar', peso: 8 }, { item: 'm-rainha', peso: 4 },
+      { item: 'm-quartzo-rosa', peso: 20 }, { item: 'm-perola', peso: 20 }, { item: 'p-chiclete', peso: 14 }, { item: 'i-coroa', peso: 12 },
+      { item: 'm-rubi', peso: 12 }, { item: 'm-esmeralda', peso: 10 }, { item: 'm-borboleta-lunar', peso: 12 },
     ],
   },
   {
     id: 'bau-real', nome: 'Baú Real', preco: 4200, cor: '#ffc23d',
-    desc: 'Sempre sai item: ouro, coroa e fanfarra. Paladino e Rainha são os mais raros.',
+    desc: 'Sempre sai item: ouro, coroa e fanfarra. Aurora Nexus e Cauda Estelar são os mais raros.',
     premios: [
       { item: 'm-ouro', peso: 22 }, { item: 'p-ouro', peso: 18 }, { item: 'i-coroa', peso: 14 }, { item: 'm-imperial', peso: 14 },
-      { item: 's-fanfarra', peso: 8 }, { item: 'm-paladino', peso: 4 }, { item: 'm-rainha', peso: 3 },
+      { item: 's-fanfarra', peso: 8 }, { item: 'm-aurora', peso: 4 }, { item: 'm-cauda-estelar', peso: 3 },
     ],
   },
   {
     id: 'bau-cosmico', nome: 'Baú Cósmico', preco: 6000, cor: '#9b5cff',
-    desc: 'Sempre sai item: galáxias, estrelas e o Dragão Ametista. O mais caro e o mais brilhante.',
+    desc: 'Sempre sai item: galáxias, estrelas e a Cauda Estelar. O mais caro e o mais brilhante.',
     premios: [
       { item: 'm-galaxia', peso: 20 }, { item: 'p-galaxia', peso: 16 }, { item: 'e-estrelas', peso: 14 }, { item: 'm-eclipse', peso: 14 },
-      { item: 'm-cristal-plasma', peso: 12 }, { item: 'm-cauda-estelar', peso: 6 }, { item: 'm-dragao', peso: 5 }, { item: 'e-aurora', peso: 3 },
-      { item: 'm-aurora', peso: 2 },
+      { item: 'm-cristal-plasma', peso: 12 }, { item: 'm-cauda-estelar', peso: 10 }, { item: 'm-aurora', peso: 6 },
     ],
   },
 ];

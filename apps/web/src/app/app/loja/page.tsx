@@ -20,15 +20,18 @@ import { Avatar } from '@/components/ui/avatar';
 import { ArteIcone, Moldura, NomeComItens } from '@/components/nex/itens-visuais';
 import { EfeitoPerfil } from '@/components/nex/efeito-perfil';
 import { MoedaNex, formatarNex } from '@/components/nex/moeda-nex';
+import { MoedaPrisma } from '@/components/nex/moeda-prisma';
+import { SecaoPrisma, type PacotePrisma, type CaixaPrisma } from '@/components/nex/secao-prisma';
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button';
 import { CartaoVitrine, BotaoVitrine, EmUso } from '@/components/nex/cartao-vitrine';
 
-interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; possui: boolean }
-interface DadosLoja { saldo: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[] }
+interface ItemLoja { id: string; tipo: TipoItem; nome: string; raridade: Raridade; preco: number | null; precoPrisma?: number; soPro?: boolean; incluiPlano?: 'mais' | 'pro'; possui: boolean }
+interface DadosLoja { saldo: number; prismas: number; plano: string; equipados: Partial<Record<TipoItem, string | null>>; itens: ItemLoja[]; pacotesPrisma: PacotePrisma[]; caixasPrisma: CaixaPrisma[] }
 
 // arte: ícone 3D da seção (public/itens/secoes/<arte>.webp)
 const SECOES = [
   { id: 'destaques', nome: 'Destaques', arte: 'destaques' },
+  { id: 'prisma', nome: 'Prisma', arte: 'prisma' },
   { id: 'baus', nome: 'Baús', arte: 'baus' },
   { id: 'moldura', nome: 'Molduras', arte: 'molduras' },
   { id: 'icone', nome: 'Ícones', arte: 'icone' },
@@ -52,7 +55,7 @@ export default function LojaPage() {
   const [vendo, setVendo] = useState<ItemLoja | null>(null); // janela grande de prévia
   const [ocupado, setOcupado] = useState(false);
 
-  const carregar = () => api.get('/loja').then(({ data }) => setDados(data)).catch(() => setDados(d => d ?? { saldo: 0, plano: 'gratis', equipados: { moldura: null, icone: null, placa: null }, itens: [] }));
+  const carregar = () => api.get('/loja').then(({ data }) => setDados(data)).catch(() => setDados(d => d ?? { saldo: 0, prismas: 0, plano: 'gratis', equipados: { moldura: null, icone: null, placa: null }, itens: [], pacotesPrisma: [], caixasPrisma: [] }));
   useEffect(() => { carregar(); }, []);
 
   const lista = useMemo(() => {
@@ -60,6 +63,7 @@ export default function LojaPage() {
     const its = dados.itens;
     if (secao === 'destaques') return its.filter(i => i.raridade === 'lendaria' || i.raridade === 'epica').slice(0, 12);
     if (secao === 'meus') return its.filter(i => i.possui);
+    if (secao === 'prisma') return its.filter(i => i.precoPrisma);
     return its.filter(i => i.tipo === secao).sort((a, b) => ORDEM.indexOf(a.raridade) - ORDEM.indexOf(b.raridade));
   }, [dados, secao]);
 
@@ -75,7 +79,7 @@ export default function LojaPage() {
   const comprar = async (item: ItemLoja) => {
     setOcupado(true);
     try {
-      await api.post(`/loja/comprar/${item.id}`);
+      await api.post(item.precoPrisma ? `/loja/prisma/comprar/${item.id}` : `/loja/comprar/${item.id}`);
       toast(`${item.nome} é seu! Já pode usar.`, 'success');
       setComprando(null);
       await carregar();
@@ -83,6 +87,12 @@ export default function LojaPage() {
     } catch (e: any) { toast(e?.response?.data?.message || 'Não deu para comprar agora', 'error'); }
     setOcupado(false);
   };
+  // Confirmação de compra: Nex ou Prisma, conforme o item
+  const emPrisma = !!comprando?.precoPrisma;
+  const precoC = comprando ? (emPrisma ? comprando.precoPrisma! : comprando.preco ?? 0) : 0;
+  const saldoC = emPrisma ? (dados?.prismas ?? 0) : (dados?.saldo ?? 0);
+  const MoedaC = emPrisma ? MoedaPrisma : MoedaNex;
+
   const equipar = async (item: ItemLoja, usar: boolean) => {
     setOcupado(true);
     try {
@@ -108,6 +118,12 @@ export default function LojaPage() {
               <b className="text-white tabular-nums">{dados ? formatarNex(dados.saldo) : '…'}</b>
               <span className="text-xs font-bold text-[#a99fc0]">Nex</span>
             </div>
+            <button onClick={() => { setSecao('prisma'); setProvando(null); }} title="Prisma: a moeda azul, para os itens exclusivos"
+              className="flex items-center gap-1.5 h-10 pl-2 pr-3.5 rounded-full bg-[#0f1a2e] border border-[#1f3d66] hover:border-[#3fb6ff] transition-colors">
+              <MoedaPrisma className="w-6 h-6" />
+              <b className="text-white tabular-nums">{dados ? formatarNex(dados.prismas) : '…'}</b>
+              <span className="text-xs font-bold text-[#8fd3ff]">Prisma</span>
+            </button>
             <button onClick={() => useNex.getState().abrir('presenca')}
               className="h-10 px-4 rounded-full text-sm font-black text-white bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] hover:brightness-110">
               Ganhar Nex
@@ -115,7 +131,7 @@ export default function LojaPage() {
           </div>
         </div>
         <p className="mt-2 text-sm text-[#a99cb8]">
-          Gaste os Nex que você ganha na presença, na roleta e nas missões. Comprou, é seu para sempre. Os Nex nunca são vendidos por dinheiro.
+          Gaste os Nex que você ganha na presença, na roleta e nas missões. Comprou, é seu para sempre. Os Nex nunca são vendidos por dinheiro; a Prisma (azul) é a moeda comprada com dinheiro, para os itens exclusivos.
         </p>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[200px_1fr_280px] 2xl:grid-cols-[220px_1fr_340px]">
@@ -125,9 +141,11 @@ export default function LojaPage() {
               <button key={s.id} onClick={() => { setSecao(s.id); setProvando(null); }}
                 className={cn('group shrink-0 flex items-center gap-2.5 h-11 pl-1.5 pr-3 rounded-[12px] text-sm font-bold transition-colors',
                   secao === s.id ? 'bg-[#2a1c45] text-white' : 'text-[#a99fc0] hover:bg-white/5 hover:text-white')}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/itens/secoes/${s.arte}.webp`} alt="" aria-hidden draggable={false}
-                  className={cn('w-8 h-8 object-contain transition-transform group-hover:scale-110 drop-shadow-[0_3px_6px_rgba(0,0,0,0.45)]', s.arte === 'tema' && 'rounded-lg object-cover', secao === s.id && 'scale-110')} />
+                {s.arte === 'prisma' ? <MoedaPrisma className={cn('w-8 h-8 p-0.5 transition-transform group-hover:scale-110', secao === s.id && 'scale-110')} /> : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/itens/secoes/${s.arte}.webp`} alt="" aria-hidden draggable={false}
+                    className={cn('w-8 h-8 object-contain transition-transform group-hover:scale-110 drop-shadow-[0_3px_6px_rgba(0,0,0,0.45)]', s.arte === 'tema' && 'rounded-lg object-cover', secao === s.id && 'scale-110')} />
+                )}
                 {s.nome}
               </button>
             ))}
@@ -136,6 +154,10 @@ export default function LojaPage() {
           {/* Vitrine */}
           <section>
             {secao === 'destaques' && <BannerEvento onAbrir={() => setSecao('baus')} />}
+            {secao === 'prisma' && dados && (
+              <SecaoPrisma prismas={dados.prismas} pacotes={dados.pacotesPrisma ?? []} caixas={dados.caixasPrisma ?? []} onMudou={carregar}
+                info={Object.fromEntries(dados.itens.map(i => [i.id, i]))} />
+            )}
             {secao === 'zoeiras' ? (
               <SecaoZoeiras onMudou={() => { carregar(); useNex.getState().carregar(); }} />
             ) : secao === 'baus' ? (
@@ -153,10 +175,11 @@ export default function LojaPage() {
                   const bloqueado = i.soPro && dados.plano !== 'pro' && !i.possui;
                   const nomePlano = i.incluiPlano === 'pro' ? 'Nexus Pro' : 'Nexus+';
                   const selo = i.incluiPlano ? { texto: i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+', cor: i.incluiPlano === 'pro' ? '#ffc23d' : '#8ff0ff' }
-                    : i.soPro ? { texto: 'Pro', cor: '#ffc23d' } : null;
+                    : i.soPro ? { texto: 'Pro', cor: '#ffc23d' } : i.precoPrisma ? { texto: 'Prisma', cor: '#5cc8ff' } : null;
                   const condicao = i.incluiPlano ? (i.possui ? `Incluída no ${nomePlano}` : `Vem com o ${nomePlano}`)
                     : usando ? 'Você está usando' : i.possui ? 'Já é sua'
                     : bloqueado ? 'Exclusiva do Nexus Pro'
+                    : i.precoPrisma ? 'Exclusiva com Prisma'
                     : i.preco !== null ? 'Compra única com Nex' : 'Só sai em baú';
                   return (
                     <CartaoVitrine key={i.id} raridade={i.raridade} nome={i.nome} selo={selo} condicao={condicao}
@@ -173,6 +196,8 @@ export default function LojaPage() {
                         <BotaoVitrine variante="bloqueado" href="/app/planos"><Lock className="w-4 h-4" /> Só com Pro</BotaoVitrine>
                       ) : i.incluiPlano ? (
                         <BotaoVitrine variante="bloqueado" href="/app/planos"><Lock className="w-4 h-4" /> Ver o {i.incluiPlano === 'pro' ? 'Pro' : 'Nexus+'}</BotaoVitrine>
+                      ) : i.precoPrisma ? (
+                        <BotaoVitrine variante="prisma" onClick={() => setComprando(i)}><MoedaPrisma className="w-[18px] h-[18px]" /> {formatarNex(i.precoPrisma)}</BotaoVitrine>
                       ) : i.preco !== null ? (
                         <BotaoVitrine variante="primario" onClick={() => setComprando(i)}><MoedaNex className="w-[18px] h-[18px]" /> {formatarNex(i.preco)}</BotaoVitrine>
                       ) : (
@@ -222,6 +247,11 @@ export default function LojaPage() {
                 </Link>
               ) : it.soPro && dados.plano !== 'pro' ? (
                 <span className="w-full h-11 rounded-[13px] text-sm font-black flex items-center justify-center gap-2 bg-black/30 text-[#a99fc0]"><Lock className="w-4 h-4" /> Só com Pro</span>
+              ) : it.precoPrisma ? (
+                <button onClick={() => { setVendo(null); setComprando(it); }}
+                  className="w-full h-11 rounded-[13px] text-sm font-black text-white bg-gradient-to-b from-[#5cc8ff] to-[#1c56e0] flex items-center justify-center gap-2 hover:brightness-110">
+                  Comprar por <MoedaPrisma className="w-5 h-5" /> {formatarNex(it.precoPrisma)}
+                </button>
               ) : it.preco !== null ? (
                 <button onClick={() => { setVendo(null); setComprando(it); }}
                   className="w-full h-11 rounded-[13px] text-sm font-black text-white bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] flex items-center justify-center gap-2 hover:brightness-110">
@@ -250,18 +280,19 @@ export default function LojaPage() {
               <p className="mt-3 text-[10px] font-black uppercase tracking-wider" style={{ color: RARIDADE[comprando.raridade].cor }}>◆ {RARIDADE[comprando.raridade].nome}</p>
               <h3 className="text-white text-lg font-black">Comprar {comprando.nome}?</h3>
               <div className="mt-3 rounded-xl bg-black/30 p-3 text-sm space-y-1">
-                <div className="flex justify-between text-[#a99fc0]"><span>Preço</span><b className="text-white flex items-center gap-1"><MoedaNex className="w-4 h-4" /> {formatarNex(comprando.preco!)}</b></div>
+                <div className="flex justify-between text-[#a99fc0]"><span>Preço</span><b className="text-white flex items-center gap-1"><MoedaC className="w-4 h-4" /> {formatarNex(precoC)}</b></div>
                 <div className="flex justify-between text-[#a99fc0]"><span>Seu saldo depois</span>
-                  <b className={dados.saldo >= comprando.preco! ? 'text-white' : 'text-[#ff6b7f]'}>{formatarNex(dados.saldo - comprando.preco!)}</b></div>
+                  <b className={saldoC >= precoC ? 'text-white' : 'text-[#ff6b7f]'}>{formatarNex(saldoC - precoC)} {emPrisma ? 'Prisma' : 'Nex'}</b></div>
               </div>
-              {dados.saldo < comprando.preco! ? (
-                <button onClick={() => { setComprando(null); useNex.getState().abrir('missoes'); }}
+              {saldoC < precoC ? (
+                <button onClick={() => { setComprando(null); if (emPrisma) setSecao('prisma'); else useNex.getState().abrir('missoes'); }}
                   className="mt-4 w-full h-11 rounded-[13px] text-sm font-black text-white bg-[#2a1c45] border border-[#4d3560]">
-                  Faltam {formatarNex(comprando.preco! - dados.saldo)} Nex · Ganhar mais
+                  Faltam {formatarNex(precoC - saldoC)} {emPrisma ? 'Prisma · Ver pacotes' : 'Nex · Ganhar mais'}
                 </button>
               ) : (
                 <button disabled={ocupado} onClick={() => comprar(comprando)}
-                  className="mt-4 w-full h-11 rounded-[13px] text-sm font-black text-white bg-gradient-to-r from-[#ff6a00] to-[#7a2cff] flex items-center justify-center gap-2 disabled:opacity-60">
+                  className={cn('mt-4 w-full h-11 rounded-[13px] text-sm font-black text-white flex items-center justify-center gap-2 disabled:opacity-60',
+                    emPrisma ? 'bg-gradient-to-b from-[#5cc8ff] to-[#1c56e0]' : 'bg-gradient-to-r from-[#ff6a00] to-[#7a2cff]')}>
                   {ocupado && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar compra
                 </button>
               )}

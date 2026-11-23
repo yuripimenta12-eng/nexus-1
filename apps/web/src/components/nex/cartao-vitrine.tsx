@@ -99,7 +99,7 @@ export function CartaoVitrine({
   );
 }
 
-type Variante = 'primario' | 'uso' | 'bloqueado';
+type Variante = 'primario' | 'uso' | 'bloqueado' | 'prisma';
 const ESTILO: Record<Variante, { cls: string; style: React.CSSProperties }> = {
   primario: {
     cls: 'text-white hover:brightness-110 active:translate-y-[2px]',
@@ -115,6 +115,14 @@ const ESTILO: Record<Variante, { cls: string; style: React.CSSProperties }> = {
       background: 'linear-gradient(180deg,#3b2350,#24152f)',
       border: '1px solid rgba(255,138,61,0.7)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 3px 0 #160c1d, 0 0 14px rgba(255,138,61,0.3)',
+    },
+  },
+  prisma: {
+    cls: 'text-white hover:brightness-110 active:translate-y-[2px]',
+    style: {
+      background: 'linear-gradient(180deg,#5cc8ff 0%,#2a8cff 55%,#1c56e0 100%)',
+      border: '1px solid rgba(190,235,255,0.6)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 3px 0 #10307e, 0 8px 16px rgba(42,140,255,0.35)',
     },
   },
   bloqueado: {

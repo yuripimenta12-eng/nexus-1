@@ -132,6 +132,26 @@ export class AdminService {
     return { id: targetId, isBetaTester: on };
   }
 
+  // Dar (ou tirar, com número negativo) Prisma na mão: enquanto o Pix não está ligado e para corrigir
+  async setUserPrismas(adminId: string, targetId: string, quantidade: unknown) {
+    await this.requireAdmin(adminId);
+    if (typeof quantidade !== 'number' || !Number.isInteger(quantidade) || quantidade === 0 || Math.abs(quantidade) > 100000) {
+      throw new BadRequestException('Quantidade inválida');
+    }
+    const q = quantidade;
+    const alvo = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!alvo) throw new NotFoundException('Usuário não encontrado');
+    const c = await this.prisma.$transaction(async (tx) => {
+      await tx.carteira.upsert({ where: { userId: targetId }, create: { userId: targetId }, update: {} });
+      const ok = await tx.carteira.updateMany({ where: { userId: targetId, ...(q < 0 ? { prismas: { gte: -q } } : {}) }, data: { prismas: { increment: q } } });
+      if (ok.count !== 1) throw new BadRequestException('A pessoa não tem toda essa Prisma para tirar');
+      await tx.prismaMovimento.create({ data: { userId: targetId, valor: q, motivo: q > 0 ? 'Dada pela equipe' : 'Tirada pela equipe' } });
+      await tx.auditLog.create({ data: { actorId: adminId, action: q > 0 ? 'ADMIN_PRISMA_GRANT' : 'ADMIN_PRISMA_REVOKE', targetType: 'USER', targetId, meta: { quantidade: q } } });
+      return tx.carteira.findUnique({ where: { userId: targetId }, select: { prismas: true } });
+    });
+    return { id: targetId, prismas: c!.prismas };
+  }
+
   // Cargo Staff: ganha as molduras e o ícone da equipe. Ao tirar, sai o que era da equipe do perfil.
   async setUserStaff(adminId: string, targetId: string, on: boolean) {
     await this.requireAdmin(adminId);
