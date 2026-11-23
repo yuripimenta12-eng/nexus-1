@@ -2,9 +2,9 @@
 
 // Efeito "dock" do painel lateral da chamada: o item sob o mouse cresce e salta
 // um pouco; os vizinhos reagem menos conforme a distância do cursor.
-// Só mouse: no toque, com "reduzir movimento" ou no Modo leve, nada se mexe.
+// Só mouse: no toque ou no Modo leve, nada se mexe.
 import { createContext, useContext, useRef, type ReactNode } from 'react';
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion';
 
 type Eixo = 'x' | 'y';
 const DockCtx = createContext<{ pos: MotionValue<number>; eixo: Eixo } | null>(null);
@@ -12,12 +12,11 @@ const MOLA = { mass: 0.1, stiffness: 170, damping: 12 };
 
 export function DockArea({ eixo, className, children }: { eixo: Eixo; className?: string; children: ReactNode }) {
   const pos = useMotionValue(Infinity);
-  const reduzir = useReducedMotion();
   return (
     <div
       className={className}
       onPointerMove={(e) => {
-        if (e.pointerType !== 'mouse' || reduzir || document.documentElement.classList.contains('nx-leve')) return;
+        if (e.pointerType !== 'mouse' || document.documentElement.classList.contains('nx-leve')) return;
         pos.set(eixo === 'x' ? e.clientX : e.clientY);
       }}
       onPointerLeave={() => pos.set(Infinity)}

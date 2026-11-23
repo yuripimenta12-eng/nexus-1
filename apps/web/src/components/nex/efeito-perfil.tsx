@@ -3,6 +3,7 @@
 // Efeito de perfil (loja Nex): partículas num canvas por cima do cartão do perfil.
 // O pai precisa ser "relative". Para quando sai da tela; com "reduzir animações"
 // do sistema desenha um quadro parado.
+import { menosMovimento } from '@/lib/movimento';
 import { useEffect, useMemo, useRef } from 'react';
 import { EFEITOS, type TipoEfeito } from '@/lib/itens';
 import { cn } from '@/lib/utils';
@@ -242,7 +243,7 @@ export function EfeitoPerfil({ id, tipo, cores, className }: { id?: string | nul
     const cv = ref.current;
     const ctx = cv?.getContext('2d');
     if (!cv || !ctx || !ef) return;
-    const parado = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const parado = menosMovimento();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let w = 0, h = 0, raf = 0, visivel = true, ultimo = performance.now();
     const inicio = ultimo;

@@ -327,9 +327,8 @@
   80% { transform: translate(-3px, 0) rotate(0); }
 }
 .nx-chacoalha { animation: nx-chacoalha 0.45s ease-in-out 2; } /* duas vezes, junto com os dois toques do som */
-@media (prefers-reduced-motion: reduce) {
-  .nx-chacoalha { animation: none; }
-}
+/* Modo leve: */
+html.nx-leve .nx-chacoalha { animation: none; }
 
 /* Molduras da loja Nex */
 @keyframes nx-mold-gira { to { transform: rotate(360deg); } }
@@ -354,13 +353,11 @@
 .nx-fx-raio { animation: nx-fx-raio 2.6s linear infinite; opacity: 0; }
 .nx-fx-glitch-a { animation: nx-fx-glitch .8s steps(2) infinite; }
 .nx-fx-glitch-b { animation: nx-fx-glitch .65s steps(2) infinite reverse; }
-@media (prefers-reduced-motion: reduce) {
-  .nx-fx, .nx-fx * { animation: none !important; }
-  .nx-fx-part { display: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .nx-mold-gira, .nx-mold-pulsa, .nx-mold-pisca, .nx-mold-glitch, .nx-mold-glitch2 { animation: none; }
-}
+/* Modo leve: */
+html.nx-leve .nx-fx, html.nx-leve .nx-fx * { animation: none !important; }
+html.nx-leve .nx-fx-part { display: none; }
+/* Modo leve: */
+html.nx-leve .nx-mold-gira, html.nx-leve .nx-mold-pulsa, html.nx-leve .nx-mold-pisca, html.nx-leve .nx-mold-glitch, html.nx-leve .nx-mold-glitch2 { animation: none; }
 
 /* Silhuetas de carregamento (skeleton) */
 @keyframes nx-shimmer {
@@ -1120,9 +1117,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .unidos-pulso-vez.urgente { animation-duration: .5s; }
 @keyframes unidos-girar { to { transform: rotate(360deg); } }
 
-@media (prefers-reduced-motion: reduce) {
-  .unidos-holo, .unidos-fala, .unidos-pulso-vez, .unidos-contorno { animation: none !important; }
-}
+/* Modo leve: */
+html.nx-leve .unidos-holo, html.nx-leve .unidos-fala, html.nx-leve .unidos-pulso-vez, html.nx-leve .unidos-contorno { animation: none !important; }
 
 /* Janela do Nexus sem foco (jogando com ele aberto): animações em loop param.
    O anel de quem fala, as barrinhas e os brilhos redesenham a tela na taxa do
@@ -1181,9 +1177,12 @@ html.nx-leve .nx-desfoque {
 .nx-fileira { animation: nx-fileira 50s linear infinite; }
 .nx-fileira-volta { animation: nx-fileira 50s linear infinite reverse; }
 
+/* Modo leve: */
+html.nx-leve .nx-aurora-pulso, html.nx-leve .nx-figurinha, html.nx-leve .nx-flutuar, html.nx-leve .nx-fileira, html.nx-leve .nx-fileira-volta { animation: none !important; }
+html.nx-leve .nx-reacao { display: none; }
+/* Página inicial (fora do app): aí segue o "reduzir movimento" do sistema */
 @media (prefers-reduced-motion: reduce) {
   .nx-aurora-pulso, .nx-figurinha, .nx-flutuar, .nx-fileira, .nx-fileira-volta { animation: none !important; }
-  .nx-reacao { display: none; }
 }
 
 /* ── Temas de servidor da loja Nex ─────────────────────────────────────── */
@@ -1233,6 +1232,5 @@ html[data-tema='t-84'] {
   animation: nx-bau-mexe .9s ease-in-out infinite;
   filter: drop-shadow(0 0 18px rgba(255, 176, 80, .55)) drop-shadow(0 14px 24px rgba(0, 0, 0, .5)) brightness(1.08);
 }
-@media (prefers-reduced-motion: reduce) {
-  .nx-bau-arte, .nx-bau-card:hover .nx-bau-arte, .nx-bau-chao { animation: none; }
-}
+/* Modo leve: */
+html.nx-leve .nx-bau-arte, html.nx-leve .nx-bau-card:hover .nx-bau-arte, html.nx-leve .nx-bau-chao { animation: none; }

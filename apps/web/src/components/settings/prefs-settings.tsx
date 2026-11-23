@@ -1,5 +1,6 @@
 'use client';
 
+import { sistemaPedeMenosMovimento } from '@/lib/movimento';
 import { useCallback, useEffect, useState } from 'react';
 import { Check, BellRing, Loader2, ShieldOff, Volume2 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
@@ -11,6 +12,8 @@ import api from '@/lib/api';
 /* ── Aparência ─────────────────────────────────────────────────── */
 export function AppearanceSettings() {
   const { accent, setAccent, modoLeve, setModoLeve, modoJogo, setModoJogo } = usePrefsStore();
+  const [sistemaLento, setSistemaLento] = useState(false);
+  useEffect(() => { setSistemaLento(sistemaPedeMenosMovimento()); }, []);
 
   return (
     <div className="space-y-6">
@@ -105,6 +108,12 @@ export function AppearanceSettings() {
             onChange={setModoJogo}
           />
         </div>
+        {sistemaLento && (
+          <p className="mt-2 text-[12px] text-muted leading-relaxed">
+            Seu Windows está com as animações desligadas. O Nexus mostra as animações mesmo assim;
+            se preferir tudo parado, ligue o Modo leve aqui em cima.
+          </p>
+        )}
       </section>
     </div>
   );

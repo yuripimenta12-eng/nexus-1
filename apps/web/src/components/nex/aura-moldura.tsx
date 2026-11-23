@@ -4,6 +4,7 @@
 // Cada tipo tem movimento próprio (nenhum parece com o outro). Tudo é medido em
 // R = raio da foto, então funciona em qualquer tamanho. O meio (a foto) nunca é
 // coberto. Um único requestAnimationFrame toca todas as auras da tela.
+import { menosMovimento } from '@/lib/movimento';
 import { useEffect, useRef } from 'react';
 import type { TipoAura } from '@/lib/itens';
 
@@ -421,7 +422,7 @@ export function AuraMoldura({ tipo, cores, escala = 1.45 }: { tipo: TipoAura; co
     medir();
     const ro = new ResizeObserver(medir);
     ro.observe(cv);
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (menosMovimento()) {
       const R = lado / 6;
       for (let i = 0; i < 60; i++) desenho(null, R, 1 / 30, i / 30);
       quadro(0, 2);

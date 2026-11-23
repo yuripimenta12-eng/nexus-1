@@ -205,7 +205,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           {navRecolhida ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
-        <MotionConfig reducedMotion={leve ? 'always' : 'user'}>
+        <MotionConfig reducedMotion={leve ? 'always' : 'never'}>
           <ErrorBoundary>
             {children}
           </ErrorBoundary>

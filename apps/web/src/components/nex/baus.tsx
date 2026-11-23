@@ -1,6 +1,7 @@
 'use client';
 
 // Baús da loja Nex: abrir só com Nex, chances à mostra, sorteio no servidor.
+import { menosMovimento } from '@/lib/movimento';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X, ChevronDown, Clock } from 'lucide-react';
@@ -29,7 +30,7 @@ function Explosao({ cor }: { cor: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current, ctx = cv?.getContext('2d');
-    if (!cv || !ctx || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!cv || !ctx || menosMovimento()) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2), r = cv.getBoundingClientRect(), w = r.width, h = r.height;
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); ctx.scale(dpr, dpr);
     const cores = [cor, '#ffffff', '#ffe28a'];

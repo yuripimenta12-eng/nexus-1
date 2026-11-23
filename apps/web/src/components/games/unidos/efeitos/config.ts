@@ -1,5 +1,6 @@
 'use client';
 
+import { menosMovimento } from '@/lib/movimento';
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 
@@ -40,21 +41,14 @@ export const useConfigUnidos = create<ConfigUnidos & { mudar: (p: Partial<Config
   },
 }));
 
-// "Reduzir movimento" do sistema operacional
+// Menos movimento: Modo leve/Modo jogo do Nexus (o ajuste do Windows não conta, ver lib/movimento)
 function sistemaPedeMenosMovimento() {
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+  return menosMovimento();
 }
 
 export function usePrefereMenosMovimento() {
   const [r, setR] = useState(false);
-  useEffect(() => {
-    let m: MediaQueryList;
-    try { m = window.matchMedia('(prefers-reduced-motion: reduce)'); } catch { return; }
-    setR(m.matches);
-    const f = (e: MediaQueryListEvent) => setR(e.matches);
-    m.addEventListener?.('change', f);
-    return () => m.removeEventListener?.('change', f);
-  }, []);
+  useEffect(() => { setR(menosMovimento()); }, []);
   return r;
 }
 
