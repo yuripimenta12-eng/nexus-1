@@ -178,11 +178,66 @@ export function playSomEntrada(id: string | null | undefined): boolean {
   }
 }
 
-/** Alguém PISCOU para você na call — "zap": sopro subindo + dois toques rápidos */
+// "Chacoalhada": zumbido grave + ruído batendo rápido, como uma janela tremendo
+function chacoalhar(startIn: number, dur: number, peak: number) {
+  const c = ac();
+  if (!c) return;
+  const t0 = c.currentTime + startIn;
+  const saida = c.createGain();
+  saida.gain.setValueAtTime(0.0001, t0);
+  saida.gain.exponentialRampToValueAtTime(peak, t0 + 0.03);
+  saida.gain.setValueAtTime(peak, t0 + dur * 0.6);
+  saida.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  saida.connect(c.destination);
+
+  // Tremida: o volume liga e desliga ~26 vezes por segundo
+  const tremida = c.createGain();
+  tremida.gain.value = 0.5;
+  const lfo = c.createOscillator();
+  lfo.type = 'square';
+  lfo.frequency.setValueAtTime(26, t0);
+  lfo.frequency.linearRampToValueAtTime(18, t0 + dur); // vai perdendo força
+  const lfoGanho = c.createGain();
+  lfoGanho.gain.value = 0.5;
+  lfo.connect(lfoGanho).connect(tremida.gain);
+  tremida.connect(saida);
+
+  // Zumbido grave (duas notas desafinadas)
+  const grave = c.createBiquadFilter();
+  grave.type = 'lowpass';
+  grave.frequency.value = 900;
+  grave.connect(tremida);
+  for (const f of [92, 139]) {
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f, t0);
+    o.frequency.linearRampToValueAtTime(f * 0.92, t0 + dur);
+    o.connect(grave);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+
+  // Chocalho: ruído na faixa média
+  const len = Math.floor(c.sampleRate * dur);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.6;
+  const ruido = c.createBufferSource();
+  ruido.buffer = buf;
+  const banda = c.createBiquadFilter();
+  banda.type = 'bandpass';
+  banda.frequency.value = 2400;
+  banda.Q.value = 1.2;
+  ruido.connect(banda).connect(tremida);
+
+  lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+  ruido.start(t0); ruido.stop(t0 + dur);
+}
+
+/** Alguém PISCOU para você na call: "tlim" rápido e a tela chacoalhando */
 export function playPiscada() {
-  swoosh(0, 0.18, 600, 4200, 0.22);
-  tone(1318.5, 0.12, 0.07, 'square', 0.05);  // E6
-  tone(1760.0, 0.19, 0.1, 'square', 0.05);   // A6
+  tone(1568.0, 0, 0.09, 'triangle', 0.09);    // G6
+  tone(2093.0, 0.05, 0.12, 'triangle', 0.08); // C7
+  chacoalhar(0.06, 0.55, 0.2);
 }
 
 /** Alguém MENCIONOU você (@nome) — dois toques altos e rápidos */
