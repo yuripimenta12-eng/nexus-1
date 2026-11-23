@@ -41,6 +41,8 @@ import { marcarEntrouNaVoz } from '@/components/servers/primeiros-passos';
 import { Moldura, NomeComItens } from '@/components/nex/itens-visuais';
 import { corNomeDe, planoAtivo, LIVE_OPCOES, podeUsarLive, melhorLive } from '@/lib/planos';
 import Link from 'next/link';
+import { abrirJanelaFlutuante, suportaJanelaFlutuante } from '@/lib/janela-flutuante';
+import { PictureInPicture2 } from 'lucide-react';
 import { Lock as Cadeado } from 'lucide-react';
 import { useEscutarZoeiras, ZoeirasDoQuadro, BotaoZoeira, BotaoEscudo, AvisoZoeira, useApelido } from '@/components/voice/zoeiras';
 
@@ -164,6 +166,9 @@ export default function VoicePage() {
   useEffect(() => {
     setCanShareScreen(!!(navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia));
   }, []);
+  // Janela flutuante só onde o navegador permite (no iPhone, por exemplo, não)
+  const [temPip, setTemPip] = useState(false);
+  useEffect(() => { setTemPip(suportaJanelaFlutuante()); }, []);
   const [audioPopover, setAudioPopover] = useState(false); // popover de áudio rápido
   const unidosSala = useUnidos(s => s.sala);
   const unidosPartida = useUnidos(s => s.partida);
@@ -590,6 +595,13 @@ export default function VoicePage() {
   const focusedCamP = focusedCam ? participantsList.find(pp => pp.identity === focusedCam) : null;
   const showCam = !!(focusedCamP && focusedCamP.camEnabled);
 
+  // Janela flutuante: a live fica por cima do jogo (Picture-in-Picture)
+  const flutuar = (part: Participant) => {
+    const t = Array.from(part.trackPublications.values()).find(pub => pub.source === Track.Source.ScreenShare && pub.track)?.track;
+    if (!t) return;
+    abrirJanelaFlutuante(t).catch(() => notify('Não deu para abrir a janela flutuante. Tente de novo.'));
+  };
+
   if (inLobby) {
     return (
       <div className="relative flex-1 flex items-center justify-center nx-stage-bg p-4">
@@ -862,6 +874,16 @@ export default function VoicePage() {
                     <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
                   </button>
                 )}
+                {temPip && !(primaryScreenSharer.participant instanceof LocalParticipant) && (
+                  <button
+                    onClick={() => flutuar(primaryScreenSharer.participant)}
+                    title="A live vira uma janelinha que fica por cima do jogo e de qualquer programa"
+                    className="flex items-center gap-1.5 text-white text-xs font-bold
+                               bg-[#7a2cff]/85 hover:bg-[#7a2cff] backdrop-blur px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <PictureInPicture2 className="w-3.5 h-3.5" /> Janela flutuante
+                  </button>
+                )}
               </div>
 
               {/* Volume da transmissão focada (só para mim) — hover */}
@@ -1098,6 +1120,19 @@ export default function VoicePage() {
                                        bg-[#09070d]/80 hover:bg-[#3a1216] backdrop-blur px-2.5 py-1.5 rounded-lg transition-colors"
                           >
                             <EyeOff className="w-3.5 h-3.5" /> Parar de assistir
+                          </span>
+                        )}
+                        {!isLocal && temPip && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); flutuar(p.participant); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); flutuar(p.participant); } }}
+                            title="Janela flutuante: a live fica por cima do jogo"
+                            className="absolute top-11 left-2.5 flex items-center gap-1.5 text-white text-[11px] font-bold
+                                       bg-[#7a2cff]/85 hover:bg-[#7a2cff] backdrop-blur px-2.5 py-1.5 rounded-lg transition-colors"
+                          >
+                            <PictureInPicture2 className="w-3.5 h-3.5" /> Janela flutuante
                           </span>
                         )}
 

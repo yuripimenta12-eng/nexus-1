@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
@@ -21,6 +21,7 @@ import api from '@/lib/api';
 import { useServerPerms } from '@/lib/perms';
 import { getSocket, joinServer } from '@/lib/socket';
 import { Avatar } from '@/components/ui/avatar';
+import { PerfilDoMembro } from '@/components/servers/member-list';
 
 interface Channel { id: string; name: string; type: string; }
 interface VoiceRoom { id: string; name: string; allowedRoleIds?: string[]; }
@@ -71,6 +72,8 @@ export function AppSidebar() {
   // Mover alguém de call (dono/admin/moderador): arrastar o nome até outra
   // sala, ou clique direito no nome → "Mover para"
   const [arrastando, setArrastando] = useState<{ userId: string; fromRoomId: string } | null>(null);
+  const [perfilDe, setPerfilDe] = useState<string | null>(null); // perfil aberto ao clicar em alguém na sala de voz
+  const fecharPerfil = useCallback(() => setPerfilDe(null), []);
   const [alvoDrop, setAlvoDrop] = useState<string | null>(null);
   const [menuMover, setMenuMover] = useState<{ userId: string; nome: string; fromRoomId: string; x: number; y: number } | null>(null);
   const [nicknameOpen, setNicknameOpen] = useState(false);
@@ -552,10 +555,11 @@ export function AppSidebar() {
                       return (
                       <div
                         key={u.id}
-                        className={cn('flex items-center gap-2 py-1 rounded-md', movivel && 'cursor-grab active:cursor-grabbing hover:bg-white/5 -mx-1 px-1',
+                        className={cn('flex items-center gap-2 py-1 rounded-md cursor-pointer hover:bg-white/5 -mx-1 px-1', movivel && 'active:cursor-grabbing',
                           arrastando?.userId === u.id && 'opacity-50')}
                         draggable={movivel}
-                        title={movivel ? 'Arraste para outra sala para mover (ou clique com o botão direito)' : undefined}
+                        onClick={() => setPerfilDe(u.id)}
+                        title={movivel ? 'Clique para ver o perfil · arraste para mover de sala' : 'Clique para ver o perfil'}
                         onDragStart={movivel ? (e) => {
                           e.dataTransfer.effectAllowed = 'move';
                           e.dataTransfer.setData('text/plain', u.displayName);
@@ -605,6 +609,10 @@ export function AppSidebar() {
           </AnimatePresence>
         </div>
       </div>
+
+      {perfilDe && serverId && (
+        <PerfilDoMembro serverId={serverId} userId={perfilDe} onClose={fecharPerfil} />
+      )}
 
       {/* Modal criar canal */}
       {showCreateChannel && (

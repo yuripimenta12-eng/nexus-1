@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Crown, Shield, ShieldCheck, MessageSquare, MicOff, Mic, UserX, Ban, X, Loader2 } from 'lucide-react';
@@ -262,6 +263,18 @@ function MemberGroup({ title, count, members, muted, onSelect }: {
 
 /* ── Mini-perfil (clique num membro) ─────────────────────────── */
 const ROLE_RANK: Record<Role, number> = { OWNER: 0, ADMIN: 1, MODERATOR: 2, MEMBER: 3 };
+
+// Mesmo cartão de perfil, aberto de fora da lista (ex.: clicar em alguém na sala de voz da barra lateral)
+export function PerfilDoMembro({ serverId, userId, onClose }: { serverId: string; userId: string; onClose: () => void }) {
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const carregar = () => api.get(`/servers/${serverId}/members`).then(({ data }) => setMembers(data ?? [])).catch(() => setMembers([]));
+  useEffect(() => { carregar(); }, [serverId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const member = members?.find(m => m.userId === userId);
+  useEffect(() => { if (members && !member) onClose(); }, [members, member, onClose]);
+  if (!member || !members) return null;
+  // portal: a barra lateral pode estar dentro de uma gaveta animada no celular
+  return createPortal(<MemberProfileCard member={member} members={members} serverId={serverId} onClose={onClose} onChanged={onClose} />, document.body);
+}
 
 function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
   member: Member; members: Member[]; serverId: string; onClose: () => void; onChanged: () => void;
