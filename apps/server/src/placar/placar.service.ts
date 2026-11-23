@@ -169,10 +169,15 @@ export class PlacarService {
     return { desbloqueadas: await this.comBeta(userId, desbloqueadas) };
   }
 
-  // "Beta": quem participou do beta (marca isBetaTester, dada pelo dono no painel). Vem primeiro.
+  // "Staff" (cargo dado pelo dono no painel) e "Beta" (marca isBetaTester) vêm primeiro.
+  // Não são gravadas: tirou o cargo/emblema, some daqui também.
   private async comBeta(userId: string, lista: { chave: string; desbloqueadaEm: Date }[]) {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBetaTester: true, createdAt: true } });
-    return u?.isBetaTester ? [{ chave: 'beta', desbloqueadaEm: u.createdAt }, ...lista] : lista;
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBetaTester: true, isStaff: true, createdAt: true } });
+    return [
+      ...(u?.isStaff ? [{ chave: 'staff', desbloqueadaEm: u.createdAt }] : []),
+      ...(u?.isBetaTester ? [{ chave: 'beta', desbloqueadaEm: u.createdAt }] : []),
+      ...lista,
+    ];
   }
 
   private async progresso(userId: string, contarMensagens = true) {

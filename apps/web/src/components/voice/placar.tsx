@@ -16,6 +16,7 @@ const LIMA = '#c8f53b';
 
 // Arte de cada uma em public/conquistas/<chave>.webp. exclusiva: só aparece para quem tem (não dá mais para ganhar)
 export const CONQUISTAS: { chave: string; emoji: string; nome: string; meta: string; exclusiva?: boolean }[] = [
+  { chave: 'staff', emoji: '🛡️', nome: 'Staff', meta: 'Equipe do Nexus', exclusiva: true },
   { chave: 'beta', emoji: '🧪', nome: 'Beta', meta: 'Jogou no beta do Nexus', exclusiva: true },
   { chave: 'tagarela', emoji: '💬', nome: 'Tagarela', meta: '100 mensagens' },
   { chave: 'rato-de-call', emoji: '🎧', nome: 'Rato de call', meta: '10 h em call' },
