@@ -2,6 +2,7 @@
 
 // Central de recompensas Nex: Presença Nexus (7 dias), Roleta do dia e Missões.
 // O servidor decide tudo (dia, prêmio, missão cumprida); aqui só mostra e anima.
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Loader2, Flame, Gift, Store } from 'lucide-react';
@@ -60,10 +61,10 @@ export function CentralNex() {
                   </button>
                 ))}
               </div>
-              <a href="/app/loja" onClick={fechar}
+              <Link href="/app/loja" onClick={fechar}
                 className="ml-auto hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-black text-[#c9a6ff] border border-[#4d3560] hover:text-white hover:border-[#8b48ff]">
                 <Store className="w-3.5 h-3.5" /> Loja
-              </a>
+              </Link>
               <div className="ml-auto sm:ml-0 flex items-center gap-1.5 h-9 pl-2 pr-3 rounded-full bg-[#1a1326] border border-[#2e2340]">
                 <MoedaNex className="w-6 h-6" />
                 <b className="text-white text-sm tabular-nums">{dados ? formatarNex(dados.saldo) : '…'}</b>

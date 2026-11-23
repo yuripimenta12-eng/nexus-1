@@ -2,6 +2,7 @@
 
 // Zoeiras na call: o servidor confere tudo (estoque, escudo, permissão do dono)
 // e manda o efeito para a sala pelo socket ('zoeira'). Aqui só desenhamos.
+import { MoedaNex } from '@/components/nex/moeda-nex';
 import { arteDaZoeira } from '@/lib/itens';
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
@@ -21,16 +22,26 @@ interface ItemZoeira { id: string; nome: string; emoji: string; preco: number; p
 interface ZoeirasState {
   sala: string | null;
   estoque: ItemZoeira[] | null;
+  saldo: number | null;
   efeitos: Efeito[];
   aviso: string | null;
   carregar: () => Promise<void>;
   usar: (id: string, alvo?: string) => Promise<void>;
+  comprar: (id: string) => Promise<boolean>;
 }
 
 let seq = 0;
 export const useZoeiras = create<ZoeirasState>((set, get) => ({
-  sala: null, estoque: null, efeitos: [], aviso: null,
-  carregar: async () => { try { const { data } = await api.get('/zoeiras'); set({ estoque: data.zoeiras }); } catch { /* sem rede */ } },
+  sala: null, estoque: null, saldo: null, efeitos: [], aviso: null,
+  carregar: async () => { try { const { data } = await api.get('/zoeiras'); set({ estoque: data.zoeiras, saldo: data.saldo }); } catch { /* sem rede */ } },
+  // Compra 1 sem sair da call (a loja recarregava a página e derrubava a chamada)
+  comprar: async (id) => {
+    try {
+      const { data } = await api.post(`/zoeiras/comprar/${id}`, { qtd: 1 });
+      set(s => ({ saldo: data.saldo, estoque: s.estoque?.map(z => (z.id === id ? { ...z, qtd: data.qtd } : z)) ?? null }));
+      return true;
+    } catch (e: any) { toast(e?.response?.data?.message || 'Não deu para comprar agora', 'error'); return false; }
+  },
   usar: async (id, alvo) => {
     const sala = get().sala;
     if (!sala) return;
@@ -134,12 +145,14 @@ export function ZoeirasDoQuadro({ identity }: { identity: string }) {
 /** Botão no quadro de outra pessoa: abre as suas zoeiras. */
 export function BotaoZoeira({ identity, nome }: { identity: string; nome: string }) {
   const [aberto, setAberto] = useState(false);
-  const { estoque, usar, carregar } = useZoeiras();
+  const { estoque, saldo, usar, carregar, comprar } = useZoeiras();
   const [usando, setUsando] = useState<string | null>(null);
+  const [loja, setLoja] = useState(false);
   const minhas = (estoque || []).filter(z => z.qtd > 0 && !z.propria);
+  const aVenda = (estoque || []).filter(z => !z.propria);
   return (
     <div className="absolute left-3 top-12 z-20" onClick={e => e.stopPropagation()}>
-      <button onClick={() => { setAberto(v => !v); if (!aberto) carregar(); }}
+      <button onClick={() => { setAberto(v => !v); setLoja(false); if (!aberto) carregar(); }}
         title={`Zoeira em ${nome}`} aria-label={`Zoeira em ${nome}`}
         className={cn('h-8 px-2.5 rounded-[10px] flex items-center gap-1.5 text-[11px] font-black bg-black/45 backdrop-blur border border-white/10 text-[#ffb3e6] transition-all',
           aberto ? 'opacity-100' : 'opacity-0 group-hover/quadro:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
@@ -150,8 +163,30 @@ export function BotaoZoeira({ identity, nome }: { identity: string; nome: string
         <div className="absolute left-0 top-10 w-[210px] p-2 rounded-2xl border border-[#4d3560] bg-[#160f20]/95 backdrop-blur shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
           {estoque === null ? (
             <div className="h-16 grid place-items-center"><Loader2 className="w-4 h-4 animate-spin text-[#8b48ff]" /></div>
+          ) : loja ? (
+            <div>
+              <p className="flex items-center justify-between px-1 pb-1.5 text-[11px] font-bold text-[#a99fc0]">
+                Comprar <span className="flex items-center gap-1 text-white tabular-nums"><MoedaNex className="w-3.5 h-3.5" />{saldo ?? 0}</span>
+              </p>
+              <div className="max-h-[220px] overflow-y-auto space-y-0.5 pr-0.5">
+                {aVenda.map(z => (
+                  <button key={z.id} disabled={usando === z.id || (saldo ?? 0) < z.preco} title={`${z.nome}: ${z.desc}`}
+                    onClick={async () => { setUsando(z.id); await comprar(z.id); setUsando(null); }}
+                    className="w-full flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-white/10 disabled:opacity-40 text-left">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={arteDaZoeira(z.id)} alt={z.emoji} className="w-6 h-6 object-contain shrink-0" />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[11px] text-white font-bold truncate">{z.nome}</span>
+                      {z.qtd > 0 && <span className="block text-[9px] text-[#ffb070]">tem {z.qtd}</span>}
+                    </span>
+                    {usando === z.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8b48ff]" />
+                      : <span className="flex items-center gap-0.5 text-[11px] font-black text-[#ffd27a] tabular-nums"><MoedaNex className="w-3 h-3" />{z.preco}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : minhas.length === 0 ? (
-            <p className="text-[12px] text-[#a99fc0] p-2">Você não tem zoeiras. Compre na loja com Nex.</p>
+            <p className="text-[12px] text-[#a99fc0] p-2">Você não tem zoeiras. Compre aqui mesmo, sem sair da call.</p>
           ) : (
             <div className="grid grid-cols-3 gap-1">
               {minhas.map(z => (
@@ -166,9 +201,10 @@ export function BotaoZoeira({ identity, nome }: { identity: string; nome: string
               ))}
             </div>
           )}
-          <a href="/app/loja" className="mt-1.5 flex items-center justify-center gap-1.5 h-8 rounded-xl text-[11px] font-black text-[#c9a6ff] hover:bg-white/5">
-            <Store className="w-3.5 h-3.5" /> Comprar zoeiras
-          </a>
+          <button type="button" onClick={() => setLoja(v => !v)}
+            className="mt-1.5 w-full flex items-center justify-center gap-1.5 h-8 rounded-xl text-[11px] font-black text-[#c9a6ff] hover:bg-white/5">
+            {loja ? <><Laugh className="w-3.5 h-3.5" /> Usar minhas zoeiras</> : <><Store className="w-3.5 h-3.5" /> Comprar zoeiras</>}
+          </button>
         </div>
       )}
     </div>
