@@ -1,5 +1,6 @@
 'use client';
 
+import { MoedaPrisma } from '@/components/nex/moeda-prisma';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Server, Flag, Activity, Shield, Search, CheckCircle, Loader2, ShieldCheck, MailCheck, Megaphone, MessageSquareHeart } from 'lucide-react';
@@ -117,9 +118,18 @@ export default function AdminPage() {
   // Dar/tirar Prisma (moeda paga) na mão, enquanto o Pix não está ligado
   const prismaMutation = useMutation({
     mutationFn: ({ id, quantidade }: { id: string; quantidade: number }) => api.post(`/admin/users/${id}/prismas`, { quantidade }),
-    onSuccess: ({ data }) => window.alert(`Pronto: agora a pessoa tem ${data.prismas} Prisma.`),
-    onError: (e: any) => window.alert(e?.response?.data?.message || 'Não deu para mudar a Prisma'),
+    onSuccess: ({ data }) => setPedidoPrisma(p => p && { ...p, resultado: `Pronto! Agora ${p.nome} tem ${data.prismas} Prisma.`, erro: '' }),
+    onError: (e: any) => setPedidoPrisma(p => p && { ...p, erro: e?.response?.data?.message || 'Não deu para mudar a Prisma.' }),
   });
+  // Painel de Prisma (window.prompt não existe no app de PC, por isso uma janelinha do site)
+  const [pedidoPrisma, setPedidoPrisma] = useState<{ id: string; nome: string; qtd: string; tirar: boolean; resultado: string; erro: string } | null>(null);
+  const qtdPrisma = Math.round(Number(pedidoPrisma?.qtd));
+  const qtdPrismaOk = qtdPrisma >= 1 && qtdPrisma <= 100000;
+  const confirmarPrisma = () => {
+    if (!pedidoPrisma || !qtdPrismaOk || prismaMutation.isPending) return;
+    setPedidoPrisma({ ...pedidoPrisma, resultado: '', erro: '' });
+    prismaMutation.mutate({ id: pedidoPrisma.id, quantidade: pedidoPrisma.tirar ? -qtdPrisma : qtdPrisma });
+  };
 
   // Dar/tirar plano na mão (enquanto não há pagamento)
   const planoMutation = useMutation({
@@ -165,6 +175,59 @@ export default function AdminPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {pedidoPrisma && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setPedidoPrisma(null)}>
+          <form
+            role="dialog" aria-modal="true" aria-labelledby="pedido-prisma-titulo"
+            onClick={e => e.stopPropagation()}
+            onSubmit={e => { e.preventDefault(); confirmarPrisma(); }}
+            onKeyDown={e => { if (e.key === 'Escape') setPedidoPrisma(null); }}
+            className="w-full max-w-sm rounded-2xl bg-surface border border-[#5cc8ff]/40 p-5 space-y-4"
+          >
+            <h2 id="pedido-prisma-titulo" className="flex items-center gap-2 text-white font-semibold">
+              <MoedaPrisma className="w-6 h-6" /> Prisma para {pedidoPrisma.nome}
+            </h2>
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/5" role="radiogroup" aria-label="Dar ou tirar">
+              {([false, true] as const).map(tirar => (
+                <button key={String(tirar)} type="button" role="radio" aria-checked={pedidoPrisma.tirar === tirar}
+                  onClick={() => setPedidoPrisma({ ...pedidoPrisma, tirar, resultado: '', erro: '' })}
+                  className={`py-1.5 rounded-md text-sm font-semibold transition-colors ${pedidoPrisma.tirar === tirar
+                    ? (tirar ? 'bg-destructive text-white' : 'bg-[#1f8fd6] text-white') : 'text-muted hover:text-white'}`}>
+                  {tirar ? 'Tirar' : 'Dar'}
+                </button>
+              ))}
+            </div>
+            <label className="block text-sm text-muted">
+              Quantas Prisma?
+              <input
+                type="number" min={1} max={100000} autoFocus
+                value={pedidoPrisma.qtd}
+                onChange={e => setPedidoPrisma({ ...pedidoPrisma, qtd: e.target.value, resultado: '', erro: '' })}
+                className="mt-1.5 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
+              />
+            </label>
+            <div className="flex gap-1.5">
+              {[100, 500, 1000, 5000].map(n => (
+                <button key={n} type="button" onClick={() => setPedidoPrisma({ ...pedidoPrisma, qtd: String(n), resultado: '', erro: '' })}
+                  className="flex-1 py-1 rounded-md text-xs font-semibold bg-white/5 text-[#5cc8ff] hover:bg-white/10">{n}</button>
+              ))}
+            </div>
+            {!qtdPrismaOk && <p className="text-xs text-destructive">Use de 1 a 100.000.</p>}
+            {pedidoPrisma.erro && <p role="alert" className="text-xs text-destructive">{pedidoPrisma.erro}</p>}
+            {pedidoPrisma.resultado && <p role="status" className="text-sm text-[#8bdcb9] font-semibold">{pedidoPrisma.resultado}</p>}
+            <p className="text-[11px] text-muted">Fica registrado na Auditoria. A Prisma não vira Nex e não pode ser passada para outra pessoa.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setPedidoPrisma(null)} className="px-3 py-1.5 rounded-lg text-sm text-muted hover:text-white">
+                {pedidoPrisma.resultado ? 'Fechar' : 'Cancelar'}
+              </button>
+              <button type="submit" disabled={!qtdPrismaOk || prismaMutation.isPending}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 ${pedidoPrisma.tirar ? 'bg-destructive' : 'bg-[#1f8fd6]'}`}>
+                {prismaMutation.isPending ? 'Enviando…' : pedidoPrisma.tirar ? `Tirar ${qtdPrismaOk ? qtdPrisma : ''} Prisma` : `Enviar ${qtdPrismaOk ? qtdPrisma : ''} Prisma`}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {pedidoPlano && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setPedidoPlano(null)}>
           <form
@@ -409,12 +472,7 @@ export default function AdminPage() {
                           )}
                           {!isRemoved(u) && (
                             <button
-                              onClick={() => {
-                                const nome = u.profile?.displayName || u.username;
-                                const v = window.prompt(`Quantas Prisma dar para ${nome}? (número negativo tira)`, '100');
-                                const q = Number(v);
-                                if (v && Number.isInteger(q) && q !== 0) prismaMutation.mutate({ id: u.id, quantidade: q });
-                              }}
+                              onClick={() => setPedidoPrisma({ id: u.id, nome: u.profile?.displayName || u.username, qtd: '100', tirar: false, resultado: '', erro: '' })}
                               disabled={prismaMutation.isPending}
                               className="text-xs px-3 py-1 mr-2 rounded-md transition-colors disabled:opacity-30 bg-white/5 text-[#5cc8ff] hover:bg-white/10"
                               title="Dar ou tirar Prisma (moeda azul)"
