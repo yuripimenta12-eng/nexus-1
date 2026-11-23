@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   Hash, Volume2, ChevronDown, Plus, Settings, Mic, MicOff, Headphones, PhoneOff, X, Loader2,
   UserPlus, Bell, BellOff, ShieldCheck, Pencil, LogOut, Copy, Check, Users, Lock, ArrowRightLeft,
+  UserCircle, MessageSquare, VolumeX,
 } from 'lucide-react';
 import { useMutes } from '@/lib/mutes';
 import { useSocketStore } from '@/stores/socket.store';
@@ -75,7 +76,7 @@ export function AppSidebar() {
   const [perfilDe, setPerfilDe] = useState<string | null>(null); // perfil aberto ao clicar em alguém na sala de voz
   const fecharPerfil = useCallback(() => setPerfilDe(null), []);
   const [alvoDrop, setAlvoDrop] = useState<string | null>(null);
-  const [menuMover, setMenuMover] = useState<{ userId: string; nome: string; fromRoomId: string; x: number; y: number } | null>(null);
+  const [menuMover, setMenuMover] = useState<{ userId: string; nome: string; fromRoomId: string; x: number; y: number; mover: boolean; volume: boolean } | null>(null);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
   // Não-lidas por canal (badge) + menções (badge vermelho + som)
@@ -343,7 +344,7 @@ export function AppSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Menu "Mover para" (clique direito no nome de quem está na call) */}
+      {/* Menu do botão direito no nome de quem está na call: volume, perfil, mensagem e "Mover para" */}
       {menuMover && server && (
         <div
           role="menu"
@@ -351,10 +352,28 @@ export function AppSidebar() {
           className="fixed z-[70] min-w-[200px] max-w-[260px] rounded-xl bg-[var(--th-panel-2)] border border-[var(--th-line-2)] shadow-2xl p-1.5"
           style={{
             left: Math.min(menuMover.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 270),
-            top: Math.min(menuMover.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 60 - server.voiceRooms.length * 34),
+            top: Math.max(8, Math.min(menuMover.y, (typeof window !== 'undefined' ? window.innerHeight : 9999)
+              - 90 - (menuMover.volume ? 100 : 0) - (menuMover.mover ? 30 + server.voiceRooms.length * 34 : 0))),
           }}
         >
-          <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-bold text-[#9a8fab] truncate">
+          <p className="px-2.5 pt-1 pb-1 text-[13px] font-bold text-white truncate">{menuMover.nome}</p>
+          <button
+            role="menuitem"
+            onClick={() => { setPerfilDe(menuMover.userId); setMenuMover(null); }}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-[#d9d2e3] hover:bg-[#7a2cff] hover:text-white text-left"
+          >
+            <UserCircle className="w-3.5 h-3.5 shrink-0 opacity-70" /> Ver perfil
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => { router.push(`/app/dms/${menuMover.userId}`); setMenuMover(null); }}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-[#d9d2e3] hover:bg-[#7a2cff] hover:text-white text-left"
+          >
+            <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" /> Enviar mensagem
+          </button>
+          {menuMover.volume && <VolumeDoUsuario identity={menuMover.userId} />}
+          {menuMover.mover && (<>
+          <p className="px-2.5 pt-2 pb-1.5 text-[11px] font-bold text-[#9a8fab] truncate border-t border-[var(--th-line-2)] mt-1">
             Mover {menuMover.nome} para…
           </p>
           {server.voiceRooms.filter(r => r.id !== menuMover.fromRoomId).map(r => (
@@ -371,6 +390,7 @@ export function AppSidebar() {
           {server.voiceRooms.length < 2 && (
             <p className="px-2.5 py-1.5 text-[12px] text-[#9a8fab]">Crie outra sala de voz para poder mover.</p>
           )}
+          </>)}
         </div>
       )}
 
@@ -559,17 +579,20 @@ export function AppSidebar() {
                           arrastando?.userId === u.id && 'opacity-50')}
                         draggable={movivel}
                         onClick={() => setPerfilDe(u.id)}
-                        title={movivel ? 'Clique para ver o perfil · arraste para mover de sala' : 'Clique para ver o perfil'}
+                        title={movivel ? 'Clique para ver o perfil · botão direito: volume e mover · arraste para mover de sala' : u.id !== user?.id ? 'Clique para ver o perfil · botão direito: volume' : 'Clique para ver o perfil'}
                         onDragStart={movivel ? (e) => {
                           e.dataTransfer.effectAllowed = 'move';
                           e.dataTransfer.setData('text/plain', u.displayName);
                           setArrastando({ userId: u.id, fromRoomId: room.id });
                         } : undefined}
                         onDragEnd={() => { setArrastando(null); setAlvoDrop(null); }}
-                        onContextMenu={movivel ? (e) => {
+                        onContextMenu={u.id !== user?.id ? (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setMenuMover({ userId: u.id, nome: u.displayName, fromRoomId: room.id, x: e.clientX, y: e.clientY });
+                          setMenuMover({
+                            userId: u.id, nome: u.displayName, fromRoomId: room.id, x: e.clientX, y: e.clientY,
+                            mover: movivel, volume: voiceRoomId === room.id, // volume só de quem está na MESMA call que eu
+                          });
                         } : undefined}
                       >
                         <span className={cn(
@@ -736,6 +759,38 @@ export function AppSidebar() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Volume de uma pessoa da call, só para mim (o mesmo do painel Pessoas da chamada)
+function VolumeDoUsuario({ identity }: { identity: string }) {
+  const p = useVoiceStore((s: any) => s.participants.get(identity));
+  if (!p) return null;
+  const vol = p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100);
+  return (
+    <div className="border-t border-[var(--th-line-2)] mt-1 pt-1">
+      <div className="px-2.5 py-1.5">
+        <div className="flex items-center justify-between mb-1">
+          <small className="text-[10px] text-[#92879f] font-bold uppercase tracking-wider">Volume do usuário</small>
+          <span className="text-[10px] text-white font-black tabular-nums">{vol}%</span>
+        </div>
+        <input
+          type="range" min={0} max={100} value={vol} disabled={p.isMutedLocally}
+          onChange={(e) => useVoiceStore.getState().setParticipantVolume(identity, Number(e.target.value))}
+          className="nx-range w-full"
+          style={{ ['--fill' as any]: `${vol}%` }}
+          aria-label="Volume do usuário"
+        />
+      </div>
+      <button
+        role="menuitem"
+        onClick={() => useVoiceStore.getState().toggleMuteLocally(identity)}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-[#d9d2e3] hover:bg-[#7a2cff] hover:text-white text-left"
+      >
+        {p.isMutedLocally ? <Volume2 className="w-3.5 h-3.5 shrink-0 opacity-70" /> : <VolumeX className="w-3.5 h-3.5 shrink-0 opacity-70" />}
+        {p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
+      </button>
     </div>
   );
 }
