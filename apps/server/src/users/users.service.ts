@@ -32,6 +32,7 @@ export class UsersService {
         username: true,
         createdAt: true,
         isBetaTester: true,
+        isStaff: true, // selo STAFF no perfil
         plano: true,
         profile: {
           select: {

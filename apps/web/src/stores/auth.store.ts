@@ -10,6 +10,7 @@ export interface User {
   username: string;
   isAdmin: boolean;
   isBetaTester?: boolean;      // emblema BETA NEXT
+  isStaff?: boolean;           // cargo Staff (selo no perfil)
   isVerified?: boolean;        // e-mail confirmado
   twoFactorEnabled?: boolean;  // verificação em duas etapas ligada
   plano?: 'gratis' | 'mais' | 'pro';

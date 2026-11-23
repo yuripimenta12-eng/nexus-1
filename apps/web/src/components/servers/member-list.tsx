@@ -9,6 +9,7 @@ import { getSocket, joinServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
 import { EmblemaBeta, SeloBeta } from '@/components/ui/emblema-beta';
+import { SeloStaff } from '@/components/ui/selo-staff';
 import { FaixaConquistas } from '@/components/voice/placar';
 import { EmblemaPlano, SeloPlano } from '@/components/ui/selo-plano';
 import { cn } from '@/lib/utils';
@@ -360,6 +361,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
             @{member.user.username}
           </p>
           <div className="flex flex-wrap gap-1.5">
+            {(pub as any)?.isStaff && <SeloStaff className="mt-2" />}
             {member.user.isBetaTester && <SeloBeta className="mt-2" />}
             <SeloPlano usuario={member.user as any} className="mt-2" />
           </div>
