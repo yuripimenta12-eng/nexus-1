@@ -3,6 +3,7 @@
 // "Quem mora na call?": placar de cada servidor (tempo em call, quem mais
 // fala, DJ da mesa) e as conquistas de cada pessoa.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ParticipantEvent } from 'livekit-client';
 import api from '@/lib/api';
@@ -153,12 +154,43 @@ export function FaixaConquistas({ userId, className }: { userId?: string; classN
     <div className={className}>
       <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#8a8095] mb-1">Conquistas</p>
       <div className="flex flex-wrap gap-1">
-        {lista.map(c => (
-          <div key={c.chave} title={`${c.nome} · ${c.meta}`} role="img" aria-label={c.nome}>
-            <Hexagono chave={c.chave} emoji={c.emoji} ativo tamanho={40} />
-          </div>
-        ))}
+        {lista.map(c => <ConquistaComDica key={c.chave} c={c} />)}
       </div>
+    </div>
+  );
+}
+
+// Ícone da conquista com o cartão de descrição ao passar o mouse (ou focar pelo teclado/toque).
+// Vai para o body com posição fixa: assim não é cortado pelo cartão de perfil e não sai da tela.
+function ConquistaComDica({ c }: { c: (typeof CONQUISTAS)[number] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number; abaixo: boolean } | null>(null);
+  const abrir = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    const meia = 100; // metade da largura do cartão (200px)
+    const x = Math.min(window.innerWidth - meia - 8, Math.max(meia + 8, r.left + r.width / 2));
+    const abaixo = r.top < 190; // sem espaço em cima: mostra embaixo
+    setPos({ x, y: abaixo ? r.bottom + 8 : r.top - 8, abaixo });
+  };
+  const fechar = () => setPos(null);
+  return (
+    <div ref={ref} tabIndex={0} role="img" aria-label={`${c.nome}: ${c.meta}`}
+      onMouseEnter={abrir} onMouseLeave={fechar} onFocus={abrir} onBlur={fechar}
+      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#c8f53b]/60">
+      <Hexagono chave={c.chave} emoji={c.emoji} ativo tamanho={40} />
+      {pos && createPortal(
+        <div role="tooltip"
+          className="fixed z-[90] w-[200px] pointer-events-none rounded-xl bg-[#1b1622] border border-[var(--th-line-2)]
+                     shadow-[0_12px_32px_rgba(0,0,0,0.55)] px-4 pt-3 pb-3.5 text-center"
+          style={{ left: pos.x, top: pos.y, transform: `translate(-50%, ${pos.abaixo ? '0' : '-100%'})` }}>
+          <div className="flex justify-center mb-1.5"><Hexagono chave={c.chave} emoji={c.emoji} ativo tamanho={84} /></div>
+          <p className="text-[11px] text-[#a99cb8]">{c.exclusiva ? 'Conquista exclusiva' : 'Conquista'}</p>
+          <b className="block text-white text-[15px] font-black uppercase tracking-wide leading-tight">{c.nome}</b>
+          <p className="text-[12px] text-[#a99cb8] mt-0.5">{c.meta}</p>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
