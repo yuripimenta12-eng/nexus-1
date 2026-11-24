@@ -11,6 +11,7 @@ export interface User {
   isAdmin: boolean;
   isBetaTester?: boolean;      // emblema BETA NEXT
   isStaff?: boolean;           // cargo Staff (selo no perfil)
+  termosVersao?: string | null; // versão dos Termos/Privacidade aceita (com a declaração de 18+)
   isVerified?: boolean;        // e-mail confirmado
   twoFactorEnabled?: boolean;  // verificação em duas etapas ligada
   plano?: 'gratis' | 'mais' | 'pro';

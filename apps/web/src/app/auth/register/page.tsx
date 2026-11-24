@@ -25,7 +25,7 @@ const schema = z.object({
     .regex(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/, 'Use maiúscula, minúscula e número'),
   confirmPassword: z.string(),
   inviteCode: z.string().max(64).optional(),
-  terms: z.literal(true, { error: 'Você precisa aceitar os termos' }),
+  terms: z.literal(true, { error: 'Confirme que tem 18 anos ou mais e aceita os termos' }),
 }).refine(d => d.password === d.confirmPassword, {
   message: 'As senhas não conferem',
   path: ['confirmPassword'],
@@ -78,6 +78,7 @@ export default function RegisterPage() {
     setError('');
     try {
       const { confirmPassword, terms, ...payload } = data as any;
+      payload.maior18 = terms === true; // a caixa é a declaração de 18+ junto com o aceite
       payload.inviteCode = (payload.inviteCode || pendingInvite || codigoLink || '').trim() || undefined;
       payload.ref = localStorage.getItem('nexus_ref') || undefined;
       await registerUser(payload);
@@ -261,8 +262,9 @@ export default function RegisterPage() {
               <input type="checkbox" {...register('terms')}
                 className="mt-0.5 w-4 h-4 rounded accent-[#ff6a00]" />
               <span className="text-[#cfc5d8] text-xs leading-relaxed">
-                Li e aceito os <span className="text-orange font-semibold">Termos de Uso</span> e
-                a <span className="text-orange font-semibold">Política de Privacidade</span>.
+                Tenho <b className="text-white">18 anos ou mais</b> e li e aceito os{' '}
+                <a href="/termos" target="_blank" rel="noopener" className="text-orange font-semibold underline">Termos de Uso</a> e
+                a <a href="/privacidade" target="_blank" rel="noopener" className="text-orange font-semibold underline">Política de Privacidade</a>.
               </span>
             </label>
             {errors.terms && <p className="text-destructive text-xs -mt-2">{errors.terms.message}</p>}

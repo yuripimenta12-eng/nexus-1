@@ -263,7 +263,7 @@ export function JanelaPix({ pedido, p, erro, teste, onClose, onTentar }: {
         {/* Rodapé */}
         <div className="flex flex-col gap-1 border-t border-white/[0.07] bg-[#0e0c13] px-5 py-3 text-[11px] leading-snug text-[#7c748c] sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-1.5"><Lock className="size-3" />Pix processado pelo Efí Bank. O Nexus não vê os dados do seu banco.</span>
-          <span>{pedido.tipo === 'doacao' ? 'Doação voluntária, sem nada em troca.' : '7 dias para se arrepender: fale com o suporte.'}</span>
+          <span>{pedido.tipo === 'doacao' ? 'Doação voluntária, sem nada em troca.' : '7 dias para se arrepender: fale com o suporte.'} Ao pagar, você aceita os <a href="/termos" target="_blank" rel="noopener" className="underline hover:text-white">Termos de Uso</a>.</span>
         </div>
       </motion.div>
     </div>,

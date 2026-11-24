@@ -403,6 +403,10 @@ export default function Landing() {
 
         <footer className="border-t border-white/10 px-4 py-8 text-center text-xs text-white/40">
           <p className="flex items-center justify-center gap-1.5"><Lock className="size-3" /> Nexus Link · nexuslink.art</p>
+          <p className="mt-2 flex justify-center gap-4">
+            <a href="/termos" className="hover:text-white">Termos de Uso</a>
+            <a href="/privacidade" className="hover:text-white">Política de Privacidade</a>
+          </p>
         </footer>
       </div>
     </MotionConfig>

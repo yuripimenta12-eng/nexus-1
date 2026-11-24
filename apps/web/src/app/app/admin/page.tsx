@@ -115,6 +115,14 @@ export default function AdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
 
+  // Deslogar de todos os aparelhos (pede confirmação numa janelinha do site)
+  const [pedidoDeslogar, setPedidoDeslogar] = useState<{ id: string; nome: string; resultado: string; erro: string } | null>(null);
+  const deslogarMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/admin/users/${id}/deslogar`),
+    onSuccess: ({ data }) => setPedidoDeslogar(p => p && { ...p, resultado: `Pronto! ${p.nome} saiu de ${data.sessoes} aparelho(s) e vai precisar entrar de novo.`, erro: '' }),
+    onError: (e: any) => setPedidoDeslogar(p => p && { ...p, erro: e?.response?.data?.message || 'Não deu para deslogar.' }),
+  });
+
   // Dar/tirar Prisma (moeda paga) na mão, enquanto o Pix não está ligado
   const prismaMutation = useMutation({
     mutationFn: ({ id, quantidade }: { id: string; quantidade: number }) => api.post(`/admin/users/${id}/prismas`, { quantidade }),
@@ -175,6 +183,36 @@ export default function AdminPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {pedidoDeslogar && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setPedidoDeslogar(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="deslogar-titulo" onClick={e => e.stopPropagation()}
+            onKeyDown={e => { if (e.key === 'Escape') setPedidoDeslogar(null); }}
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#141019] p-5 shadow-2xl">
+            <h2 id="deslogar-titulo" className="text-lg font-black text-white">Deslogar {pedidoDeslogar.nome}?</h2>
+            {pedidoDeslogar.resultado ? (
+              <p className="mt-3 rounded-lg bg-success/10 p-3 text-sm text-success">{pedidoDeslogar.resultado}</p>
+            ) : (
+              <p className="mt-2 text-sm text-[#b9b2c6]">
+                <b className="text-white">Tem certeza?</b> A pessoa sai na hora de todos os aparelhos (site, celular e app de PC) e
+                vai precisar entrar de novo com e-mail e senha. A conta, as mensagens e os itens não mudam.
+              </p>
+            )}
+            {pedidoDeslogar.erro && <p className="mt-2 text-sm text-red-300">{pedidoDeslogar.erro}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setPedidoDeslogar(null)}
+                className="h-9 rounded-lg px-4 text-sm font-bold text-[#c9c2d2] hover:bg-white/10">
+                {pedidoDeslogar.resultado ? 'Fechar' : 'Cancelar'}
+              </button>
+              {!pedidoDeslogar.resultado && (
+                <button type="button" disabled={deslogarMutation.isPending} onClick={() => deslogarMutation.mutate(pedidoDeslogar.id)}
+                  className="h-9 rounded-lg bg-[#ff9f1a] px-4 text-sm font-black text-[#1a1206] hover:brightness-110 disabled:opacity-50">
+                  {deslogarMutation.isPending ? 'Deslogando…' : 'Sim, deslogar'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {pedidoPrisma && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setPedidoPrisma(null)}>
           <form
@@ -478,6 +516,16 @@ export default function AdminPage() {
                               title="Dar ou tirar Prisma (moeda azul)"
                             >
                               Prisma
+                            </button>
+                          )}
+                          {!isRemoved(u) && (
+                            <button
+                              onClick={() => setPedidoDeslogar({ id: u.id, nome: u.profile?.displayName || u.username, resultado: '', erro: '' })}
+                              disabled={u.id === user.id}
+                              className="text-xs px-3 py-1 mr-2 rounded-md transition-colors disabled:opacity-30 bg-white/5 text-[#ffcf66] hover:bg-white/10"
+                              title="Tira a pessoa de todos os aparelhos: ela precisa entrar de novo"
+                            >
+                              Deslogar
                             </button>
                           )}
                           {!isRemoved(u) && <button

@@ -27,6 +27,7 @@ import { ComunicadosHost } from '@/components/layout/comunicados';
 import { CentralNex } from '@/components/nex/central-nex';
 import { useMutes } from '@/lib/mutes';
 import { cn } from '@/lib/utils';
+import { AceiteTermos } from '@/components/legal/aceite-termos';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -70,7 +71,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const socket = getSocket();
     const onPlano = () => { useAuthStore.getState().refreshUser(); };
     socket.on('plano:atualizado', onPlano);
-    return () => { socket.off('plano:atualizado', onPlano); };
+    // O dono deslogou esta conta no painel: sai na hora em todos os aparelhos
+    const onEncerrada = () => { useAuthStore.getState().logout().catch(() => {}); };
+    socket.on('sessao:encerrada', onEncerrada);
+    return () => { socket.off('plano:atualizado', onPlano); socket.off('sessao:encerrada', onEncerrada); };
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -144,6 +148,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <PushPrompt />
       {/* App de PC: versão nova baixada, pronta para instalar */}
       <AtualizacaoApp />
+      {/* Termos/Privacidade + declaração de 18+ (uma vez por versão) */}
+      <AceiteTermos />
       {/* Comunicados do dono do Nexus: destaque até "Entendi" */}
       <ComunicadosHost />
       {/* Recompensas Nex (presença, roleta, missões): abre de qualquer tela */}
