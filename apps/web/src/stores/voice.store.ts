@@ -367,6 +367,21 @@ function applyStreamBoost(track: any, sid: string, gainValue: number): boolean {
   }
 }
 
+// Volume que eu escolhi para cada pessoa (voz, live e "silenciar para mim"): fica salvo neste
+// aparelho e volta quando ela sai e entra de novo na call (antes voltava sempre a 100%).
+const CHAVE_VOLUMES = 'nexus_volumes_pessoas';
+type VolumeSalvo = { v?: number; s?: number; m?: boolean };
+let volumesSalvos: Record<string, VolumeSalvo> = (() => {
+  try { return JSON.parse(localStorage.getItem(CHAVE_VOLUMES) || '{}') || {}; } catch { return {}; }
+})();
+function lembrarVolume(identity: string, mudanca: VolumeSalvo) {
+  const novo = { ...volumesSalvos[identity], ...mudanca };
+  // Tudo no padrão (100%, sem silenciar): não precisa guardar
+  if ((novo.v ?? 100) === 100 && (novo.s ?? 100) === 100 && !novo.m) delete volumesSalvos[identity];
+  else volumesSalvos[identity] = novo;
+  try { localStorage.setItem(CHAVE_VOLUMES, JSON.stringify(volumesSalvos)); } catch { /* sem espaço ou modo privado */ }
+}
+
 // Aplica o volume nas tracks de áudio do participante via API do LiveKit
 // (track.setVolume ajusta os <audio> anexados e re-aplica sozinho quando a
 // track é re-anexada — mais confiável que mexer em el.volume por fora).
@@ -895,6 +910,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       if (p) {
         const updated = { ...p, localVolume: volume };
         applyVolumeToTracks(updated); // individual × saída global, via gainNode
+        lembrarVolume(identity, { v: volume });
         next.set(identity, updated);
       }
       return { participants: next };
@@ -910,6 +926,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       if (p) {
         const updated = { ...p, streamVolume: volume };
         applyVolumeToTracks(updated);
+        lembrarVolume(identity, { s: volume });
         next.set(identity, updated);
       }
       return { participants: next };
@@ -923,6 +940,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       if (p) {
         const updated = { ...p, isMutedLocally: !p.isMutedLocally };
         applyVolumeToTracks(updated);
+        lembrarVolume(identity, { m: updated.isMutedLocally });
         next.set(identity, updated);
       }
       return { participants: next };
@@ -1025,9 +1043,9 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       const next = new Map(state.participants);
       next.set(p.identity, {
         ...built,
-        localVolume: existing?.localVolume ?? 100,
-        streamVolume: existing?.streamVolume ?? 100,
-        isMutedLocally: existing?.isMutedLocally ?? false,
+        localVolume: existing?.localVolume ?? built.localVolume,
+        streamVolume: existing?.streamVolume ?? built.streamVolume,
+        isMutedLocally: existing?.isMutedLocally ?? built.isMutedLocally,
       });
       return { participants: next };
     });
@@ -1053,8 +1071,9 @@ function buildParticipant(p: Participant): VoiceParticipant {
     camEnabled: hasCam,
     screenSharing: hasScreen,
     connectionQuality: p.connectionQuality,
-    localVolume: 100,
-    isMutedLocally: false,
+    localVolume: volumesSalvos[p.identity]?.v ?? 100,
+    streamVolume: volumesSalvos[p.identity]?.s ?? 100,
+    isMutedLocally: volumesSalvos[p.identity]?.m ?? false,
     participant: p,
   };
 }
