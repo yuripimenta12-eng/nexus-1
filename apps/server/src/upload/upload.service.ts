@@ -17,6 +17,13 @@ const EXT_POR_TIPO: Record<string, string> = {
   'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 };
 
+// Chave do arquivo no storage a partir da URL pública (qualquer host antigo ou novo)
+export function keyFromUrl(url?: string | null): string | null {
+  if (!url || url.startsWith('data:')) return null;
+  const m = url.match(/\/((?:avatars|attachments|banners|server-icons|emojis)\/[^/?#]+)$/);
+  return m ? m[1] : null;
+}
+
 @Injectable()
 export class UploadService {
   private s3: AWS.S3;
@@ -168,6 +175,17 @@ export class UploadService {
       );
     }
     return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  }
+
+  // Foto/capa trocada ou removida: apaga o arquivo antigo (e a versão parada do GIF).
+  // Antes ficavam no storage para sempre e o backup passou do limite do Telegram.
+  apagarFotoAntiga(url?: string | null) {
+    const key = keyFromUrl(url);
+    if (!key || !/^(avatars|banners)\//.test(key)) return;
+    // GIF e a versão parada andam juntos (o plano vencido troca um pelo outro na URL)
+    const par = key.endsWith('.gif') ? key.replace(/\.gif$/, '-estatico.webp') : key.endsWith('-estatico.webp') ? key.replace(/-estatico\.webp$/, '.gif') : null;
+    const keys = par ? [key, par] : [key];
+    for (const k of keys) this.deleteFile(k).catch(() => { /* já não existe */ });
   }
 
   async deleteFile(key: string) {

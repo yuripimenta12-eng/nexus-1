@@ -2,14 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { UploadService } from '../upload/upload.service';
-
-// Chave do arquivo no storage a partir da URL pública (qualquer host antigo ou novo)
-function keyFromUrl(url?: string | null): string | null {
-  if (!url || url.startsWith('data:')) return null;
-  const m = url.match(/\/((?:avatars|attachments|banners|server-icons|emojis)\/[^/?#]+)$/);
-  return m ? m[1] : null;
-}
+import { UploadService, keyFromUrl } from '../upload/upload.service';
 
 // Exclusão da própria conta (LGPD — direito de eliminação dos dados).
 // Os dados pessoais são APAGADOS; sobra só um registro anônimo ("Conta removida",

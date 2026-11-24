@@ -99,10 +99,12 @@ export class UploadController {
     const plano = await planoDe(this.prisma, userId);
     const { url } = await this.uploadService.uploadFile(file, 'avatars', { animado: BENEFICIOS[plano].avatarAnimado });
 
+    const antes = await this.prisma.profile.findUnique({ where: { userId }, select: { avatarUrl: true } });
     await this.prisma.profile.update({
       where: { userId },
       data: { avatarUrl: url },
     });
+    this.uploadService.apagarFotoAntiga(antes?.avatarUrl);
     // Foto nova aparece na página inicial: o depoimento volta para aprovação
     await this.prisma.depoimento.updateMany({ where: { userId, aprovado: true }, data: { aprovado: false } }).catch(() => {});
 
@@ -118,10 +120,12 @@ export class UploadController {
     const plano = await planoDe(this.prisma, userId);
     const { url } = await this.uploadService.uploadFile(file, 'banners', { animado: BENEFICIOS[plano].avatarAnimado });
 
+    const antes = await this.prisma.profile.findUnique({ where: { userId }, select: { bannerUrl: true } });
     await this.prisma.profile.update({
       where: { userId },
       data: { bannerUrl: url, bannerColor: null },
     });
+    this.uploadService.apagarFotoAntiga(antes?.bannerUrl);
 
     return { bannerUrl: url };
   }
