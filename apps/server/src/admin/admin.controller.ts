@@ -48,6 +48,12 @@ export class AdminController {
     return this.adminService.setUserPrismas(userId, targetId, body?.quantidade);
   }
 
+  // Tira a pessoa de todos os aparelhos (precisa entrar com e-mail e senha de novo)
+  @Post('users/:id/deslogar')
+  userDeslogar(@CurrentUser('id') userId: string, @Param('id') targetId: string) {
+    return this.adminService.deslogarUsuario(userId, targetId);
+  }
+
   @Post('users/:id/staff')
   userStaff(@CurrentUser('id') userId: string, @Param('id') targetId: string, @Body() body: { on: boolean }) {
     return this.adminService.setUserStaff(userId, targetId, body?.on);

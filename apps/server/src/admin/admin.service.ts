@@ -152,6 +152,19 @@ export class AdminService {
     return { id: targetId, prismas: c!.prismas };
   }
 
+  // Deslogar de todos os aparelhos: apaga as sessões (o login automático para de valer)
+  // e avisa os aparelhos abertos para saírem na hora (sem esperar o acesso de 15 min vencer)
+  async deslogarUsuario(adminId: string, targetId: string) {
+    await this.requireAdmin(adminId);
+    const alvo = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!alvo) throw new NotFoundException('Usuário não encontrado');
+    const { count } = await this.prisma.session.deleteMany({ where: { userId: targetId } });
+    await this.prisma.auditLog.create({ data: { actorId: adminId, action: 'ADMIN_FORCE_LOGOUT', targetType: 'USER', targetId, meta: { sessoes: count } } });
+    this.gateway.emitToUser(targetId, 'sessao:encerrada', {});
+    setTimeout(() => this.gateway.disconnectUser(targetId), 1500).unref(); // dá tempo do aviso chegar
+    return { id: targetId, sessoes: count };
+  }
+
   // Cargo Staff: ganha as molduras e o ícone da equipe. Ao tirar, sai o que era da equipe do perfil.
   async setUserStaff(adminId: string, targetId: string, on: boolean) {
     await this.requireAdmin(adminId);
