@@ -39,7 +39,10 @@ export function SeloLiquido({ cor, titulo, icone, children, className }: {
       className={cn('relative inline-flex h-[26px] select-none items-center rounded-full', className)}
       style={{ boxShadow: `0 0 14px -3px ${brilho}aa, 0 0 0 1px ${brilho}66` }}>
       {/* Líquido animado, recortado no formato do selo */}
-      <span aria-hidden className="absolute inset-0 overflow-hidden rounded-full bg-black">
+      {/* clip-path + isolation: com as camadas animadas pela placa de vídeo, o Chrome ignora o
+          overflow-hidden arredondado e o líquido vazava pelos cantos */}
+      <span aria-hidden className="absolute inset-0 overflow-hidden rounded-full bg-black"
+        style={{ clipPath: 'inset(0 round 9999px)', isolation: 'isolate' }}>
         <Liquid isHovered={hover} colors={tons} parado={parado} />
         {/* Escurece o meio para o texto ler bem e dá o brilho de vidro em cima */}
         <span className="absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(10,6,20,0.62),rgba(10,6,20,0.25)_75%)]" />
