@@ -10,6 +10,7 @@ import { RARIDADE, type Raridade, type TipoItem } from '@/lib/itens';
 import { MoedaPrisma } from '@/components/nex/moeda-prisma';
 import { formatarNex } from '@/components/nex/moeda-nex';
 import { PagarPix, usePixDisponivel, type PedidoNovo } from '@/components/pagamento/pagar-pix';
+import { BotaoMoeda } from '@/components/pagamento/botao-moeda';
 
 export interface PacotePrisma { id: string; prismas: number; bonus: number; reais: string }
 export interface CaixaPrisma { id: string; nome: string; preco: number; precoPraVoce: number; temTudo: boolean; cor: string; desc: string; itens: string[] }
@@ -61,13 +62,13 @@ export function SecaoPrisma({ prismas, pacotes, caixas, info, onMudou }: {
               <MoedaPrisma className="w-10 h-10 mx-auto" />
               <b className="block mt-1 text-lg font-black text-white tabular-nums">{formatarNex(p.prismas)} Prisma</b>
               <span className={p.bonus ? 'text-[11px] font-bold text-[#5cffb0]' : 'text-[11px] text-[#7fa6c9]'}>{p.bonus ? `+${p.bonus} de bônus` : 'Pacote inicial'}</span>
-              <button style={botaoAzul}
+              <BotaoMoeda style={botaoAzul} moeda={<MoedaPrisma className="w-5 h-5" />}
                 onClick={() => pix?.ligado
                   ? setPedido({ tipo: 'prisma', item: p.id })
                   : toast('O pagamento por Pix está sendo ligado e chega logo. Enquanto isso, a equipe do Nexus pode colocar Prisma na sua conta.', 'info')}
                 className="mt-2 w-full h-9 rounded-[10px] text-sm font-black text-white hover:brightness-110 active:translate-y-[2px]">
                 R$ {p.reais.replace('.', ',')}
-              </button>
+              </BotaoMoeda>
             </div>
           ))}
         </div>

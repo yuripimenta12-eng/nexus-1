@@ -13,6 +13,7 @@ import { NOME_PLANO, type Plano } from '@/lib/planos';
 import { DepoimentoForm } from '@/components/depoimento-form';
 import { CartaoPlano, PARA_VOCE, type Cartao } from '@/components/cartao-plano';
 import { PagarPix, usePixDisponivel, reais, type PedidoNovo } from '@/components/pagamento/pagar-pix';
+import { BotaoMoeda } from '@/components/pagamento/botao-moeda';
 
 const PARA_SERVIDORES: Cartao[] = [
   {
@@ -127,10 +128,10 @@ function CartaoDoacao({ onDoar }: { onDoar: (centavos: number) => void }) {
           <input aria-label="Valor da doação em reais" inputMode="decimal" value={valor} onChange={e => setValor(e.target.value.replace(/[^\d,.]/g, '').slice(0, 7))}
             className="w-16 bg-transparent font-bold text-white outline-none" />
         </label>
-        <button type="button" disabled={!valido} onClick={() => onDoar(centavos)}
-          className="ml-auto rounded-full bg-[#ff4f79] px-5 py-2 text-sm font-extrabold text-white hover:brightness-110 disabled:opacity-40">
+        <BotaoMoeda disabled={!valido} onClick={() => onDoar(centavos)}
+          className="ml-auto rounded-full bg-[#ff4f79] py-1.5 pl-5 pr-1.5 text-sm font-extrabold text-white hover:brightness-110 disabled:opacity-40">
           Doar com Pix
-        </button>
+        </BotaoMoeda>
       </div>
       {!valido && <p className="mt-2 text-xs text-[#ff8fa8]">Escolha um valor entre R$ 1 e R$ 500.</p>}
     </section>
