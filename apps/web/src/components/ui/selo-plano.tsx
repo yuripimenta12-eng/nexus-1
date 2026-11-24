@@ -31,7 +31,10 @@ export function SeloPlano({ usuario, className }: { usuario: ComPlano; className
   const { Icone, cor } = VISUAL[plano];
   return (
     <SeloLiquido cor={plano} titulo={NOME_PLANO[plano]} className={className}
-      icone={<Icone style={{ width: 15, height: 15, color: cor }} strokeWidth={2.4} aria-hidden />}>
+      icone={plano === 'pro'
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src="/itens/icones/i-pro.webp" alt="" aria-hidden draggable={false} className="h-[18px] w-[30px] -my-1 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]" />
+        : <Icone style={{ width: 15, height: 15, color: cor }} strokeWidth={2.4} aria-hidden />}>
       {NOME_PLANO[plano]}
     </SeloLiquido>
   );
