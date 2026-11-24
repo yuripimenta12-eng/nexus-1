@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
+import { SeloLiquido } from '@/components/ui/selo-liquido';
 
 // Emblema BETA NEXT: de quem criou conta enquanto o Nexus estava em beta.
 // Hexágono laranja → roxo com um "β"; o selo é o emblema + o nome.
@@ -38,16 +39,8 @@ export function EmblemaBeta({ size = 16, className }: { size?: number; className
 // Selo com o nome, para o perfil
 export function SeloBeta({ className }: { className?: string }) {
   return (
-    <span title={BETA_DICA}
-      className={cn('inline-flex items-center gap-1.5 rounded-full p-[1px] select-none', className)}
-      style={{ background: 'linear-gradient(110deg, #ff8a1f, #ff4f79 55%, #7a2cff)' }}>
-      <span className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-2.5 py-[3px] bg-[#130d1d]">
-        <EmblemaBeta size={18} />
-        <span className="text-[10.5px] font-black tracking-[0.14em] leading-none bg-clip-text text-transparent"
-          style={{ backgroundImage: 'linear-gradient(90deg, #ffb070, #ff7aa0 50%, #c49bff)' }}>
-          BETA NEXT
-        </span>
-      </span>
-    </span>
+    <SeloLiquido cor="beta" titulo={BETA_DICA} className={className} icone={<EmblemaBeta size={18} />}>
+      BETA NEXT
+    </SeloLiquido>
   );
 }

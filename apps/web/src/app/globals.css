@@ -1234,3 +1234,12 @@ html[data-tema='t-84'] {
 }
 /* Modo leve: */
 html.nx-leve .nx-bau-arte, html.nx-leve .nx-bau-card:hover .nx-bau-arte, html.nx-leve .nx-bau-chao { animation: none; }
+
+/* Selos com fundo líquido (components/ui/button-1.tsx): só transform, roda na placa de vídeo */
+@keyframes nx-liquido {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate(-6%, 8%) rotate(14deg) scale(1.08); }
+  100% { transform: translate(5%, -6%) rotate(-12deg) scale(0.96); }
+}
+.nx-liquido { animation: nx-liquido 10s ease-in-out infinite alternate; will-change: transform; }
+html.nx-leve .nx-liquido { animation: none; }

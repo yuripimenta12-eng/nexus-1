@@ -4,6 +4,7 @@
 // Grátis não mostra nada.
 import { Crown, Gem } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SeloLiquido } from '@/components/ui/selo-liquido';
 import { NOME_PLANO, planoAtivo } from '@/lib/planos';
 
 type ComPlano = { plano?: string | null; planoAte?: string | Date | null } | null | undefined;
@@ -27,16 +28,11 @@ export function EmblemaPlano({ usuario, size = 14, className }: { usuario: ComPl
 export function SeloPlano({ usuario, className }: { usuario: ComPlano; className?: string }) {
   const plano = planoAtivo(usuario);
   if (plano === 'gratis') return null;
-  const { Icone, cor, borda, texto } = VISUAL[plano];
+  const { Icone, cor } = VISUAL[plano];
   return (
-    <span className={cn('inline-flex items-center rounded-full p-[1px] select-none', className)} style={{ background: borda }}>
-      <span className="inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-[3px] bg-[#130d1d]">
-        <Icone style={{ width: 15, height: 15, color: cor }} strokeWidth={2.4} aria-hidden />
-        <span className="text-[10.5px] font-black tracking-[0.14em] leading-none uppercase bg-clip-text text-transparent"
-          style={{ backgroundImage: texto }}>
-          {NOME_PLANO[plano]}
-        </span>
-      </span>
-    </span>
+    <SeloLiquido cor={plano} titulo={NOME_PLANO[plano]} className={className}
+      icone={<Icone style={{ width: 15, height: 15, color: cor }} strokeWidth={2.4} aria-hidden />}>
+      {NOME_PLANO[plano]}
+    </SeloLiquido>
   );
 }
