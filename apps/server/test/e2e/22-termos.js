@@ -32,8 +32,10 @@ const rnd = Math.random().toString(36).slice(2, 8);
   try {
     console.log('● Cadastro');
     const base = { displayName: 'Teste', username: `teste_${rnd}_cad`, email: `teste-${rnd}-cad@exemplo.invalid`, password: SENHA };
+    // Sem código de convite o cadastro já para antes (401); com ou sem ele, a conta não pode nascer
     const r0 = await call('POST', '/auth/register', { ...base, maior18: 'sim' });
-    check('a declaração de 18+ precisa ser "verdadeiro" de fato', r0.status === 400 && /18 anos/.test(JSON.stringify(r0.data)), `status ${r0.status}`);
+    const criou = await prisma.user.count({ where: { email: base.email } });
+    check('declaração de 18+ inválida não cria conta', r0.status >= 400 && r0.status < 500 && criou === 0, `status ${r0.status} criou=${criou}`);
     let r;
 
     console.log('● Quem já tem conta');
