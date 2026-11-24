@@ -185,6 +185,18 @@ const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
     r = await call('POST', '/upload/avatar', arquivo(GIF, 'image/gif', 'b.gif'), tv, true);
     if (r.data?.avatarUrl) enviados.push(r.data.avatarUrl);
     check('no grátis o GIF vira imagem parada', r.status === 201 && /\.webp$/.test(r.data?.avatarUrl || ''), JSON.stringify(r.data));
+    {
+      // Trocar a foto apaga a antiga do storage (antes acumulava e o backup estourou o Telegram)
+      const s3 = new AWS.S3({ endpoint: process.env.S3_ENDPOINT, accessKeyId: process.env.S3_ACCESS_KEY, secretAccessKey: process.env.S3_SECRET_KEY, region: process.env.S3_REGION || 'us-east-1', s3ForcePathStyle: true, signatureVersion: 'v4' });
+      const base = (process.env.S3_PUBLIC_URL || '') + '/';
+      const existe = (url) => s3.headObject({ Bucket: process.env.S3_BUCKET || 'nexus-uploads', Key: url.slice(base.length) }).promise().then(() => true, () => false);
+      const antiga = r.data?.avatarUrl || '';
+      const estavaLa = antiga.startsWith(base) && await existe(antiga);
+      r = await call('POST', '/upload/avatar', arquivo(GIF, 'image/gif', 'c.gif'), tv, true);
+      if (r.data?.avatarUrl) enviados.push(r.data.avatarUrl);
+      await sleep(1500);
+      check('trocar a foto apaga a antiga do storage', estavaLa && r.status === 201 && !(await existe(antiga)), `antes=${estavaLa} status=${r.status}`);
+    }
 
     console.log('● Arquivos maiores');
     const ch = (await prisma.channel.findMany({ where: { serverId }, orderBy: { createdAt: 'asc' } }))[0];

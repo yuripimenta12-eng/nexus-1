@@ -8,10 +8,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserStatus } from '@prisma/client';
 import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService, private presence: PresenceService) {}
+  constructor(private prisma: PrismaService, private presence: PresenceService, private upload: UploadService) {}
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -121,6 +122,9 @@ export class UsersService {
       const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { plano: true, planoAte: true } });
       if (!BENEFICIOS[planoAtivo(u?.plano, u?.planoAte)].corNome) throw new ForbiddenException('A cor no nome vem com o Nexus+ ou o Pro');
     }
+    const capaAntes = dto.bannerColor !== undefined
+      ? (await this.prisma.profile.findUnique({ where: { userId }, select: { bannerUrl: true } }))?.bannerUrl
+      : null;
     const profile = await this.prisma.profile.update({
       where: { userId },
       data: {
@@ -134,6 +138,7 @@ export class UsersService {
           : {}),
       },
     });
+    this.upload.apagarFotoAntiga(capaAntes);
     // Nome novo aparece na página inicial: o depoimento volta para aprovação
     if (dto.displayName !== undefined) await this.revisarDepoimento(userId);
     return profile;
@@ -144,17 +149,23 @@ export class UsersService {
   }
 
   async removeBanner(userId: string) {
-    return this.prisma.profile.update({
+    const antes = await this.prisma.profile.findUnique({ where: { userId }, select: { bannerUrl: true } });
+    const p = await this.prisma.profile.update({
       where: { userId },
       data: { bannerUrl: null, bannerColor: null },
     });
+    this.upload.apagarFotoAntiga(antes?.bannerUrl);
+    return p;
   }
 
   async removeAvatar(userId: string) {
-    return this.prisma.profile.update({
+    const antes = await this.prisma.profile.findUnique({ where: { userId }, select: { avatarUrl: true } });
+    const p = await this.prisma.profile.update({
       where: { userId },
       data: { avatarUrl: null },
     });
+    this.upload.apagarFotoAntiga(antes?.avatarUrl);
+    return p;
   }
 
   async updateAvatar(userId: string, avatarUrl: string) {
