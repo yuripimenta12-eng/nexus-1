@@ -60,6 +60,14 @@ export class UsersController {
     return this.usersService.updateProfile(userId, dto);
   }
 
+  // Aceite dos Termos/Política com a declaração de 18+ (quem já tinha conta aceita ao abrir o app)
+  @Post('@me/termos')
+  @HttpCode(HttpStatus.OK)
+  aceitarTermos(@CurrentUser('id') userId: string, @Body() body: { maior18?: unknown }) {
+    if (body?.maior18 !== true) throw new BadRequestException('O Nexus é só para maiores de 18 anos');
+    return this.usersService.aceitarTermos(userId);
+  }
+
   @Delete('@me/banner')
   removeBanner(@CurrentUser('id') userId: string) {
     return this.usersService.removeBanner(userId);

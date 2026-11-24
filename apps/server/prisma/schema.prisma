@@ -78,6 +78,9 @@ model User {
   nexMovimentos          NexMovimento[]
   prismaMovimentos       PrismaMovimento[]
   pedidosPix             PedidoPix[]
+  // Versão dos Termos/Privacidade que a pessoa aceitou (com a declaração de ter 18+)
+  termosVersao           String?                 @db.VarChar(10)
+  termosAceitosEm        DateTime?
   missaoResgates         MissaoResgate[]
   itens                  ItemPosse[]
   zoeiras                ZoeiraEstoque[]

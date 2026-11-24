@@ -9,6 +9,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserStatus } from '@prisma/client';
 import { canAccessVoiceRoom, toPublicVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
 import { UploadService } from '../upload/upload.service';
+import { TERMOS_VERSAO } from '../common/termos';
 
 @Injectable()
 export class UsersService {
@@ -146,6 +147,14 @@ export class UsersService {
 
   async revisarDepoimento(userId: string) {
     await this.prisma.depoimento.updateMany({ where: { userId, aprovado: true }, data: { aprovado: false } }).catch(() => {});
+  }
+
+  async aceitarTermos(userId: string) {
+    const u = await this.prisma.user.update({
+      where: { id: userId }, data: { termosVersao: TERMOS_VERSAO, termosAceitosEm: new Date() },
+      select: { termosVersao: true, termosAceitosEm: true },
+    });
+    return u;
   }
 
   async removeBanner(userId: string) {

@@ -4,6 +4,8 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -19,9 +21,23 @@ import { TwoFactorService } from './two-factor.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { PlanosService } from '../planos/planos.service';
+import { TERMOS_VERSAO } from '../common/termos';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit, OnModuleDestroy {
+  private limpeza?: ReturnType<typeof setInterval>;
+
+  // Apaga sessões vencidas uma vez por dia (não servem para nada e se acumulavam).
+  // shortcut: não guardamos IP (ipAddress fica vazio); se virar empresa, o Marco Civil (art. 15)
+  // pede registros de acesso por 6 meses: criar uma tabela própria para isso.
+  onModuleInit() {
+    const limpar = () => this.prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
+    limpar();
+    this.limpeza = setInterval(limpar, 24 * 3600_000);
+    this.limpeza.unref?.();
+  }
+  onModuleDestroy() { if (this.limpeza) clearInterval(this.limpeza); }
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -77,6 +93,7 @@ export class AuthService {
         username: dto.username.toLowerCase(),
         passwordHash,
         isBetaTester: beta?.value !== '0', // emblema BETA NEXT enquanto o beta estiver aberto
+        ...(dto.maior18 === true ? { termosVersao: TERMOS_VERSAO, termosAceitosEm: new Date() } : {}),
         ...(indicadoPorId ? { indicadoPorId } : {}),
         profile: {
           create: {
