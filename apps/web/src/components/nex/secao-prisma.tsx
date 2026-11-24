@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/toaster';
 import { RARIDADE, type Raridade, type TipoItem } from '@/lib/itens';
 import { MoedaPrisma } from '@/components/nex/moeda-prisma';
 import { formatarNex } from '@/components/nex/moeda-nex';
+import { PagarPix, usePixDisponivel, type PedidoNovo } from '@/components/pagamento/pagar-pix';
 
 export interface PacotePrisma { id: string; prismas: number; bonus: number; reais: string }
 export interface CaixaPrisma { id: string; nome: string; preco: number; precoPraVoce: number; temTudo: boolean; cor: string; desc: string; itens: string[] }
@@ -25,6 +26,8 @@ export function SecaoPrisma({ prismas, pacotes, caixas, info, onMudou }: {
   prismas: number; pacotes: PacotePrisma[]; caixas: CaixaPrisma[]; info: Record<string, Info>; onMudou: () => void;
 }) {
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [pedido, setPedido] = useState<PedidoNovo | null>(null);
+  const pix = usePixDisponivel();
 
   const abrir = async (c: CaixaPrisma) => {
     if (!window.confirm(`Abrir a ${c.nome} por ${formatarNex(c.precoPraVoce)} Prisma?`)) return;
@@ -59,14 +62,17 @@ export function SecaoPrisma({ prismas, pacotes, caixas, info, onMudou }: {
               <b className="block mt-1 text-lg font-black text-white tabular-nums">{formatarNex(p.prismas)} Prisma</b>
               <span className={p.bonus ? 'text-[11px] font-bold text-[#5cffb0]' : 'text-[11px] text-[#7fa6c9]'}>{p.bonus ? `+${p.bonus} de bônus` : 'Pacote inicial'}</span>
               <button style={botaoAzul}
-                onClick={() => toast('O pagamento por Pix está sendo ligado e chega logo. Enquanto isso, a equipe do Nexus pode colocar Prisma na sua conta.', 'info')}
+                onClick={() => pix?.ligado
+                  ? setPedido({ tipo: 'prisma', item: p.id })
+                  : toast('O pagamento por Pix está sendo ligado e chega logo. Enquanto isso, a equipe do Nexus pode colocar Prisma na sua conta.', 'info')}
                 className="mt-2 w-full h-9 rounded-[10px] text-sm font-black text-white hover:brightness-110 active:translate-y-[2px]">
                 R$ {p.reais.replace('.', ',')}
               </button>
             </div>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-[#7fa6c9]">Pagamento por Pix em breve. Comprou, a Prisma é sua; os itens comprados com ela são para sempre.</p>
+        <p className="mt-3 text-[11px] text-[#7fa6c9]">{pix?.ligado ? 'Pague com Pix e a Prisma cai na hora.' : 'Pagamento por Pix em breve.'} Comprou, a Prisma é sua; os itens comprados com ela são para sempre.</p>
+        {pedido && <PagarPix pedido={pedido} onClose={() => setPedido(null)} onPago={onMudou} />}
       </div>
 
       {caixas.length > 0 && (

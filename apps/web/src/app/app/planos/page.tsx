@@ -1,10 +1,10 @@
 'use client';
 
 // Planos do Nexus (para você e para servidores) e o painel de afiliado.
-// Por enquanto não há pagamento: o dono do Nexus libera o plano no painel.
+// Pagamento por Pix (Efí) quando o servidor tem o Pix ligado; senão, o dono libera no painel.
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Copy, Gift, Rocket, Sparkles } from 'lucide-react';
+import { Copy, Gift, Heart, Rocket, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { NOME_PLANO, type Plano } from '@/lib/planos';
 import { DepoimentoForm } from '@/components/depoimento-form';
 import { CartaoPlano, PARA_VOCE, type Cartao } from '@/components/cartao-plano';
+import { PagarPix, usePixDisponivel, reais, type PedidoNovo } from '@/components/pagamento/pagar-pix';
 
 const PARA_SERVIDORES: Cartao[] = [
   {
@@ -98,9 +99,50 @@ function PainelAfiliado({ meu }: { meu: Meu | null }) {
   );
 }
 
+const VALORES_DOACAO = [500, 1000, 2000, 5000];
+
+// Doação: a pessoa escolhe o valor (R$ 1 a R$ 500) e não ganha nada em troca
+function CartaoDoacao({ onDoar }: { onDoar: (centavos: number) => void }) {
+  const [valor, setValor] = useState('10');
+  const centavos = Math.round(Number(valor.replace(',', '.')) * 100);
+  const valido = Number.isFinite(centavos) && centavos >= 100 && centavos <= 50000;
+  return (
+    <section className="rounded-2xl border border-[var(--th-line-2)] bg-[var(--th-panel)] p-5">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ff4f79]/15"><Heart className="size-5 text-[#ff4f79]" /></span>
+        <div>
+          <h2 className="text-lg font-extrabold text-white">Apoie o Nexus</h2>
+          <p className="text-sm text-[#a99cb8]">Gostou do Nexus? Doe qualquer valor por Pix para ajudar a manter os servidores no ar. A doação não dá nada em troca: é só apoio.</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {VALORES_DOACAO.map(v => (
+          <button key={v} type="button" onClick={() => setValor(String(v / 100))}
+            className={cn('rounded-full border px-3.5 py-1.5 text-sm font-bold', centavos === v ? 'border-[#ff4f79] bg-[#ff4f79]/15 text-white' : 'border-[var(--th-line-2)] text-[#d6cde3] hover:text-white')}>
+            {reais(v)}
+          </button>
+        ))}
+        <label className="flex items-center gap-1.5 rounded-full border border-[var(--th-line-2)] bg-black/30 px-3 py-1.5 text-sm text-[#a99cb8]">
+          R$
+          <input aria-label="Valor da doação em reais" inputMode="decimal" value={valor} onChange={e => setValor(e.target.value.replace(/[^\d,.]/g, '').slice(0, 7))}
+            className="w-16 bg-transparent font-bold text-white outline-none" />
+        </label>
+        <button type="button" disabled={!valido} onClick={() => onDoar(centavos)}
+          className="ml-auto rounded-full bg-[#ff4f79] px-5 py-2 text-sm font-extrabold text-white hover:brightness-110 disabled:opacity-40">
+          Doar com Pix
+        </button>
+      </div>
+      {!valido && <p className="mt-2 text-xs text-[#ff8fa8]">Escolha um valor entre R$ 1 e R$ 500.</p>}
+    </section>
+  );
+}
+
 export default function PaginaPlanos() {
   const [aba, setAba] = useState<'voce' | 'servidores'>('voce');
   const [meu, setMeu] = useState<Meu | null>(null);
+  const [pedido, setPedido] = useState<PedidoNovo | null>(null);
+  const [versao, setVersao] = useState(0);
+  const pix = usePixDisponivel();
 
   useEffect(() => {
     api.get('/planos/meu').then(({ data }) => {
@@ -109,7 +151,7 @@ export default function PaginaPlanos() {
       const { user, setUser } = useAuthStore.getState();
       if (user) setUser({ ...user, plano: data.plano, planoAte: data.planoAte });
     }).catch(() => {});
-  }, []);
+  }, [versao]);
 
   const cartoes = aba === 'voce' ? PARA_VOCE : PARA_SERVIDORES;
   const validade = meu?.planoAte ? new Date(meu.planoAte).toLocaleDateString('pt-BR') : null;
@@ -144,15 +186,23 @@ export default function PaginaPlanos() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {cartoes.map((c) => <CartaoPlano key={c.id} c={c} atual={meu?.plano} />)}
+          {cartoes.map((c) => (
+            <CartaoPlano key={c.id} c={c} atual={meu?.plano}
+              onAssinar={pix?.ligado && aba === 'voce' ? (item) => setPedido({ tipo: 'plano', item }) : undefined} />
+          ))}
         </div>
         <Link href="/app/em-breve" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#ffb070] hover:text-white">
           O que está "em breve" chega na ordem dos votos: vote no que você quer primeiro →
         </Link>
 
-        <p className="text-center text-xs text-[#8a8095]">
-          O pagamento pelo site chega em breve. Por enquanto, quem libera os planos é o dono do Nexus.
-        </p>
+        {pix?.ligado ? (
+          <CartaoDoacao onDoar={(c) => setPedido({ tipo: 'doacao', valorCentavos: c })} />
+        ) : (
+          <p className="text-center text-xs text-[#8a8095]">
+            O pagamento pelo site chega em breve. Por enquanto, quem libera os planos é o dono do Nexus.
+          </p>
+        )}
+        {pedido && <PagarPix pedido={pedido} onClose={() => setPedido(null)} onPago={() => setVersao(v => v + 1)} />}
 
         <PainelAfiliado meu={meu} />
         <DepoimentoForm />

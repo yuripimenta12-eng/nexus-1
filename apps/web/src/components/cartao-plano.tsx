@@ -67,7 +67,8 @@ export const PARA_VOCE: Cartao[] = [
 ];
 
 // visitante: quem vê na página inicial sem estar logado (o Grátis vira "Criar conta grátis")
-export function CartaoPlano({ c, atual, visitante }: { c: Cartao; atual?: Plano; visitante?: boolean }) {
+// onAssinar: abre o pagamento por Pix (item: 'mais-mes', 'pro-ano'...). Sem ele, o botão fica "em breve".
+export function CartaoPlano({ c, atual, visitante, onAssinar }: { c: Cartao; atual?: Plano; visitante?: boolean; onAssinar?: (item: string) => void }) {
   const ehAtual = !!c.plano && c.plano === atual;
   return (
     <motion.div
@@ -109,6 +110,17 @@ export function CartaoPlano({ c, atual, visitante }: { c: Cartao; atual?: Plano;
             <Link href="/auth/register" className="w-full rounded-full bg-[#c8f53b] py-2.5 text-center text-sm font-extrabold text-[#18131f] hover:brightness-110">
               Criar conta grátis
             </Link>
+          ) : onAssinar && (c.plano === 'mais' || c.plano === 'pro') ? (
+            <div className="space-y-1.5">
+              <button type="button" onClick={() => onAssinar(`${c.plano}-mes`)}
+                className="w-full rounded-full bg-white py-2.5 text-sm font-extrabold text-[#18131f] hover:brightness-95">
+                {ehAtual ? 'Renovar por 1 mês' : 'Assinar com Pix'}
+              </button>
+              <button type="button" onClick={() => onAssinar(`${c.plano}-ano`)}
+                className="w-full rounded-full py-1 text-xs font-bold text-white/70 hover:text-white">
+                ou 1 ano por {PRECO_PLANO[c.plano].ano}
+              </button>
+            </div>
           ) : (
             <button
               type="button" disabled

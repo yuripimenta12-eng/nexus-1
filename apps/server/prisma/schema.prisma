@@ -12,28 +12,28 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  username          String   @unique
+  id                String    @id @default(cuid())
+  email             String    @unique
+  username          String    @unique
   passwordHash      String
-  isVerified        Boolean  @default(false)
-  isSuspended       Boolean  @default(false)
-  isAdmin           Boolean  @default(false)
+  isVerified        Boolean   @default(false)
+  isSuspended       Boolean   @default(false)
+  isAdmin           Boolean   @default(false)
   // Emblema BETA NEXT: quem criou conta enquanto o Nexus estava em beta
   // (o dono fecha a entrada de novos no painel e pode dar/tirar na mão)
-  isBetaTester      Boolean  @default(false)
+  isBetaTester      Boolean   @default(false)
   // Cargo Staff (equipe do Nexus): ganha as molduras e o ícone da equipe. O dono dá/tira no painel.
   // isAdmin também conta como Staff.
-  isStaff           Boolean  @default(false)
+  isStaff           Boolean   @default(false)
   // Versão do app de PC (Electron) da última vez que a pessoa entrou por ele —
   // o dono vê no painel quem já atualizou. Vazio = nunca usou o app de PC.
-  desktopVersion    String?  @db.VarChar(20)
+  desktopVersion    String?   @db.VarChar(20)
   desktopSeenAt     DateTime?
   // Verificação em duas etapas (TOTP). O segredo fica cifrado; os códigos de
   // recuperação ficam só como hash (cada um vale uma vez).
-  twoFactorEnabled  Boolean  @default(false)
+  twoFactorEnabled  Boolean   @default(false)
   twoFactorSecret   String?
-  twoFactorRecovery String[] @default([])
+  twoFactorRecovery String[]  @default([])
   // Plano: "gratis", "mais" (Nexus+) ou "pro" (Nexus Pro). Pago vale até
   // planoAte; depois volta sozinho para "gratis" (PlanosService).
   plano             String    @default("gratis") @db.VarChar(10)
@@ -44,8 +44,8 @@ model User {
   indicadoPorId     String?
   indicacaoPaga     Boolean   @default(false)
   diasGanhos        Int       @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   profile                Profile?
   emailVerifications     EmailVerification[]
@@ -77,6 +77,7 @@ model User {
   carteira               Carteira?
   nexMovimentos          NexMovimento[]
   prismaMovimentos       PrismaMovimento[]
+  pedidosPix             PedidoPix[]
   missaoResgates         MissaoResgate[]
   itens                  ItemPosse[]
   zoeiras                ZoeiraEstoque[]
@@ -108,30 +109,30 @@ model Friendship {
 }
 
 model Profile {
-  id           String     @id @default(cuid())
-  userId       String     @unique
-  displayName  String
-  avatarUrl    String?
-  bannerUrl    String?
-  bannerColor  String? // gradiente hex "de,para" usado quando não há imagem de banner
-  bio          String?    @db.VarChar(300)
-  status       UserStatus @default(ONLINE)
-  customStatus String?    @db.VarChar(128)
+  id             String     @id @default(cuid())
+  userId         String     @unique
+  displayName    String
+  avatarUrl      String?
+  bannerUrl      String?
+  bannerColor    String? // gradiente hex "de,para" usado quando não há imagem de banner
+  bio            String?    @db.VarChar(300)
+  status         UserStatus @default(ONLINE)
+  customStatus   String?    @db.VarChar(128)
   // Itens da loja Nex equipados (ids do catálogo em src/loja/loja.catalogo.ts)
-  moldura      String?    @db.VarChar(40)
-  icone        String?    @db.VarChar(40)
-  placa        String?    @db.VarChar(40)
-  somEntrada   String?    @db.VarChar(40)
-  efeitoPerfil String?    @db.VarChar(40)
+  moldura        String?    @db.VarChar(40)
+  icone          String?    @db.VarChar(40)
+  placa          String?    @db.VarChar(40)
+  somEntrada     String?    @db.VarChar(40)
+  efeitoPerfil   String?    @db.VarChar(40)
   // Zoeiras na call: aceita receber? escudo ativo até quando?
-  receberZoeiras Boolean  @default(true)
-  escudoAte    DateTime?
+  receberZoeiras Boolean    @default(true)
+  escudoAte      DateTime?
   // Perfil gamer (editor em Configurações → Perfil)
-  corNome       String?   @db.VarChar(32) // Nexus+/Pro: "#hex" ou degradê "#hex,#hex"
-  jogos         Json?     // até 6: [{ jogo, rank?, nick? }]
-  conexoes      Json?     // { steam?, twitch?, youtube?, instagram?, tiktok?, riot?, xbox?, psn? }
-  procurandoDuo Boolean   @default(false)
-  updatedAt    DateTime   @updatedAt
+  corNome        String?    @db.VarChar(32) // Nexus+/Pro: "#hex" ou degradê "#hex,#hex"
+  jogos          Json? // até 6: [{ jogo, rank?, nick? }]
+  conexoes       Json? // { steam?, twitch?, youtube?, instagram?, tiktok?, riot?, xbox?, psn? }
+  procurandoDuo  Boolean    @default(false)
+  updatedAt      DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -180,21 +181,21 @@ model PasswordReset {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Server {
-  id          String   @id @default(cuid())
-  name        String
-  description String?  @db.VarChar(500)
-  tag         String?  @db.VarChar(32)
-  iconUrl     String?
-  bannerUrl   String?
-  isPublic    Boolean  @default(false)
-  maxMembers  Int      @default(100)
+  id             String   @id @default(cuid())
+  name           String
+  description    String?  @db.VarChar(500)
+  tag            String?  @db.VarChar(32)
+  iconUrl        String?
+  bannerUrl      String?
+  isPublic       Boolean  @default(false)
+  maxMembers     Int      @default(100)
   // Zoeiras pesadas (calar, ensurdecer, apelido) só se o dono ligar
-  zoeirasPesadas Boolean @default(false)
+  zoeirasPesadas Boolean  @default(false)
   // Tema da loja Nex que veste o servidor inteiro (id do catálogo)
-  tema        String?  @db.VarChar(40)
-  ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  tema           String?  @db.VarChar(40)
+  ownerId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   members    ServerMember[]
   channels   Channel[]
@@ -726,10 +727,10 @@ model CallStat {
 
 // Conquista desbloqueada (chave fixa no código, ex.: "mora-na-call")
 model Conquista {
-  id              String   @id @default(cuid())
-  userId          String
-  chave           String   @db.VarChar(32)
-  desbloqueadaEm  DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  chave          String   @db.VarChar(32)
+  desbloqueadaEm DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -758,20 +759,20 @@ model Depoimento {
 // Moeda ganha jogando (presença diária, roleta, missões) e gasta na loja.
 // Nunca é vendida por dinheiro. Datas de "hoje" em horário de Brasília (AAAA-MM-DD).
 model Carteira {
-  userId          String   @id
-  saldo           Int      @default(0)
-  totalGanho      Int      @default(0)
-  presencaDia     Int      @default(0) // último dia pego no ciclo de 7
-  presencaData    String?  @db.VarChar(10)
-  presencaMelhor  Int      @default(0) // maior sequência já feita
-  roletaData      String?  @db.VarChar(10)
-  roletaGiros     Int      @default(0)
-  unidosVitorias  Int      @default(0)
-  unidosData      String?  @db.VarChar(10)
-  unidosHoje      Int      @default(0)
+  userId         String   @id
+  saldo          Int      @default(0)
+  totalGanho     Int      @default(0)
+  presencaDia    Int      @default(0) // último dia pego no ciclo de 7
+  presencaData   String?  @db.VarChar(10)
+  presencaMelhor Int      @default(0) // maior sequência já feita
+  roletaData     String?  @db.VarChar(10)
+  roletaGiros    Int      @default(0)
+  unidosVitorias Int      @default(0)
+  unidosData     String?  @db.VarChar(10)
+  unidosHoje     Int      @default(0)
   // Prisma: moeda AZUL comprada com dinheiro (src/loja/loja.prisma.ts). Nunca vira Nex.
-  prismas         Int      @default(0)
-  atualizadoEm    DateTime @updatedAt
+  prismas        Int      @default(0)
+  atualizadoEm   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -859,4 +860,29 @@ model IdeiaVoto {
   @@id([ideia, userId])
   @@index([userId])
   @@map("ideia_votos")
+}
+
+// Pedido pago por Pix (Efí): plano, pacote de Prisma ou doação.
+// ambiente separa produção de homologação (a cópia de teste usa homologação no mesmo banco).
+model PedidoPix {
+  id            String    @id @default(cuid())
+  userId        String
+  txid          String    @unique @db.VarChar(35)
+  ambiente      String    @db.VarChar(12) // producao | homologacao
+  tipo          String    @db.VarChar(10) // plano | prisma | doacao
+  item          String    @db.VarChar(24) // mais-mes, pro-ano, pp-100, doacao
+  valorCentavos Int
+  status        String    @default("pendente") @db.VarChar(10) // pendente | pago | expirado
+  copiaECola    String
+  qrImagem      String?   // data URL do QR Code que o Efí devolve (alguns KB)
+  expiraEm      DateTime
+  pagoEm        DateTime?
+  e2eId         String?   @db.VarChar(40)
+  criadoEm      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, criadoEm])
+  @@index([status, ambiente])
+  @@map("pedidos_pix")
 }

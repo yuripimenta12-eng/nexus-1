@@ -33,6 +33,7 @@ import { IdeiasModule } from './ideias/ideias.module';
 import { NexModule } from './nex/nex.module';
 import { LojaModule } from './loja/loja.module';
 import { ZoeirasModule } from './zoeiras/zoeiras.module';
+import { PagamentosModule } from './pagamentos/pagamentos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -68,6 +69,7 @@ import { HealthController } from './health.controller';
     NexModule,
     LojaModule,
     ZoeirasModule,
+    PagamentosModule,
     DmsModule,
     FriendsModule,
     RolesModule,
