@@ -71,3 +71,12 @@ export function watchAppUpdate(cb: (version: string) => void): () => void {
 export function installAppUpdate() {
   bridge()?.installUpdate?.();
 }
+
+export const DOWNLOAD_WINDOWS = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
+
+/** App de PC antes da 1.5.0: não tem atualização automática, precisa baixar o instalador de novo. */
+export function appSemAtualizacaoAutomatica(v = desktopAppVersion()): boolean {
+  if (!v) return false;
+  const [ma, mi] = v.split('.').map(n => parseInt(n, 10) || 0);
+  return ma < 1 || (ma === 1 && mi < 5);
+}

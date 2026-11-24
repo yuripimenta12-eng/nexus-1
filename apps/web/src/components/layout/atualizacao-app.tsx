@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
-import { installAppUpdate, watchAppUpdate } from '@/lib/desktop';
+import { DOWNLOAD_WINDOWS, appSemAtualizacaoAutomatica, desktopAppVersion, installAppUpdate, watchAppUpdate } from '@/lib/desktop';
 import { useVoiceStore } from '@/stores/voice.store';
 
 // App de PC: a versão nova já foi baixada em segundo plano. Ela entra
@@ -72,11 +72,16 @@ export function AtualizacaoApp() {
   const siteNovo = useSiteNovo();
   useRecarregarSozinho(siteNovo);
 
+  // App de PC antigo (antes da 1.5.0) não se atualiza sozinho: pede para baixar o instalador
+  const [antigo, setAntigo] = useState<string | null>(null);
+  useEffect(() => { if (appSemAtualizacaoAutomatica()) setAntigo(desktopAppVersion()); }, []);
+
   useEffect(() => watchAppUpdate(setVersao), []);
 
   // O app de PC tem prioridade: reiniciar ele já carrega o site novo também
-  const versao = versaoApp ?? (siteNovo ? 'site' : null);
-  const ehSite = !versaoApp;
+  const versao = versaoApp ?? antigo ?? (siteNovo ? 'site' : null);
+  const ehSite = !versaoApp && !antigo;
+  const ehAntigo = !versaoApp && !!antigo;
 
   return (
     <AnimatePresence>
@@ -94,10 +99,12 @@ export function AtualizacaoApp() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-white font-bold text-sm">
-                {ehSite ? 'O Nexus foi atualizado' : `Nova versão do app pronta (${versao})`}
+                {ehAntigo ? `Seu app do Nexus está desatualizado (${versao})` : ehSite ? 'O Nexus foi atualizado' : `Nova versão do app pronta (${versao})`}
               </p>
               <p className="text-[12px] text-[#a99fc0] mt-0.5">
-                {ehSite
+                {ehAntigo
+                  ? 'Esta versão não se atualiza sozinha. Baixe a nova e instale por cima: sua conta e suas conversas continuam, e depois as atualizações chegam sozinhas.'
+                  : ehSite
                   ? (emCall
                     ? 'Clique em Atualizar para usar a versão nova. Você continua logado, mas sai da call por alguns segundos.'
                     : 'Clique em Atualizar para usar a versão nova. Leva 2 segundos e você continua logado.')
@@ -115,10 +122,17 @@ export function AtualizacaoApp() {
               className="h-8 px-3 rounded-lg text-[12.5px] font-bold text-[#c9c2d2] hover:bg-white/10">
               Depois
             </button>
-            <button onClick={ehSite ? () => window.location.reload() : installAppUpdate}
-              className="h-8 px-3 rounded-lg text-[12.5px] font-black text-white bg-[#7a2cff] hover:bg-[#8f42ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-              {ehSite ? 'Atualizar' : 'Reiniciar agora'}
-            </button>
+            {ehAntigo ? (
+              <a href={DOWNLOAD_WINDOWS} target="_blank" rel="noopener noreferrer"
+                className="h-8 px-3 inline-flex items-center rounded-lg text-[12.5px] font-black text-white bg-[#7a2cff] hover:bg-[#8f42ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                Baixar versão nova
+              </a>
+            ) : (
+              <button onClick={ehSite ? () => window.location.reload() : installAppUpdate}
+                className="h-8 px-3 rounded-lg text-[12.5px] font-black text-white bg-[#7a2cff] hover:bg-[#8f42ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                {ehSite ? 'Atualizar' : 'Reiniciar agora'}
+              </button>
+            )}
           </div>
         </motion.div>
       )}
