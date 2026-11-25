@@ -74,6 +74,12 @@ export const MOLDURAS: Record<string, { anel: string; brilho?: string; anim?: 'g
   'm-halloween': { anel: '#ff8a1f', brilho: '#ff8a1f', grossura: 1.4 },
   'm-squad': { anel: '#ff9a1f', brilho: '#ff9a1f', grossura: 1.4 },
   'm-batida': { anel: '#a855ff', brilho: '#a855ff', grossura: 1.4 },
+  'm-brasa': { anel: '#ff9a1f', brilho: '#ff9a1f', grossura: 1.4 },
+  'm-plasma-violeta': { anel: '#b04dff', brilho: '#b04dff', grossura: 1.4 },
+  'm-fita-holografica': { anel: 'conic-gradient(#7a2cff,#5cc8ff,#ff6a00,#7a2cff)', brilho: '#9b7bff', grossura: 1.6 },
+  'm-insignia-nexus': { anel: '#ffc23d', brilho: '#ffc23d', grossura: 1.6 },
+  'm-relampago-roxo': { anel: '#8b3dff', brilho: '#8b3dff', grossura: 1.6 },
+  'm-coroa-de-cristal': { anel: '#5cc8ff', brilho: '#5cc8ff', grossura: 1.8 },
   'm-paladino': { anel: '#5b8cff', brilho: '#5b8cff', grossura: 1.4 },
   'm-rainha': { anel: '#c94dff', brilho: '#c94dff', grossura: 1.4 },
   'm-dragao': { anel: '#b04dff', brilho: '#b04dff', grossura: 1.4 },
@@ -129,6 +135,12 @@ export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number
   'm-dragao': { escala: 1.626, x: -0.296, y: -0.326 },
   'm-staff': { escala: 1.661, x: -0.325, y: -0.448 },
   'm-moderacao': { escala: 1.483, x: -0.24, y: -0.297 },
+  'm-brasa': { escala: 1.204, x: -0.097, y: -0.108 },
+  'm-plasma-violeta': { escala: 1.184, x: -0.089, y: -0.095 },
+  'm-fita-holografica': { escala: 1.429, x: -0.202, y: -0.224 },
+  'm-insignia-nexus': { escala: 1.369, x: -0.183, y: -0.217 },
+  'm-relampago-roxo': { escala: 1.586, x: -0.282, y: -0.273 },
+  'm-coroa-de-cristal': { escala: 1.538, x: -0.261, y: -0.348 },
 };
 
 // Animação por cima da arte da moldura (components/nex/itens-visuais.tsx):
@@ -154,6 +166,7 @@ export const MOLDURA_FX: Record<string, FxMoldura[]> = {
   'm-halloween': ['faisca'],
   'm-squad': ['chama'],
   'm-batida': ['pulso'],
+  'm-relampago-roxo': ['raio'], 'm-plasma-violeta': ['pulso'], 'm-fita-holografica': ['arco'], 'm-coroa-de-cristal': ['faisca'],
   'm-paladino': ['faisca',  'pulso'],
   'm-rainha': ['faisca',  'pulso'],
   'm-dragao': ['chama',  'faisca'],

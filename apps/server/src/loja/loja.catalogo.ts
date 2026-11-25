@@ -109,7 +109,14 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-halloween', 'Noite das Bruxas', 'epica'),
   it('moldura', 'm-squad', 'Drop Quente', 'epica'),
   it('moldura', 'm-batida', 'Batida', 'epica'),
+  // Leva de 25/11/2026 (artes do usuário)
+  it('moldura', 'm-brasa', 'Brasa', 'comum'),
+  it('moldura', 'm-plasma-violeta', 'Plasma Violeta', 'comum'),
+  it('moldura', 'm-fita-holografica', 'Fita Holográfica', 'rara'),
+  it('moldura', 'm-insignia-nexus', 'Insígnia Nexus', 'epica'),
+  it('moldura', 'm-relampago-roxo', 'Relâmpago Roxo', 'epica'),
   // Exclusivas da Prisma (moeda paga)
+  it('moldura', 'm-coroa-de-cristal', 'Coroa de Cristal', 'lendaria', { preco: null, precoPrisma: 220 }),
   it('moldura', 'm-paladino', 'Paladino', 'lendaria', { preco: null, precoPrisma: 250 }),
   it('moldura', 'm-rainha', 'Rainha', 'lendaria', { preco: null, precoPrisma: 250 }),
   it('moldura', 'm-dragao', 'Dragão Ametista', 'lendaria', { preco: null, precoPrisma: 250 }),
