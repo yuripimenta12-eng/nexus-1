@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConfigService } from '@nestjs/config';
 import { RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
-import { horaDeBrasilia, lerReciboDj, segundosACreditar } from './placar.regras';
+import { FIM_NEXUS_2026, MARATONA_MS, eventosAtivos, horaDeBrasilia, lerReciboDj, segundosACreditar } from './placar.regras';
 
 const HORA = 3600;
 
@@ -16,6 +16,25 @@ export const CONQUISTAS = {
   'streamer': { lives: 10 },
   'rosto-conhecido': { segundosCamera: 10 * HORA },
   'coruja': {}, // estar em call entre 2h e 5h (horário de Brasília)
+  // Eventos (regras de data em placar.regras.ts): só dá para ganhar na data
+  'nexus-2026': {}, // usou o Nexus em 2026
+  'natal-2026': {}, 'virada-2027': {}, 'carnaval-2027': {},
+  'maratonista': {}, // 5 h seguidas na mesma call
+  'rei-do-unidos': { unidosVitorias: 10 },
+  'sortudo': { parimparVitorias: 10 },
+  'anfitriao': { membrosServidor: 10 },
+  'popular': { amigos: 10 },
+  'colecionador': { itens: 15 },
+  'veterano-1': { diasConta: 365 }, 'veterano-2': { diasConta: 730 }, 'veterano-3': { diasConta: 1095 },
+  // Assinante (Nexus+ ou Pro): dias com plano pago, somados (não zeram se parar)
+  'assinante-1': { diasAssinante: 1 }, 'assinante-2': { diasAssinante: 30 }, 'assinante-3': { diasAssinante: 90 },
+  'assinante-4': { diasAssinante: 180 }, 'assinante-5': { diasAssinante: 365 }, 'assinante-6': { diasAssinante: 730 },
+  'assinante-7': { diasAssinante: 1095 }, 'assinante-8': { diasAssinante: 1825 },
+  // Tempo de jogo (app de PC com "Mostrar o jogo" ligado), em minutos
+  'jogo-1': { minutosJogo: 60 }, 'jogo-2': { minutosJogo: 300 }, 'jogo-3': { minutosJogo: 1200 },
+  'jogo-4': { minutosJogo: 4500 }, 'jogo-5': { minutosJogo: 9000 }, 'jogo-6': { minutosJogo: 18000 },
+  'jogo-7': { minutosJogo: 30000 }, 'jogo-8': { minutosJogo: 60000 }, 'jogo-9': { minutosJogo: 120000 },
+  'jogo-10': { minutosJogo: 300000 },
 } as const;
 type Chave = keyof typeof CONQUISTAS;
 
@@ -74,7 +93,17 @@ export class PlacarService {
       },
     });
     const h = horaDeBrasilia(agora);
-    return { novas: await this.avaliar(userId, seg > 0 && h >= 2 && h < 5 ? ['coruja'] : []) };
+    const extras: Chave[] = [];
+    if (seg > 0) {
+      if (h >= 2 && h < 5) extras.push('coruja');
+      extras.push(...(eventosAtivos(agora) as Chave[]));
+      const sessao = await this.prisma.callParticipant.findFirst({
+        where: { userId, leftAt: null, callSession: { voiceRoomId: dto.roomId as string, endedAt: null } },
+        select: { joinedAt: true }, orderBy: { joinedAt: 'asc' },
+      });
+      if (sessao && agora.getTime() - sessao.joinedAt.getTime() >= MARATONA_MS) extras.push('maratonista');
+    }
+    return { novas: await this.avaliar(userId, extras) };
   }
 
   async evento(userId: string, dto: { roomId?: string; tipo?: string; recibo?: string }) {
@@ -189,18 +218,34 @@ export class PlacarService {
       ? (await this.prisma.message.count({ where: { authorId: userId } }))
         + (await this.prisma.directMessage.count({ where: { senderId: userId } }))
       : 0;
+    const [carteira, amigos, itens, servidores, user] = await Promise.all([
+      this.prisma.carteira.findUnique({ where: { userId }, select: { unidosVitorias: true, parimparVitorias: true } }),
+      this.prisma.friendship.count({ where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { addresseeId: userId }] } }),
+      this.prisma.itemPosse.count({ where: { userId } }),
+      this.prisma.server.findMany({ where: { ownerId: userId }, select: { _count: { select: { members: { where: { banned: false } } } } } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true, diasAssinante: true, minutosJogo: true } }),
+    ]);
     return {
       mensagens,
       segundosCall: soma._sum.segundosCall || 0,
       segundosCamera: soma._sum.segundosCamera || 0,
       musicas: soma._sum.musicas || 0,
       lives: soma._sum.lives || 0,
+      unidosVitorias: carteira?.unidosVitorias || 0,
+      parimparVitorias: carteira?.parimparVitorias || 0,
+      amigos,
+      itens,
+      membrosServidor: Math.max(0, ...servidores.map(s => s._count.members)),
+      diasConta: user ? Math.floor((Date.now() - user.createdAt.getTime()) / 86_400_000) : 0,
+      diasAssinante: user?.diasAssinante || 0,
+      minutosJogo: user?.minutosJogo || 0,
     };
   }
 
   // Desbloqueia o que a pessoa já alcançou; devolve só as novas
   private async avaliar(userId: string, extras: Chave[] = []): Promise<Chave[]> {
     const ja = new Set((await this.prisma.conquista.findMany({ where: { userId }, select: { chave: true } })).map(c => c.chave));
+    if (Date.now() < FIM_NEXUS_2026.getTime()) extras = [...extras, 'nexus-2026'];
     const faltaMensagem = !ja.has('tagarela') || !ja.has('mil-mensagens');
     const p = await this.progresso(userId, faltaMensagem);
     const novas = (Object.keys(CONQUISTAS) as Chave[]).filter(chave => {

@@ -26,7 +26,7 @@ export default function Privacidade() {
         <li><strong>O que você envia:</strong> mensagens, arquivos, imagens, áudios, reações, servidores, amigos e bloqueios.</li>
         <li><strong>Chamadas e transmissões de tela:</strong> passam pelo nosso servidor em tempo real para chegar às outras pessoas, mas <strong>não são gravadas</strong>.</li>
         <li><strong>Endereço IP:</strong> usado na hora para fazer a conexão funcionar e para proteger contra abusos (como muitas tentativas de senha). <strong>Não fica guardado na sua conta.</strong> Os registros técnicos do servidor podem conter IPs por um tempo, para segurança e para corrigir problemas.</li>
-        <li><strong>App de PC:</strong> a versão do app e, se a opção &quot;Mostrar o jogo que estou jogando&quot; estiver ligada, o nome do jogo aberto (some 3 minutos depois de fechar o jogo).</li>
+        <li><strong>App de PC:</strong> a versão do app e, se a opção &quot;Mostrar o jogo que estou jogando&quot; estiver ligada, o nome do jogo aberto (some 3 minutos depois de fechar o jogo). Para a conquista &quot;Tempo de jogo&quot;, guardamos só o <strong>total de minutos</strong> jogados, sem o nome dos jogos.</li>
         <li><strong>Notificações:</strong> se você ativar, o endereço de notificação do seu navegador.</li>
         <li><strong>Pagamentos por Pix:</strong> o que foi comprado, o valor, a data e o código da transação. <strong>Não recebemos dados do seu banco, cartão ou senha.</strong> O pagamento é feito no app do seu banco e processado pelo Efí Bank.</li>
         <li><strong>Economia do app:</strong> saldo e histórico de Nex e Prisma, itens, missões e conquistas.</li>

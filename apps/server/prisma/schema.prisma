@@ -81,6 +81,11 @@ model User {
   // Versão dos Termos/Privacidade que a pessoa aceitou (com a declaração de ter 18+)
   termosVersao           String?                 @db.VarChar(10)
   termosAceitosEm        DateTime?
+  // Conquistas com nível: dias com plano pago (soma, não zera) e minutos jogando (app de PC)
+  diasAssinante          Int                     @default(0)
+  assinanteDesde         DateTime?
+  assinanteDia           String?                 @db.VarChar(10) // último dia (AAAA-MM-DD) já contado
+  minutosJogo            Int                     @default(0)
   missaoResgates         MissaoResgate[]
   itens                  ItemPosse[]
   zoeiras                ZoeiraEstoque[]
@@ -762,20 +767,21 @@ model Depoimento {
 // Moeda ganha jogando (presença diária, roleta, missões) e gasta na loja.
 // Nunca é vendida por dinheiro. Datas de "hoje" em horário de Brasília (AAAA-MM-DD).
 model Carteira {
-  userId         String   @id
-  saldo          Int      @default(0)
-  totalGanho     Int      @default(0)
-  presencaDia    Int      @default(0) // último dia pego no ciclo de 7
-  presencaData   String?  @db.VarChar(10)
-  presencaMelhor Int      @default(0) // maior sequência já feita
-  roletaData     String?  @db.VarChar(10)
-  roletaGiros    Int      @default(0)
-  unidosVitorias Int      @default(0)
-  unidosData     String?  @db.VarChar(10)
-  unidosHoje     Int      @default(0)
+  userId           String   @id
+  saldo            Int      @default(0)
+  totalGanho       Int      @default(0)
+  presencaDia      Int      @default(0) // último dia pego no ciclo de 7
+  presencaData     String?  @db.VarChar(10)
+  presencaMelhor   Int      @default(0) // maior sequência já feita
+  roletaData       String?  @db.VarChar(10)
+  roletaGiros      Int      @default(0)
+  unidosVitorias   Int      @default(0)
+  parimparVitorias Int      @default(0)
+  unidosData       String?  @db.VarChar(10)
+  unidosHoje       Int      @default(0)
   // Prisma: moeda AZUL comprada com dinheiro (src/loja/loja.prisma.ts). Nunca vira Nex.
-  prismas        Int      @default(0)
-  atualizadoEm   DateTime @updatedAt
+  prismas          Int      @default(0)
+  atualizadoEm     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -877,7 +883,7 @@ model PedidoPix {
   valorCentavos Int
   status        String    @default("pendente") @db.VarChar(10) // pendente | pago | expirado
   copiaECola    String
-  qrImagem      String?   // data URL do QR Code que o Efí devolve (alguns KB)
+  qrImagem      String? // data URL do QR Code que o Efí devolve (alguns KB)
   expiraEm      DateTime
   pagoEm        DateTime?
   e2eId         String?   @db.VarChar(40)

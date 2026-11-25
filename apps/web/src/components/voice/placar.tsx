@@ -14,8 +14,14 @@ import { useAuthStore } from '@/stores/auth.store';
 
 const LIMA = '#c8f53b';
 
-// Arte de cada uma em public/conquistas/<chave>.webp. exclusiva: só aparece para quem tem (não dá mais para ganhar)
-export const CONQUISTAS: { chave: string; emoji: string; nome: string; meta: string; exclusiva?: boolean }[] = [
+// Arte de cada uma em public/conquistas/<chave>.webp (sem arte ainda: mostra o emoji).
+// exclusiva: só aparece para quem tem (não dá mais para ganhar).
+// ate: evento; depois dessa data some para quem não ganhou.
+// linha + nivel: conquista que evolui (Assinante, Tempo de jogo): aparece só o nível mais alto.
+type Conquista = { chave: string; emoji: string; nome: string; meta: string; exclusiva?: boolean; ate?: string; linha?: string; nivel?: number };
+const nivel = (linha: string, emoji: string, nomes: [string, string][]): Conquista[] =>
+  nomes.map(([nome, meta], i) => ({ chave: `${linha}-${i + 1}`, emoji, nome, meta, linha, nivel: i + 1 }));
+export const CONQUISTAS: Conquista[] = [
   { chave: 'staff', emoji: '🛡️', nome: 'Staff', meta: 'Equipe do Nexus', exclusiva: true },
   { chave: 'beta', emoji: '🧪', nome: 'Beta', meta: 'Jogou no beta do Nexus', exclusiva: true },
   { chave: 'tagarela', emoji: '💬', nome: 'Tagarela', meta: '100 mensagens' },
@@ -26,7 +32,49 @@ export const CONQUISTAS: { chave: string; emoji: string; nome: string; meta: str
   { chave: 'streamer', emoji: '📺', nome: 'Streamer', meta: '10 telas' },
   { chave: 'rosto-conhecido', emoji: '📷', nome: 'Rosto conhecido', meta: '10 h de câmera' },
   { chave: 'mil-mensagens', emoji: '📨', nome: 'Mil mensagens', meta: '1.000 msgs' },
+  { chave: 'maratonista', emoji: '🏃', nome: 'Maratonista', meta: '5 h seguidas em call' },
+  { chave: 'rei-do-unidos', emoji: '🃏', nome: 'Rei do UNidos', meta: '10 vitórias' },
+  { chave: 'sortudo', emoji: '🍀', nome: 'Sortudo', meta: '10 no par ou ímpar' },
+  { chave: 'anfitriao', emoji: '🏰', nome: 'Anfitrião', meta: 'Servidor com 10 membros' },
+  { chave: 'popular', emoji: '💜', nome: 'Popular', meta: '10 amigos' },
+  { chave: 'colecionador', emoji: '🧰', nome: 'Colecionador', meta: '15 itens' },
+  // Eventos (só na data)
+  { chave: 'nexus-2026', emoji: '🏅', nome: 'Nexus 2026', meta: 'Usou o Nexus em 2026', ate: '2027-01-01T03:00:00Z' },
+  { chave: 'natal-2026', emoji: '🎄', nome: 'Natal 2026', meta: 'Call em 24 ou 25/12', ate: '2026-12-26T03:00:00Z' },
+  { chave: 'virada-2027', emoji: '🎆', nome: 'Virada 2027', meta: 'Call na meia-noite', ate: '2027-01-01T03:30:00Z' },
+  { chave: 'carnaval-2027', emoji: '🎭', nome: 'Carnaval 2027', meta: 'Call no Carnaval', ate: '2027-02-10T03:00:00Z' },
+  // Tempo de conta
+  { chave: 'veterano-1', emoji: '🥉', nome: 'Veterano', meta: '1 ano de Nexus', linha: 'veterano', nivel: 1 },
+  { chave: 'veterano-2', emoji: '🥈', nome: 'Veterano', meta: '2 anos de Nexus', linha: 'veterano', nivel: 2 },
+  { chave: 'veterano-3', emoji: '🥇', nome: 'Veterano', meta: '3 anos de Nexus', linha: 'veterano', nivel: 3 },
+  // Assinante Nexus+ ou Pro (dias com plano, somados)
+  ...nivel('assinante', '💎', [
+    ['Assinante', 'Assinou o Nexus'], ['Assinante Bronze', '1 mês'], ['Assinante Prata', '3 meses'], ['Assinante Ouro', '6 meses'],
+    ['Assinante Platina', '1 ano'], ['Assinante Diamante', '2 anos'], ['Assinante Esmeralda', '3 anos'], ['Assinante Rubi', '5 anos'],
+  ]),
+  // Tempo de jogo (app de PC)
+  ...nivel('jogo', '🎮', [
+    ['Casual', '1 h jogando'], ['Jogador', '5 h jogando'], ['Dedicado', '20 h jogando'], ['Viciado', '75 h jogando'],
+    ['Sério', '150 h jogando'], ['Hardcore', '300 h jogando'], ['Lendário', '500 h jogando'], ['Mítico', '1.000 h jogando'],
+    ['Imortal', '2.000 h jogando'], ['Eterno', '5.000 h jogando'],
+  ]),
 ];
+
+/** O que mostrar: some exclusiva/evento que a pessoa não tem (e já não dá mais para ganhar),
+ *  e de cada linha com níveis fica só o mais alto que tem (ou o 1º, apagado). */
+export function conquistasParaMostrar(tem: Set<string>, soAsQueTem = false): Conquista[] {
+  const agora = Date.now();
+  const melhor = new Map<string, Conquista>();
+  for (const c of CONQUISTAS) {
+    if (c.linha && tem.has(c.chave) && (melhor.get(c.linha)?.nivel ?? 0) < (c.nivel ?? 0)) melhor.set(c.linha, c);
+  }
+  return CONQUISTAS.filter(c => {
+    if (c.linha) return melhor.has(c.linha) ? melhor.get(c.linha) === c : !soAsQueTem && c.nivel === 1;
+    if (tem.has(c.chave)) return true;
+    if (soAsQueTem || c.exclusiva) return false;
+    return !c.ate || agora < new Date(c.ate).getTime();
+  });
+}
 
 // Avisa a tela (toast) quando o servidor devolve conquistas novas
 function anunciar(novas: unknown) {
@@ -121,11 +169,15 @@ export function BatimentoPlacar() {
 }
 
 const HEX = 'polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%)';
-function Hexagono({ chave, emoji, ativo, tamanho = 44 }: { chave?: string; emoji: string; ativo: boolean; tamanho?: number }) {
-  // Com arte: o próprio hexágono 3D (bloqueada fica cinza e apagada)
-  if (chave) return (
+export function Hexagono({ chave, emoji, ativo, tamanho = 44 }: { chave?: string; emoji: string; ativo: boolean; tamanho?: number }) {
+  const [semArte, setSemArte] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+  // A imagem pode falhar antes de o React ligar o onError (vinda do servidor): confere ao montar
+  useEffect(() => { const i = img.current; if (i?.complete && !i.naturalWidth) setSemArte(true); }, [chave]);
+  // Com arte: o próprio hexágono 3D (bloqueada fica cinza e apagada). Arte ainda não chegou: emoji.
+  if (chave && !semArte) return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/conquistas/${chave}.webp`} alt="" draggable={false} width={tamanho} height={tamanho}
+    <img ref={img} src={`/conquistas/${chave}.webp`} alt="" draggable={false} width={tamanho} height={tamanho} onError={() => setSemArte(true)}
       className={cn('shrink-0 select-none object-contain transition-[filter,opacity]', ativo ? 'drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]' : 'grayscale opacity-30')}
       style={{ width: tamanho, height: tamanho }} />
   );
@@ -149,7 +201,7 @@ export function FaixaConquistas({ userId, className }: { userId?: string; classN
       .catch(() => {});
     return () => { vivo = false; };
   }, [userId]);
-  const lista = CONQUISTAS.filter(c => chaves?.has(c.chave));
+  const lista = chaves ? conquistasParaMostrar(chaves, true) : [];
   if (!lista.length) return null;
   return (
     <div className={className}>
@@ -271,7 +323,7 @@ export function PainelPlacar({ serverId }: { serverId: string }) {
 
       <h4 className="text-[11px] text-[#786e83] uppercase tracking-[1.2px] font-bold mt-6 mb-3">Suas conquistas</h4>
       <div className="grid grid-cols-4 gap-x-1 gap-y-3">
-        {CONQUISTAS.filter(c => !c.exclusiva || conq.has(c.chave)).map(c => {
+        {conquistasParaMostrar(conq).map(c => {
           const ativo = conq.has(c.chave);
           return (
             <motion.div key={c.chave} title={`${c.nome} · ${c.meta}`} className="flex flex-col items-center text-center"

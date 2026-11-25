@@ -20,6 +20,7 @@ import { RedisService } from '../redis/redis.service';
 import { CreateMessageDto } from '../messages/dto/create-message.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { canAccessVoiceRoom, MEMBER_WITH_ROLES_INCLUDE } from '../voice/voice-access';
+import { contaMinutoJogo } from '../placar/placar.regras';
 
 // Mapa em memória: userId → socketId
 // NOTA: funciona apenas com instância única. Para escalar horizontalmente,
@@ -486,6 +487,8 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   }
 
   // ── "Jogando …" (app de PC detecta o jogo aberto) ─────────────
+  private ultimoMinutoJogo = new Map<string, number>();
+
   @SubscribeMessage('user:activity')
   async handleActivity(
     @ConnectedSocket() client: Socket,
@@ -498,6 +501,12 @@ export class NexusGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     const name = raw.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 64) || null;
     const prev = client.data.activity ?? null;
     await this.presenceService.setActivity(userId, name);
+    if (name && contaMinutoJogo(this.ultimoMinutoJogo.get(userId), Date.now())) {
+      this.ultimoMinutoJogo.set(userId, Date.now());
+      if (this.ultimoMinutoJogo.size > 20000) this.ultimoMinutoJogo.clear();
+      // Conquista "Tempo de jogo": só soma o total de minutos (o nome do jogo não é guardado)
+      this.prisma.user.update({ where: { id: userId }, data: { minutosJogo: { increment: 1 } } }).catch(() => {});
+    }
     if (prev === name) return; // renovação periódica: não precisa anunciar
     client.data.activity = name;
     Array.from(client.rooms).forEach(room => {

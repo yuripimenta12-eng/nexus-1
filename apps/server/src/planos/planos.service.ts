@@ -23,12 +23,22 @@ export class PlanosService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.user.updateMany({ where: { id: { in: vencidos.map(v => v.id) } }, data: { plano: 'gratis', planoAte: null } });
         await this.ajustarPerfil(vencidos.map(v => v.id));
       } catch { /* tenta de novo na próxima volta */ }
+      await this.contarDiaAssinante().catch(() => { /* tenta de novo na próxima volta */ });
     };
     void vencer();
     this.timer = setInterval(vencer, 10 * 60_000);
     this.timer.unref?.();
   }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
+
+  // Conquista Assinante: cada dia (de Brasília) com Nexus+ ou Pro ativo soma 1, uma vez por dia
+  async contarDiaAssinante(agora = new Date()) {
+    const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(agora); // AAAA-MM-DD
+    await this.prisma.$executeRaw`
+      UPDATE "users" SET "diasAssinante" = "diasAssinante" + 1, "assinanteDia" = ${hoje},
+        "assinanteDesde" = COALESCE("assinanteDesde", ${agora})
+      WHERE "plano" <> 'gratis' AND "planoAte" > ${agora} AND ("assinanteDia" IS NULL OR "assinanteDia" <> ${hoje})`;
+  }
 
   private novoCodigo() {
     return Array.from(randomBytes(8), b => LETRAS[b % LETRAS.length]).join('');

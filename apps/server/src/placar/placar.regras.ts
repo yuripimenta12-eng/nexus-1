@@ -11,6 +11,26 @@ export function segundosACreditar(ultimo: Date | null | undefined, agora: Date):
   return Math.round(Math.min(passou, 75));
 }
 
+// Conquistas de evento: só dá para ganhar dentro da janela (horário de Brasília, UTC-3 o ano todo)
+export const EVENTOS: { chave: string; inicio: string; fim: string }[] = [
+  { chave: 'natal-2026', inicio: '2026-12-24T00:00:00-03:00', fim: '2026-12-26T00:00:00-03:00' },
+  { chave: 'virada-2027', inicio: '2026-12-31T23:30:00-03:00', fim: '2027-01-01T00:30:00-03:00' },
+  // Carnaval 2027: sábado 06/02 até a terça 09/02 (a Páscoa de 2027 é 28/03)
+  { chave: 'carnaval-2027', inicio: '2027-02-06T00:00:00-03:00', fim: '2027-02-10T00:00:00-03:00' },
+];
+export function eventosAtivos(agora: Date): string[] {
+  const t = agora.getTime();
+  return EVENTOS.filter(e => t >= new Date(e.inicio).getTime() && t < new Date(e.fim).getTime()).map(e => e.chave);
+}
+// "Nexus 2026": quem usou o Nexus no primeiro ano
+export const FIM_NEXUS_2026 = new Date('2027-01-01T00:00:00-03:00');
+// "Maratonista": tanto tempo seguido na mesma call
+export const MARATONA_MS = 5 * 3600_000;
+// Tempo de jogo: o app avisa a cada minuto; conta no máximo 1 minuto a cada 55 s (avisos repetidos não inflam)
+export function contaMinutoJogo(ultimo: number | undefined, agora: number): boolean {
+  return !ultimo || agora - ultimo >= 55_000;
+}
+
 export function horaDeBrasilia(agora: Date): number {
   return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hourCycle: 'h23' }).format(agora));
 }

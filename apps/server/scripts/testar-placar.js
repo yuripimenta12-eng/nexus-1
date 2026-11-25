@@ -9,7 +9,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'placar', 'placar.
 const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2019 } }).outputText;
 const m = { exports: {} };
 new Function('module', 'exports', 'require', js)(m, m.exports, require);
-const { segundosACreditar, horaDeBrasilia, lerReciboDj } = m.exports;
+const { segundosACreditar, horaDeBrasilia, lerReciboDj, eventosAtivos, FIM_NEXUS_2026, contaMinutoJogo } = m.exports;
 
 const t0 = new Date('2026-11-12T12:00:00Z');
 const depois = (s) => new Date(t0.getTime() + s * 1000);
@@ -41,4 +41,21 @@ caso('recibo com mais de 10 min é recusado', lerReciboDj(recibo('seg', { ...bom
 caso('recibo do futuro é recusado', lerReciboDj(recibo('seg', { ...bom, iat: agora + 5 * 60_000 }), 'seg', agora), null);
 caso('lixo no lugar do recibo é recusado', lerReciboDj('abc', 'seg', agora), null);
 caso('sem segredo configurado nada é aceito', lerReciboDj(recibo('', bom), '', agora), null);
+// Eventos (horário de Brasília)
+const ev = (iso) => JSON.stringify(eventosAtivos(new Date(iso)));
+caso('23/12 23h59 Brasília ainda não é Natal', ev('2026-12-24T02:59:00Z'), '[]');
+caso('24/12 0h Brasília já é Natal', ev('2026-12-24T03:00:00Z'), '["natal-2026"]');
+caso('25/12 23h59 Brasília ainda é Natal', ev('2026-12-26T02:59:00Z'), '["natal-2026"]');
+caso('26/12 0h Brasília acabou o Natal', ev('2026-12-26T03:00:00Z'), '[]');
+caso('31/12 23h29 ainda não é a virada', ev('2027-01-01T02:29:00Z'), '[]');
+caso('31/12 23h45 é a virada', ev('2027-01-01T02:45:00Z'), '["virada-2027"]');
+caso('01/01 0h29 ainda é a virada', ev('2027-01-01T03:29:00Z'), '["virada-2027"]');
+caso('01/01 0h30 acabou a virada', ev('2027-01-01T03:30:00Z'), '[]');
+caso('terça de Carnaval (09/02/2027) vale', ev('2027-02-09T20:00:00Z'), '["carnaval-2027"]');
+caso('quarta de cinzas (10/02/2027) não vale', ev('2027-02-10T12:00:00Z'), '[]');
+caso('Nexus 2026 acaba na meia-noite de Brasília', FIM_NEXUS_2026.toISOString(), '2027-01-01T03:00:00.000Z');
+// Tempo de jogo
+caso('primeiro aviso de jogo conta', contaMinutoJogo(undefined, 1000), true);
+caso('aviso repetido em 10 s não conta', contaMinutoJogo(1000, 11_000), false);
+caso('aviso 1 min depois conta', contaMinutoJogo(1000, 61_000), true);
 console.log(`\nResultado: ${ok} ok.`);

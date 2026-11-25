@@ -6,6 +6,7 @@ import { randomBytes } from 'crypto';
 import { Server, Socket } from 'socket.io';
 import { WsHttpExceptionFilter } from '../../gateway/ws-http.filter';
 import * as R from './escolhas.regras';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface Desafio { id: string; sala: string; de: string; para: string; lado: R.Lado; num: number; expiraEm: number; timer: ReturnType<typeof setTimeout> }
 interface Votacao {
@@ -28,6 +29,15 @@ export class EscolhasGateway implements OnGatewayDisconnect {
   private desafios = new Map<string, Desafio>();
   private votacoes = new Map<string, Votacao>(); // sala → votação (uma por vez)
   private ultimaCriacao = new Map<string, number>();
+
+  constructor(private prisma: PrismaService) {}
+
+  // Conquista "Sortudo": conta as vitórias no par ou ímpar
+  private contarVitoria(userId: string) {
+    this.prisma.carteira.upsert({
+      where: { userId }, create: { userId, parimparVitorias: 1 }, update: { parimparVitorias: { increment: 1 } },
+    }).catch(() => { /* não atrapalha o jogo */ });
+  }
 
   private uid(c: Socket): string {
     const id = c.data?.userId;
@@ -110,6 +120,7 @@ export class EscolhasGateway implements OnGatewayDisconnect {
         id: x.id, de: x.de, para: x.para, lado: x.lado, numDe: x.num, numPara: num,
         soma: r.soma, saiu: r.saiu, vencedor: r.ganhou === 'desafiante' ? x.de : x.para,
       });
+      this.contarVitoria(r.ganhou === 'desafiante' ? x.de : x.para);
     });
   }
 
