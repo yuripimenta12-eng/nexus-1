@@ -115,6 +115,9 @@ export const CATALOGO: Item[] = [
   it('moldura', 'm-fita-holografica', 'Fita Holográfica', 'rara'),
   it('moldura', 'm-insignia-nexus', 'Insígnia Nexus', 'epica'),
   it('moldura', 'm-relampago-roxo', 'Relâmpago Roxo', 'epica'),
+  it('moldura', 'm-emblema-nexus', 'Emblema Nexus', 'rara'),
+  it('moldura', 'm-fitas-douradas', 'Fitas Douradas', 'rara'),
+  it('moldura', 'm-lotus', 'Lótus Lilás', 'epica'),
   // Exclusivas da Prisma (moeda paga)
   it('moldura', 'm-coroa-de-cristal', 'Coroa de Cristal', 'lendaria', { preco: null, precoPrisma: 220 }),
   it('moldura', 'm-paladino', 'Paladino', 'lendaria', { preco: null, precoPrisma: 250 }),
@@ -123,6 +126,11 @@ export const CATALOGO: Item[] = [
   // Só da equipe
   it('moldura', 'm-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
   it('moldura', 'm-moderacao', 'Martelo da Ordem', 'epica', { preco: null, soStaff: true }),
+  it('moldura', 'm-dev', 'Código Nexus', 'lendaria', { preco: null, soStaff: true }),
+  it('moldura', 'm-lideranca', 'Liderança', 'lendaria', { preco: null, soStaff: true }),
+  it('moldura', 'm-staff-aco', 'Nexus Staff · Aço', 'lendaria', { preco: null, soStaff: true }),
+  it('moldura', 'm-staff-raio', 'Nexus Staff · Raio', 'lendaria', { preco: null, soStaff: true }),
+  it('moldura', 'm-staff-louros', 'Nexus Staff · Louros', 'lendaria', { preco: null, soStaff: true }),
   it('icone', 'i-staff', 'Nexus Staff', 'lendaria', { preco: null, soStaff: true }),
   // Temas de servidor: o dono (ou admin) veste o servidor inteiro
   it('tema', 't-neblina', 'Neblina', 'rara'),
