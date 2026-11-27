@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { getSocket, joinServer } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/ui/avatar';
+import { margemFotoCartao } from '@/lib/itens';
 import { EmblemaBeta, SeloBeta } from '@/components/ui/emblema-beta';
 import { SeloStaff } from '@/components/ui/selo-staff';
 import { FaixaConquistas } from '@/components/voice/placar';
@@ -303,6 +304,7 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
 
   const bannerUrl = pub?.profile?.bannerUrl;
   const [bc1, bc2] = (pub?.profile?.bannerColor || '').split(',').map(c => corSegura(c, ''));
+  const moldura: string | null | undefined = (pub?.profile as any)?.moldura ?? (member.user.profile as any)?.moldura;
   const bannerBg = bannerUrl
     ? `center / cover no-repeat url(${bannerUrl})`
     : bc1 && bc2
@@ -339,9 +341,9 @@ function MemberProfileCard({ member, members, serverId, onClose, onChanged }: {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--th-panel)]/70" />
         </div>
         <div className="px-4 pb-4 -mt-11">
-          <div className="relative inline-block">
+          <div className="relative inline-block" style={margemFotoCartao(moldura)}>
             <Avatar src={member.user.profile?.avatarUrl} name={name} size="xl"
-                    moldura={(pub?.profile as any)?.moldura ?? (member.user.profile as any)?.moldura}
+                    moldura={moldura}
                     className="!w-[84px] !h-[84px] ring-[5px] ring-[var(--th-panel)] rounded-full" />
             <span
               className="absolute bottom-0.5 right-0.5 w-[18px] h-[18px] rounded-full border-[3px] border-[var(--th-panel)]"

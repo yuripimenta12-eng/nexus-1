@@ -159,6 +159,18 @@ export const MOLDURA_ARTE: Record<string, { escala: number; x: number; y: number
   'm-staff-louros': { escala: 1.644, x: -0.32, y: -0.43 },
 };
 
+/** Quantos px a arte da moldura passa da foto à esquerda e acima (foto de `tamanho` px). */
+export function sobraMoldura(id: string | null | undefined, tamanho: number) {
+  const a = id ? MOLDURA_ARTE[id] : undefined;
+  return a ? { esquerda: Math.ceil(-a.x * tamanho), topo: Math.ceil(-a.y * tamanho) } : { esquerda: 0, topo: 0 };
+}
+
+/** Margem para a foto de 84px do cartão de perfil (16px da borda, 48px do topo) não ter a moldura cortada. */
+export function margemFotoCartao(id: string | null | undefined) {
+  const s = sobraMoldura(id, 84);
+  return { marginLeft: Math.max(0, s.esquerda + 6 - 16), marginTop: Math.max(0, s.topo + 6 - 48) };
+}
+
 // Animação por cima da arte da moldura (components/nex/itens-visuais.tsx):
 // faisca = brilhinhos; chama = fogo tremendo + brasas;
 // raio = raios piscando; glitch = cópias coloridas tremendo; pulso = respira; arco = cores mudando

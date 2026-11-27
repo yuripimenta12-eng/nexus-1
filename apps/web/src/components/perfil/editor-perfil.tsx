@@ -17,6 +17,7 @@ import { corSegura } from '@/lib/seguro';
 import { BENEFICIOS, NOME_PLANO, planoAtivo, type Plano } from '@/lib/planos';
 import { JOGOS_SUGERIDOS, REDES, type Conexoes, type JogoPerfil, type PerfilCompleto } from '@/lib/perfil-gamer';
 import { JogandoAgora, SecoesPerfilGamer, type SecaoPerfil } from './secoes-perfil';
+import { margemFotoCartao } from '@/lib/itens';
 
 // Cores prontas do nome (uma cor ou degradê)
 const CORES_NOME = [
@@ -202,7 +203,7 @@ export function EditorPerfilGamer() {
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--th-panel)]/70" />
           </div>
           <div className="px-4 pb-4 -mt-11">
-            <div className="relative inline-block">
+            <div className="relative inline-block" style={margemFotoCartao(moldura)}>
               <Avatar src={pf?.avatarUrl} name={nome} size="xl" moldura={moldura}
                 className="!w-[84px] !h-[84px] ring-[5px] ring-[var(--th-panel)] rounded-full" />
             </div>
