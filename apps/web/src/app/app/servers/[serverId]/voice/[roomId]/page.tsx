@@ -33,6 +33,7 @@ import { useServerPerms } from '@/lib/perms';
 import { useUnidos } from '@/components/games/unidos/unidos.store';
 import { DockArea, DockItem } from '@/components/voice/dock-hover';
 import { PainelPlacar, registrarEventoPlacar } from '@/components/voice/placar';
+import { Relogio } from '@/components/voice/relogio';
 import { corSegura, capaSegura } from '@/lib/seguro';
 import { HeadphoneOff, MicOff3D } from '@/components/ui/fone-mutado';
 import { VoosDoQuadro, QuadroTremendo, BotaoPiscar, PainelReacoes, AvisoPiscada } from '@/components/voice/reacoes';
@@ -1871,7 +1872,7 @@ export default function VoicePage() {
               </motion.button>}
 
               {/* Mascote segurando a logo, preso ao pé do painel, com luz pulsando atrás */}
-              <div className="relative mt-auto pt-10 pb-1 flex justify-center pointer-events-none" aria-hidden>
+              <div className="relative mt-auto pt-10 pb-1 flex flex-col items-center pointer-events-none">
                 <div
                   className="nx-blob"
                   style={{ width: 200, height: 200, left: '50%', top: '55%', transform: 'translate(-50%,-50%)', background: 'rgba(122,44,255,0.38)' }}
@@ -1880,9 +1881,11 @@ export default function VoicePage() {
                   className="nx-blob"
                   style={{ width: 130, height: 130, left: '32%', top: '75%', transform: 'translate(-50%,-50%)', background: 'rgba(255,106,0,0.25)', animationDelay: '2.2s' }}
                 />
+                <Relogio className="relative mb-3" />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/mascote-call.webp"
+                  aria-hidden
                   alt=""
                   draggable={false}
                   className="relative h-[190px] w-auto select-none"
