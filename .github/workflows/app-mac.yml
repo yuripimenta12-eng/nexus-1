@@ -1,13 +1,17 @@
 # Monta o instalador do Nexus Link para Mac (.dmg, Intel e Apple Silicon) num Mac do GitHub
 # e anexa à release mais recente do app, com nome fixo:
 # https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Mac.dmg
-# Roda quando o código do app de PC muda, ou na mão (aba Actions → "App para Mac" → Run workflow).
+# Roda quando o código do app de PC muda, quando uma release nova é publicada (aí o .dmg vai
+# para ELA), ou na mão (aba Actions → "App para Mac" → Run workflow).
+# Junto vai o latest-mac.yml: o app do Mac lê a versão dele para avisar que tem versão nova.
 name: App para Mac
 
 on:
   push:
     branches: [main]
     paths: ['apps/desktop/**', '.github/workflows/app-mac.yml']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +30,8 @@ jobs:
         working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -50,6 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=$(gh release view --json tagName -q .tagName)
-          gh release upload "$TAG" dist/Nexus-Link-Mac.dmg --clobber
+          TAG="${{ github.event.release.tag_name }}"
+          [ -n "$TAG" ] || TAG=$(gh release view --json tagName -q .tagName)
+          gh release upload "$TAG" dist/Nexus-Link-Mac.dmg dist/latest-mac.yml --clobber
           echo "Anexado em $TAG"

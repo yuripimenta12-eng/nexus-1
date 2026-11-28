@@ -4,7 +4,7 @@
 // atualização publicada aparece no app sem reinstalar.
 const {
   app, BrowserWindow, Tray, Menu, shell, session, desktopCapturer,
-  ipcMain, nativeImage, dialog, globalShortcut,
+  ipcMain, nativeImage, dialog, globalShortcut, net,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -84,15 +84,23 @@ let updateReady = null; // versão já baixada, esperando reiniciar
 function sendUpdate() {
   if (updateReady && win && !win.isDestroyed()) win.webContents.send('update:ready', updateReady);
 }
+const RELEASE = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download';
 function installUpdate() {
   if (!updateReady) return;
+  if (MAC) { baixarVersaoMac(); return; }
   quitting = true;
   autoUpdater.quitAndInstall(true, true); // instala em silêncio e reabre o Nexus
 }
 function setupUpdater() {
   if (!app.isPackaged) return; // rodando pelo código (npm start): nada a atualizar
-  // shortcut: o Mac só atualiza sozinho com app assinado pela Apple (conta de desenvolvedor paga); até lá, baixa o .dmg de novo
-  if (MAC) return;
+  // shortcut: o Mac só atualiza sozinho com app assinado pela Apple (conta de desenvolvedor paga);
+  // até lá, só avisamos que tem versão nova e a pessoa baixa o .dmg de novo
+  if (MAC) {
+    const ver = () => verificarVersaoMac().catch(() => { /* sem internet: tenta mais tarde */ });
+    setTimeout(ver, 30_000);
+    setInterval(ver, 4 * 60 * 60 * 1000);
+    return;
+  }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-downloaded', (info) => {
@@ -112,6 +120,32 @@ function setupUpdater() {
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   setTimeout(check, 30_000); // depois de abrir, para não pesar na inicialização
   setInterval(check, 4 * 60 * 60 * 1000);
+}
+
+// ── Mac: aviso de versão nova (lê a versão publicada em latest-mac.yml) ──
+const versaoMaior = (a, b) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+};
+async function verificarVersaoMac() {
+  const r = await net.fetch(`${RELEASE}/latest-mac.yml`, { cache: 'no-store' });
+  if (!r.ok) return;
+  const nova = /^version:\s*['"]?([\d.]+)/m.exec(await r.text())?.[1];
+  if (!nova || !versaoMaior(nova, VERSION) || nova === updateReady) return;
+  updateReady = nova;
+  if (tray) tray.setContextMenu(buildTrayMenu());
+  sendUpdate();
+}
+async function baixarVersaoMac() {
+  shell.openExternal(`${RELEASE}/Nexus-Link-Mac.dmg`);
+  await dialog.showMessageBox({
+    type: 'info',
+    title: 'Nexus Link',
+    message: `Baixando a versão ${updateReady}`,
+    detail: 'Quando terminar: saia do Nexus (Cmd+Q), abra o arquivo baixado e arraste o Nexus Link para a pasta Aplicativos, substituindo o antigo. Sua conta e suas conversas continuam.',
+    buttons: ['Ok'],
+  });
 }
 
 // Só https: com http, um link "http://nexuslink.art" numa mensagem carregava,
@@ -250,7 +284,7 @@ function abrirComWindows() {
 
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
-    ...(updateReady ? [{ label: `Reiniciar para atualizar (versão ${updateReady})`, click: installUpdate }] : []),
+    ...(updateReady ? [{ label: MAC ? `Baixar a versão nova (${updateReady})` : `Reiniciar para atualizar (versão ${updateReady})`, click: installUpdate }] : []),
     { label: 'Abrir o Nexus', click: showWindow },
     { type: 'separator' },
     {
@@ -298,9 +332,11 @@ function buildTrayMenu() {
 }
 
 function createTray() {
-  // Barra de menus do Mac: ícone pequeno (o de 32px do Windows ficaria gigante)
-  const img = nativeImage.createFromPath(iconPath('tray.png'));
-  tray = new Tray(MAC ? img.resize({ width: 18, height: 18 }) : img);
+  // Barra de menus do Mac: silhueta "Template" (o macOS pinta de preto ou branco conforme o tema;
+  // o arquivo @2x é carregado sozinho nas telas Retina)
+  const img = nativeImage.createFromPath(iconPath(MAC ? 'trayTemplate.png' : 'tray.png'));
+  if (MAC) img.setTemplateImage(true);
+  tray = new Tray(img);
   tray.setToolTip('Nexus Link');
   tray.setContextMenu(buildTrayMenu());
   tray.on('click', showWindow);

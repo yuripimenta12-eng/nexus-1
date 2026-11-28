@@ -583,6 +583,13 @@ export default function LoginPage() {
               </span>
             </a>
           )}
+          {/* Mac sem instalar nada: o Safari transforma o site num app no Dock (sem aviso da Apple e sempre atualizado) */}
+          {showDownload && mac && (
+            <p className="hidden md:block" style={{ marginTop: 8, fontSize: 11.5, color: '#8a8095', textAlign: 'center', lineHeight: 1.45 }}>
+              Prefere não instalar? No <b style={{ color: '#c9c0d3' }}>Safari</b>, entre no Nexus e use{' '}
+              <b style={{ color: '#c9c0d3' }}>Arquivo → Adicionar ao Dock</b>.
+            </p>
+          )}
 
           {/* Security */}
           <p style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: '#6f6478' }}>

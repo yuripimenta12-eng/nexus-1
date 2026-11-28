@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
-import { DOWNLOAD_WINDOWS, appSemAtualizacaoAutomatica, desktopAppVersion, installAppUpdate, watchAppUpdate } from '@/lib/desktop';
+import { DOWNLOAD_WINDOWS, appSemAtualizacaoAutomatica, desktopAppVersion, ehMac, installAppUpdate, watchAppUpdate } from '@/lib/desktop';
 import { useVoiceStore } from '@/stores/voice.store';
 
 // App de PC: a versão nova já foi baixada em segundo plano. Ela entra
@@ -77,11 +77,15 @@ export function AtualizacaoApp() {
   useEffect(() => { if (appSemAtualizacaoAutomatica()) setAntigo(desktopAppVersion()); }, []);
 
   useEffect(() => watchAppUpdate(setVersao), []);
+  // App do Mac não troca a versão sozinho (sem assinatura da Apple): o botão baixa o instalador
+  const [mac, setMac] = useState(false);
+  useEffect(() => setMac(ehMac()), []);
 
   // O app de PC tem prioridade: reiniciar ele já carrega o site novo também
   const versao = versaoApp ?? antigo ?? (siteNovo ? 'site' : null);
   const ehSite = !versaoApp && !antigo;
   const ehAntigo = !versaoApp && !!antigo;
+  const ehMacNovo = !!versaoApp && mac;
 
   return (
     <AnimatePresence>
@@ -99,7 +103,7 @@ export function AtualizacaoApp() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-white font-bold text-sm">
-                {ehAntigo ? `Seu app do Nexus está desatualizado (${versao})` : ehSite ? 'O Nexus foi atualizado' : `Nova versão do app pronta (${versao})`}
+                {ehAntigo ? `Seu app do Nexus está desatualizado (${versao})` : ehSite ? 'O Nexus foi atualizado' : ehMacNovo ? `Versão nova do app para Mac (${versao})` : `Nova versão do app pronta (${versao})`}
               </p>
               <p className="text-[12px] text-[#a99fc0] mt-0.5">
                 {ehAntigo
@@ -108,6 +112,8 @@ export function AtualizacaoApp() {
                   ? (emCall
                     ? 'Clique em Atualizar para usar a versão nova. Você continua logado, mas sai da call por alguns segundos.'
                     : 'Clique em Atualizar para usar a versão nova. Leva 2 segundos e você continua logado.')
+                  : ehMacNovo
+                  ? 'Baixe e arraste o Nexus Link para a pasta Aplicativos, substituindo o antigo. Sua conta e suas conversas continuam.'
                   : emCall
                     ? 'Ela entra quando você fechar o Nexus. Reiniciar agora tira você da call por alguns segundos.'
                     : 'Ela entra quando você fechar o Nexus, ou reinicie agora (leva alguns segundos).'}
@@ -130,7 +136,7 @@ export function AtualizacaoApp() {
             ) : (
               <button onClick={ehSite ? () => window.location.reload() : installAppUpdate}
                 className="h-8 px-3 rounded-lg text-[12.5px] font-black text-white bg-[#7a2cff] hover:bg-[#8f42ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                {ehSite ? 'Atualizar' : 'Reiniciar agora'}
+                {ehSite ? 'Atualizar' : ehMacNovo ? 'Baixar' : 'Reiniciar agora'}
               </button>
             )}
           </div>
