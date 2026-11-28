@@ -1,0 +1,55 @@
+# Monta o instalador do Nexus Link para Mac (.dmg, Intel e Apple Silicon) num Mac do GitHub
+# e anexa à release mais recente do app, com nome fixo:
+# https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Mac.dmg
+# Roda quando o código do app de PC muda, ou na mão (aba Actions → "App para Mac" → Run workflow).
+name: App para Mac
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/desktop/**', '.github/workflows/app-mac.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-mac
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Montar o .dmg
+        run: npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Conferir o app montado
+        run: |
+          ls -la dist
+          APP=$(find dist -maxdepth 2 -name "Nexus Link.app" | head -1)
+          codesign -dv --verbose=2 "$APP" 2>&1 | head -8
+          lipo -archs "$APP/Contents/MacOS/Nexus Link"
+          /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$APP/Contents/Info.plist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nexus-Link-Mac
+          path: apps/desktop/dist/Nexus-Link-Mac.dmg
+          retention-days: 14
+      - name: Anexar à release mais recente
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(gh release view --json tagName -q .tagName)
+          gh release upload "$TAG" dist/Nexus-Link-Mac.dmg --clobber
+          echo "Anexado em $TAG"

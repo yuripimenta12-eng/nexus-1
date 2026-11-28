@@ -63,7 +63,32 @@ const KNOWN_GAMES = {
   'schedule i.exe': 'Schedule I',
 };
 
+// Mac: nome do processo (minúsculo, como o "ps -c" mostra) → nome exibido
+const MAC_GAMES = {
+  'league of legends': 'League of Legends',
+  'robloxplayer': 'Roblox',
+  'cs2': 'Counter-Strike 2',
+  'dota2': 'Dota 2',
+  'among us': 'Among Us',
+  'terraria': 'Terraria',
+  'stardew valley': 'Stardew Valley',
+  'hollow knight': 'Hollow Knight',
+  'world of warcraft': 'World of Warcraft',
+  'hearthstone': 'Hearthstone',
+  'the sims 4': 'The Sims 4',
+  "baldur's gate 3": "Baldur's Gate 3",
+  'brawlhalla': 'Brawlhalla',
+};
+const MAC = process.platform === 'darwin';
+
 function listProcesses() {
+  if (MAC) {
+    return new Promise((resolve) => {
+      execFile('/bin/ps', ['-axco', 'comm='], { timeout: 8000, maxBuffer: 4 * 1024 * 1024 }, (err, out) => {
+        resolve(err || !out ? [] : out.split(/\r?\n/).map(l => l.trim().toLowerCase()).filter(Boolean));
+      });
+    });
+  }
   return new Promise((resolve) => {
     // Sem shell: só o executável do Windows com argumentos fixos
     execFile('tasklist', ['/fo', 'csv', '/nh'], { windowsHide: true, timeout: 8000, maxBuffer: 4 * 1024 * 1024 }, (err, out) => {
@@ -80,8 +105,9 @@ function listProcesses() {
 
 async function detectGame() {
   const running = await listProcesses();
+  const lista = MAC ? MAC_GAMES : KNOWN_GAMES;
   for (const exe of running) {
-    if (KNOWN_GAMES[exe]) return KNOWN_GAMES[exe];
+    if (lista[exe]) return lista[exe];
   }
   return null;
 }

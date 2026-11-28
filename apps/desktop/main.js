@@ -15,6 +15,8 @@ const APP_URL = 'https://www.nexuslink.art';
 const START_URL = `${APP_URL}/app`;
 const ALLOWED_HOSTS = new Set(['www.nexuslink.art', 'nexuslink.art']);
 const VERSION = app.getVersion();
+const MAC = process.platform === 'darwin';
+const SISTEMA = MAC ? 'Mac' : 'Windows';
 
 // Um único Nexus aberto: abrir de novo só traz a janela existente para frente
 if (!app.requestSingleInstanceLock()) {
@@ -89,6 +91,8 @@ function installUpdate() {
 }
 function setupUpdater() {
   if (!app.isPackaged) return; // rodando pelo código (npm start): nada a atualizar
+  // shortcut: o Mac só atualiza sozinho com app assinado pela Apple (conta de desenvolvedor paga); até lá, baixa o .dmg de novo
+  if (MAC) return;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-downloaded', (info) => {
@@ -151,9 +155,12 @@ function createWindow() {
     },
   });
   if (st.maximized) win.maximize();
-  Menu.setApplicationMenu(null);
+  // No Mac, sem o menu Editar, Cmd+C / Cmd+V / Cmd+A param de funcionar nos campos de texto
+  Menu.setApplicationMenu(MAC ? Menu.buildFromTemplate([
+    { role: 'appMenu', label: 'Nexus Link' }, { role: 'editMenu', label: 'Editar' }, { role: 'windowMenu', label: 'Janela' },
+  ]) : null);
 
-  const startHidden = process.argv.includes('--oculto');
+  const startHidden = process.argv.includes('--oculto') || (MAC && app.getLoginItemSettings().wasOpenedAtLogin);
   win.once('ready-to-show', () => { if (!startHidden) win.show(); });
 
   win.loadURL(START_URL);
@@ -247,7 +254,7 @@ function buildTrayMenu() {
     { label: 'Abrir o Nexus', click: showWindow },
     { type: 'separator' },
     {
-      label: 'Abrir junto com o Windows',
+      label: `Abrir junto com o ${SISTEMA}`,
       type: 'checkbox',
       checked: abrirComWindows(),
       click: (item) => {
@@ -291,7 +298,9 @@ function buildTrayMenu() {
 }
 
 function createTray() {
-  tray = new Tray(nativeImage.createFromPath(iconPath('tray.png')));
+  // Barra de menus do Mac: ícone pequeno (o de 32px do Windows ficaria gigante)
+  const img = nativeImage.createFromPath(iconPath('tray.png'));
+  tray = new Tray(MAC ? img.resize({ width: 18, height: 18 }) : img);
   tray.setToolTip('Nexus Link');
   tray.setContextMenu(buildTrayMenu());
   tray.on('click', showWindow);
@@ -325,7 +334,8 @@ function setupPermissions() {
       if (!choice) return callback({});
       const source = sources.find(s => s.id === choice.id);
       if (!source) return callback({});
-      callback(choice.audio ? { video: source, audio: 'loopback' } : { video: source });
+      // Som do computador junto com a tela: o Electron só consegue capturar no Windows
+      callback(choice.audio && !MAC ? { video: source, audio: 'loopback' } : { video: source });
     } catch {
       callback({});
     }
@@ -440,6 +450,7 @@ ipcMain.on('app:show', showWindow);
 ipcMain.on('app:flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });
 
 app.on('second-instance', showWindow);
+app.on('activate', showWindow); // Mac: clicar no ícone do Dock traz a janela de volta
 app.on('before-quit', () => { quitting = true; saveState(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 

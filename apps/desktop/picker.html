@@ -68,6 +68,8 @@
   document.getElementById('cancel').onclick = () => window.picker.choose(null);
   ok.onclick = () => sel && window.picker.choose(sel, document.getElementById('audio').checked);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') window.picker.choose(null); });
+  // Mac: o som do computador não vai junto com a tela (limitação do Electron)
+  if (window.picker.semSom) document.getElementById('audio').closest('label').style.visibility = 'hidden';
   window.picker.onSources(list => { all = list; render(); });
 </script>
 </body>

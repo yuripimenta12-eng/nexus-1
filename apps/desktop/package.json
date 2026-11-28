@@ -1,13 +1,14 @@
 {
   "name": "nexus-desktop",
   "version": "1.6.1",
-  "description": "Nexus Link para Windows",
+  "description": "Nexus Link para Windows e Mac",
   "author": "Nexus Link",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac --publish never"
   },
   "build": {
     "appId": "art.nexuslink.desktop",
@@ -39,6 +40,29 @@
       "artifactName": "Nexus-Link-Setup-${version}.${ext}",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "assets/icon-512.png",
+      "category": "public.app-category.social-networking",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "O Nexus usa o microfone para você falar nas chamadas.",
+        "NSCameraUsageDescription": "O Nexus usa a câmera quando você liga o vídeo nas chamadas."
+      }
+    },
+    "dmg": {
+      "artifactName": "Nexus-Link-Mac.${ext}",
+      "title": "Nexus Link"
     },
     "publish": [
       {
