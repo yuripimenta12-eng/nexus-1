@@ -51,7 +51,7 @@ const entrar = async (u) => (await call('POST', '/auth/login', { email: u.email,
     const membros = (await call('GET', `/servers/${serverId}/members`, null, tB)).data;
     const lista = Array.isArray(membros) ? membros : membros?.members || [];
     const eu = lista.find((m) => m.userId === B.id || m.user?.id === B.id);
-    check('lista de membros leva a restrição para o app aplicar', !!eu?.roleAssignments?.some((a) => a.role?.permissions?.includes('limit_volume')), JSON.stringify(eu?.roleAssignments));
+    check('lista de membros leva a restrição para o app aplicar', !!eu?.roles?.some((r) => r.permissions?.includes('limit_volume')), JSON.stringify(eu?.roles));
 
     const r2 = await call('PUT', `/servers/${serverId}/roles/${adt.id}/members/${A.id}`, null, tC);
     check('membro comum não consegue dar o cargo', r2.status === 403, String(r2.status));
