@@ -393,6 +393,10 @@ export default function VoicePage() {
   // Restrição: algum cargo meu carrega "Bloqueio de Live stream"?
   const liveBlocked = (membersMeta[user?.id || '']?.roles || [])
     .some((r: any) => typeof r.permissions === 'string' && r.permissions.includes('block_watch_streams'));
+  // Restrição: algum cargo meu carrega "Volume mínimo de 10%"? (dono e ADM nunca ficam travados)
+  const volumeTravado = myRole !== 'OWNER' && myRole !== 'ADMIN' && (membersMeta[user?.id || '']?.roles || [])
+    .some((r: any) => typeof r.permissions === 'string' && r.permissions.includes('limit_volume'));
+  useEffect(() => { useVoiceStore.getState().setVolumeTravado(volumeTravado); }, [volumeTravado]);
 
   // Se o bloqueio chegar com uma live aberta, fecha tudo na hora
   useEffect(() => {
@@ -1753,11 +1757,11 @@ export default function VoicePage() {
                                     style={{ ['--fill' as any]: `${p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100)}%` }}
                                   />
                                 </div>
-                                <MenuAction
+                                {!volumeTravado && <MenuAction
                                   icon={p.isMutedLocally ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                                   label={p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
                                   onClick={() => useVoiceStore.getState().toggleMuteLocally(p.identity)}
-                                />
+                                />}
                                 <MenuAction
                                   icon={<ShieldOff className="w-3.5 h-3.5" />}
                                   label="Bloquear usuário"
@@ -2063,7 +2067,7 @@ function QuickAudioPopover({ onClose }: { onClose: () => void }) {
             type="range" min={0} max={100}
             value={isDeafened ? 0 : ms.outputVolume}
             disabled={isDeafened}
-            onChange={(e) => { ms.setOutputVolume(Number(e.target.value)); applyOutputVolume(); }}
+            onChange={(e) => { ms.setOutputVolume(Math.max(useVoiceStore.getState().volumeTravado ? 10 : 0, Number(e.target.value))); applyOutputVolume(); }}
             className="nx-range"
             style={{ ['--fill' as any]: `${isDeafened ? 0 : ms.outputVolume}%` }}
           />
@@ -2145,7 +2149,7 @@ function CallTimer({ connected }: { connected: boolean }) {
 
 // ── Painel de áudio: volume e mute local por participante ────────
 function VoiceAudioPanel({ membersMeta }: { membersMeta: Record<string, MetaMembro> }) {
-  const { participants, room, setParticipantVolume, toggleMuteLocally } = useVoiceStore();
+  const { participants, room, setParticipantVolume, toggleMuteLocally, volumeTravado } = useVoiceStore();
   const localIdentity = room?.localParticipant.identity;
   const remotes = Array.from(participants.values()).filter(p => p.identity !== localIdentity);
 
@@ -2181,7 +2185,7 @@ function VoiceAudioPanel({ membersMeta }: { membersMeta: Record<string, MetaMemb
               <span className="text-white text-sm font-medium truncate flex-1">
                 {p.participant.name || p.identity}
               </span>
-              <button
+              {!(volumeTravado && p.identity !== DJ_IDENTITY) && <button
                 onClick={() => toggleMuteLocally(p.identity)}
                 title={p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
                 className={cn(
@@ -2192,7 +2196,7 @@ function VoiceAudioPanel({ membersMeta }: { membersMeta: Record<string, MetaMemb
                 )}
               >
                 {p.isMutedLocally ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </button>
+              </button>}
             </div>
 
             <div className="flex items-center gap-2">

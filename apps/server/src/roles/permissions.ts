@@ -27,11 +27,15 @@ export const ALL_PERMISSIONS = [
   'move_members',
   // Restrições (permissões NEGATIVAS: ter a chave num cargo BLOQUEIA a ação)
   'block_watch_streams',
+  'limit_volume', // não pode silenciar nem baixar a voz de ninguém abaixo de 10% (só para si)
   // Avançado
   'administrator',
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSIONS)[number];
+
+// Restrições: dono e ADM nunca as recebem de graça; com "administrator" só valem se o cargo as marcar
+export const RESTRICOES: PermissionKey[] = ['block_watch_streams', 'limit_volume'];
 
 // Permissões padrão do cargo @everyone de um servidor novo
 // (convite fica com a equipe; o dono libera no cargo se quiser)

@@ -58,6 +58,7 @@ const PERM_GROUPS: PermGroup[] = [
     title: 'Restrições (bloqueiam o membro)',
     perms: [
       { key: 'block_watch_streams', label: 'Bloqueio de Live stream', desc: 'IMPEDE o membro de assistir ou ouvir as transmissões de tela de outras pessoas. Use como punição.' },
+      { key: 'limit_volume', label: 'Volume mínimo de 10%', desc: 'O membro NÃO consegue silenciar ninguém só para ele nem baixar a voz de alguém (ou o volume geral) abaixo de 10%. Use para quem precisa ouvir a equipe, como no cargo ADT.' },
     ],
   },
 ];

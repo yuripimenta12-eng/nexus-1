@@ -95,6 +95,9 @@ interface VoiceStore {
   setParticipantVolume: (identity: string, volume: number) => void;
   setStreamVolume: (identity: string, volume: number) => void;
   toggleMuteLocally: (identity: string) => void;
+  /** Cargo com a restrição "Volume mínimo de 10%": não dá para silenciar nem baixar a voz de ninguém abaixo de 10%. */
+  volumeTravado: boolean;
+  setVolumeTravado: (travado: boolean) => void;
   updateParticipant: (p: Participant) => void;
 
   // ── Configurações de mídia aplicadas ao vivo ──
@@ -303,6 +306,10 @@ function releaseMusicCapture() {
 // Modo reunião: zera só a voz dos microfones; o áudio de transmissão segue normal
 let streamFocus = false;
 
+// Restrição de cargo "Volume mínimo de 10%" (espelha o estado volumeTravado)
+const VOLUME_MINIMO = 10;
+let volumeTravado = false;
+
 // true enquanto o PRÓPRIO usuário clica em "Parar tela" — diferencia o
 // encerramento intencional de quedas externas (barrinha do Chrome, janela
 // fechada, desconexão), que merecem um aviso com o motivo.
@@ -324,9 +331,13 @@ function disconnectReasonText(reason?: DisconnectReason): string {
   }
 }
 
-function effectiveVolume(localVolume: number, mutedLocally: boolean): number {
-  if (mutedLocally || deafened) return 0;
-  const out = useMediaStore.getState().outputVolume;
+function effectiveVolume(localVolume: number, mutedLocally: boolean, travar: boolean): number {
+  if (deafened) return 0; // ensurdecer aparece para todos na sala, então continua liberado
+  let out = useMediaStore.getState().outputVolume;
+  if (travar) {
+    localVolume = Math.max(VOLUME_MINIMO, localVolume);
+    out = Math.max(VOLUME_MINIMO, out);
+  } else if (mutedLocally) return 0;
   // Teto de 1.0: sem WebAudio, o volume vai direto no <audio> (el.volume),
   // que o navegador limita em 100% — valores maiores lançariam exceção.
   return Math.min(1, (localVolume / 100) * (out / 100));
@@ -390,7 +401,8 @@ function applyVolumeToTracks(p: { participant?: Participant; localVolume?: numbe
   if (!p.participant) return;
   // Modo reunião: vozes zeradas (o áudio da live abaixo continua normal)
   const isDj = p.participant.identity === DJ_IDENTITY;
-  const micVol = (streamFocus && !isDj) ? 0 : effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally);
+  // A trava de volume vale para as vozes, não para a música do DJ
+  const micVol = (streamFocus && !isDj && !volumeTravado) ? 0 : effectiveVolume(p.localVolume ?? 100, !!p.isMutedLocally, volumeTravado && !isDj);
   // Transmissão pode passar de 100% (até 120) — sem teto aqui; o excedente
   // sai pelo GainNode dedicado em applyStreamBoost.
   const out = useMediaStore.getState().outputVolume;
@@ -691,9 +703,11 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     }
     deafened = false;
     streamFocus = false;
+    volumeTravado = false;
     set({
       isDeafened: false,
       isStreamFocus: false,
+      volumeTravado: false,
       watching: new Set<string>(),
       room: null,
       livekitToken: null,
@@ -904,6 +918,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   setParticipantVolume: (identity, volume) => {
+    if (volumeTravado && identity !== DJ_IDENTITY) volume = Math.max(VOLUME_MINIMO, volume);
     set((state) => {
       const next = new Map(state.participants);
       const p = next.get(identity);
@@ -934,6 +949,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   },
 
   toggleMuteLocally: (identity) => {
+    if (volumeTravado && identity !== DJ_IDENTITY) return;
     set((state) => {
       const next = new Map(state.participants);
       const p = next.get(identity);
@@ -961,6 +977,22 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         getSocket().emit('voice:deafen', { voiceRoomId, serverId, deafened });
       } catch { /* sem socket agora — o polling corrige depois */ }
     }
+  },
+
+  volumeTravado: false,
+  setVolumeTravado: (travado) => {
+    if (travado === volumeTravado) return;
+    volumeTravado = travado;
+    const next = new Map(get().participants);
+    next.forEach((p, id) => {
+      // Quem estava silenciado ou abaixo de 10% sobe para o mínimo (só as vozes, não o DJ)
+      const ajustar = travado && id !== DJ_IDENTITY && (p.isMutedLocally || (p.localVolume ?? 100) < VOLUME_MINIMO);
+      const q = ajustar ? { ...p, isMutedLocally: false, localVolume: Math.max(VOLUME_MINIMO, p.localVolume ?? 100) } : p;
+      if (ajustar) lembrarVolume(id, { v: q.localVolume, m: false });
+      applyVolumeToTracks(q);
+      next.set(id, q);
+    });
+    set({ volumeTravado: travado, participants: next });
   },
 
   isStreamFocus: false,

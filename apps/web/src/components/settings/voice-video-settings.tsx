@@ -124,7 +124,7 @@ export function VoiceVideoSettings() {
             label="Volume de saída"
             value={ms.outputVolume}
             max={100}
-            onChange={(v) => { ms.setOutputVolume(v); applyOutputVolume(); }}
+            onChange={(v) => { ms.setOutputVolume(Math.max(useVoiceStore.getState().volumeTravado ? 10 : 0, v)); applyOutputVolume(); }}
           />
         </div>
 

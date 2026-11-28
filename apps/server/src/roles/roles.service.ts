@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemberRole } from '@prisma/client';
-import { ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, PermissionKey } from './permissions';
+import { ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, PermissionKey, RESTRICOES } from './permissions';
 import { PUBLIC_USER } from '../common/public-user';
 
 @Injectable()
@@ -71,15 +71,15 @@ export class RolesService {
     if (!member || member.banned) throw new ForbiddenException('Sem acesso ao servidor');
     const isOwner = member.server.ownerId === userId;
     if (isOwner || member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN) {
-      return { role: isOwner ? 'OWNER' : member.role, permissions: [...ALL_PERMISSIONS].filter(p => p !== 'block_watch_streams') };
+      return { role: isOwner ? 'OWNER' : member.role, permissions: ALL_PERMISSIONS.filter(p => !RESTRICOES.includes(p)) };
     }
     const everyone = await this.ensureDefaultRole(serverId);
     const perms = new Set<string>(JSON.parse(everyone.permissions));
     for (const a of member.roleAssignments) for (const p of JSON.parse(a.role.permissions)) perms.add(p);
     if (perms.has('administrator')) {
-      const blocked = perms.has('block_watch_streams');
+      const marcadas = RESTRICOES.filter(p => perms.has(p));
       ALL_PERMISSIONS.forEach(p => perms.add(p));
-      if (!blocked) perms.delete('block_watch_streams');
+      RESTRICOES.forEach(p => { if (!marcadas.includes(p)) perms.delete(p); });
     }
     if (member.role === MemberRole.MODERATOR) {
       ['kick_members', 'ban_members', 'mute_members', 'manage_messages', 'pin_messages', 'create_invite', 'move_members']

@@ -766,6 +766,7 @@ export function AppSidebar() {
 // Volume de uma pessoa da call, só para mim (o mesmo do painel Pessoas da chamada)
 function VolumeDoUsuario({ identity }: { identity: string }) {
   const p = useVoiceStore((s: any) => s.participants.get(identity));
+  const travado = useVoiceStore((s) => s.volumeTravado);
   if (!p) return null;
   const vol = p.isMutedLocally ? 0 : Math.min(100, p.localVolume ?? 100);
   return (
@@ -783,14 +784,14 @@ function VolumeDoUsuario({ identity }: { identity: string }) {
           aria-label="Volume do usuário"
         />
       </div>
-      <button
+      {!travado && <button
         role="menuitem"
         onClick={() => useVoiceStore.getState().toggleMuteLocally(identity)}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-[#d9d2e3] hover:bg-[#7a2cff] hover:text-white text-left"
       >
         {p.isMutedLocally ? <Volume2 className="w-3.5 h-3.5 shrink-0 opacity-70" /> : <VolumeX className="w-3.5 h-3.5 shrink-0 opacity-70" />}
         {p.isMutedLocally ? 'Reativar áudio para mim' : 'Silenciar para mim'}
-      </button>
+      </button>}
     </div>
   );
 }
