@@ -21,14 +21,13 @@ import LedBadges from '@/components/ui/led-badges';
 import { Comentarios, GaleriaDetalhes, MascoteGuia, MuralLives, Perguntas } from './secoes';
 import { CartaoPlano, PARA_VOCE } from '@/components/cartao-plano';
 import { useAuthStore } from '@/stores/auth.store';
-import { isDesktopApp } from '@/lib/desktop';
+import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, isDesktopApp } from '@/lib/desktop';
 import { rotuloLivePlano, planoAtivo } from '@/lib/planos';
 
 // Letreiros do final: de cima para baixo, o último é a barra em pé da direita
 // some antes das bordas do quadro: o brilho cortado na borda formava um quadrado
 const MASCARA_LED = 'radial-gradient(closest-side, #000 62%, transparent 100%)';
 const LETREIROS = ['NEXUS LINK', 'BORA PRA CALL', 'AO VIVO', 'DJ NA CALL', '1080P 60FPS', 'GG', 'ONLINE'];
-const DOWNLOAD_WINDOWS = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
 
 const LIMA = '#c8f53b';
 const CAMINHO = 'M1 209.434C58.5872 255.935 387.926 325.938 482.583 209.434C600.905 63.8051 525.516 -43.2211 427.332 19.9613C329.149 83.1436 352.902 242.723 515.041 267.302C644.752 286.966 943.56 181.94 995 156.5';
@@ -391,6 +390,10 @@ export default function Landing() {
               <div>
                 <a href={DOWNLOAD_WINDOWS} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-white/70 hover:text-white">
                   <Download className="size-4" /> Baixar o app para Windows
+                </a>
+                <span className="mx-3 text-white/30">·</span>
+                <a href={DOWNLOAD_MAC} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-white/70 hover:text-white">
+                  <Download className="size-4" /> para Mac
                 </a>
               </div>
             </Aparecer>

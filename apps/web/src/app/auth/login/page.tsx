@@ -8,13 +8,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader2, LogIn, User, Mail, Download } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
-import { isDesktopApp } from '@/lib/desktop';
+import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, ehMac, isDesktopApp } from '@/lib/desktop';
 import { TwoFactorStep } from '@/components/auth/two-factor-step';
 import TubesCursor from '@/components/ui/tubes-cursor';
 
-// Instalador publicado nas Releases do GitHub; "latest" sempre aponta para a versão mais nova
-const DESKTOP_DOWNLOAD_URL =
-  'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
 
 const schema = z.object({
   email:    z.string().email('E-mail inválido'),
@@ -29,6 +26,7 @@ export default function LoginPage() {
   const [error,    setError]    = useState('');
   const [invited,  setInvited]  = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const [mac, setMac] = useState(false);
   const [notice, setNotice] = useState('');
   useEffect(() => {
     setInvited(!!localStorage.getItem('nexus_pending_invite'));
@@ -37,6 +35,7 @@ export default function LoginPage() {
     if (q.get('email') === 'confirmado') setNotice('E-mail confirmado! Agora é só entrar.');
     // Botão de download só fora do app de PC (depois de montar, sem divergir do HTML do servidor)
     setShowDownload(!isDesktopApp());
+    setMac(ehMac());
   }, []);
 
   // Quem já tem sessão válida volta para o app (ou para o convite pendente)
@@ -559,10 +558,10 @@ export default function LoginPage() {
             </button>
           </Link>
 
-          {/* Download do app para Windows (só no computador e fora do próprio app) */}
+          {/* Download do app para Windows ou Mac (só no computador e fora do próprio app) */}
           {showDownload && (
             <a
-              href={DESKTOP_DOWNLOAD_URL}
+              href={mac ? DOWNLOAD_MAC : DOWNLOAD_WINDOWS}
               className="hidden md:flex"
               style={{
                 marginTop: 14, alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13,
@@ -579,8 +578,8 @@ export default function LoginPage() {
                 <Download style={{ width: 18, height: 18, color: '#fff' }} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ display: 'block', fontSize: 14 }}>Baixar o Nexus para Windows</b>
-                <small style={{ display: 'block', fontSize: 11, color: '#8a8095' }}>App para PC · Windows 10 e 11 · 112 MB</small>
+                <b style={{ display: 'block', fontSize: 14 }}>Baixar o Nexus para {mac ? 'Mac' : 'Windows'}</b>
+                <small style={{ display: 'block', fontSize: 11, color: '#8a8095' }}>{mac ? 'App para Mac · macOS 12 ou mais novo · 231 MB' : 'App para PC · Windows 10 e 11 · 112 MB'}</small>
               </span>
             </a>
           )}

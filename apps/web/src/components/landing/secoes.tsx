@@ -206,7 +206,7 @@ export function Comentarios() {
 // ── Perguntas frequentes ─────────────────────────────────────────────────
 const PERGUNTAS = [
   { p: 'O Nexus é grátis?', r: 'Sim. O Grátis tem calls de voz e vídeo, chat, servidores, DJ, placar, conquistas e live de tela em 480p (24 ou 30fps). Os planos só aumentam a qualidade da live e personalizam o perfil.' },
-  { p: 'Preciso baixar alguma coisa?', r: 'Não. O Nexus funciona no navegador. No Windows tem o app de PC, com Modo jogo e o "Jogando agora". No celular, dá para instalar pelo próprio navegador.' },
+  { p: 'Preciso baixar alguma coisa?', r: 'Não. O Nexus funciona no navegador. No Windows e no Mac tem o app para computador, com Modo jogo e o "Jogando agora". No celular, dá para instalar pelo próprio navegador.' },
   { p: 'Como assino um plano?', r: 'O pagamento pelo site está chegando. Por enquanto, quem libera os planos é o dono do Nexus.' },
   { p: 'Como funciona o Indique e ganhe?', r: 'Cada pessoa tem um link próprio na página de planos. Quando alguém que entrou pelo seu link ganha o primeiro plano pago, você ganha 30 dias de Nexus+, que somam se você já tiver plano.' },
   { p: 'Como meu comentário aparece aqui?', r: 'Escreva na página de planos, dentro do app. Ele aparece aqui com o seu nome e a sua foto depois que o dono aprova.' },

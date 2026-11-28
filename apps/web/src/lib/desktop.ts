@@ -73,6 +73,12 @@ export function installAppUpdate() {
 }
 
 export const DOWNLOAD_WINDOWS = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Setup.exe';
+export const DOWNLOAD_MAC = 'https://github.com/yuripimenta12-eng/nexus-1/releases/latest/download/Nexus-Link-Mac.dmg';
+
+/** Computador Mac (o iPad também diz "Macintosh", mas tem tela de toque). Só depois de montar a página. */
+export function ehMac(): boolean {
+  return typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints < 2;
+}
 
 /** App de PC antes da 1.5.0: não tem atualização automática, precisa baixar o instalador de novo. */
 export function appSemAtualizacaoAutomatica(v = desktopAppVersion()): boolean {
